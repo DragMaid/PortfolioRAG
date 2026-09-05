@@ -12,7 +12,7 @@ public interface IPostRepository
     // TODO: define the post request the
     Task<(IReadOnlyList<Post> Items, int TotalItems)> QueryAsync(
         PostQueryRequest request,
-        bool NotIsDraftOnly,
+        bool? isDraft,
         CancellationToken cancellationToken = default);
 
     Task<bool> SlugExistsAsync(string slug, int? excludingPostId = null, CancellationToken cancellationToken = default);

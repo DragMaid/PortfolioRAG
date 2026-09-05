@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Models.DTOs;
 
-public class CreatePostDto
+public class UpdatePostDto
 {
     [Required]
     [StringLength(200, MinimumLength = 3)]
@@ -19,7 +19,4 @@ public class CreatePostDto
     [Required]
     [StringLength(50000, MinimumLength = 1)]
     public string Body { get; init; } = string.Empty;
-
-    [Range(1, int.MaxValue)]
-    public int AuthorId { get; init; }
 }

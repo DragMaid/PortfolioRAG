@@ -22,7 +22,7 @@ public static class MappingExtensions
         Name = author.Name
     };
 
-    public static PostDto ToDto(this Post post, int commentCount) => new()
+    public static PostDto ToDto(this Post post) => new()
     {
         Id = post.Id,
         Title = post.Title,
@@ -37,7 +37,7 @@ public static class MappingExtensions
         PublishedAt = post.PublishedAt
     };
 
-    public static PostSummaryDto ToSummaryDto(this Post post, int commentCount) => new()
+    public static PostSummaryDto ToSummaryDto(this Post post) => new()
     {
         Id = post.Id,
         Title = post.Title,

@@ -22,15 +22,14 @@ public class PostRepository : IPostRepository
 
     public async Task<(IReadOnlyList<Post> Items, int TotalItems)> QueryAsync(
         PostQueryRequest request,
-        bool NotIsDraftOnly,
+        bool? isDraft,
         CancellationToken cancellationToken = default)
     {
         var query = BaseQuery(tracked: false);
 
-        // TODO: this seems kind of dumb to handle it
-        if (NotIsDraftOnly)
+        if (isDraft is not null)
         {
-            query = query.Where(p => p.IsDraft != true);
+            query = query.Where(p => p.IsDraft == isDraft);
         }
 
         if (request.AuthorId.HasValue)

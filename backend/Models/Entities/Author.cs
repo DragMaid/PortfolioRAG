@@ -1,5 +1,6 @@
 namespace Backend.Models.Entities;
 
+// TODO: consider using password for authentication as I dont wanna do OAuth
 public class Author
 {
     public int Id { get; set; }
@@ -8,9 +9,9 @@ public class Author
 
     public string Email { get; set; } = string.Empty;
 
-    public string Biography { get; set; } = string.Empty;
+    public string? AvatarUrl { get; set; }
 
-    public string AvatarUrl { get; set; } = string.Empty;
+    public string? Biography { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 
