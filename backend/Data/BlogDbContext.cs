@@ -20,8 +20,8 @@ public class BlogDbContext : DbContext
             entity.HasKey(a => a.Id);
             entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
-            entity.Property(a => a.AvatarUrl).IsRequired().HasMaxLength(256);
-            entity.Property(a => a.Biography).IsRequired().HasMaxLength(1000);
+            entity.Property(a => a.AvatarUrl).HasMaxLength(256);
+            entity.Property(a => a.Biography).HasMaxLength(1000);
             entity.HasIndex(a => a.Email).IsUnique();
         });
 
