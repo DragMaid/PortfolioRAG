@@ -13,6 +13,10 @@ public class BlogDbContext : DbContext
 
     public DbSet<Media> Medias => Set<Media>();
 
+    public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
+
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Author>(entity =>
@@ -22,7 +26,36 @@ public class BlogDbContext : DbContext
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
             entity.Property(a => a.AvatarUrl).HasMaxLength(256);
             entity.Property(a => a.Biography).HasMaxLength(1000);
+            // NOTE: stored lowercase so the unique index doubles as case-insensitive lookup.
             entity.HasIndex(a => a.Email).IsUnique();
+            entity.Property(a => a.PasswordHash).HasMaxLength(512);
+        });
+
+        modelBuilder.Entity<ExternalLogin>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            // NOTE: one provider account maps to exactly one author.
+            entity.HasIndex(e => new { e.Provider, e.Subject }).IsUnique();
+
+            entity.HasOne(e => e.Author)
+                .WithMany(a => a.ExternalLogins)
+                .HasForeignKey(e => e.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.TokenHash).IsRequired().HasMaxLength(128);
+            entity.Property(t => t.ReplacedByTokenHash).HasMaxLength(128);
+            entity.HasIndex(t => t.TokenHash).IsUnique();
+
+            entity.HasOne(t => t.Author)
+                .WithMany(a => a.RefreshTokens)
+                .HasForeignKey(t => t.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Post>(entity =>
@@ -30,7 +63,7 @@ public class BlogDbContext : DbContext
             entity.HasKey(p => p.Id);
             entity.Property(p => p.Title).IsRequired().HasMaxLength(200);
             entity.Property(p => p.Slug).IsRequired().HasMaxLength(200);
-            entity.Property(p => p.Summary).IsRequired().HasMaxLength(500);
+            entity.Property(p => p.Summary).HasMaxLength(500);
             entity.Property(p => p.Body).IsRequired();
             entity.HasIndex(p => p.Slug).IsUnique();
 
