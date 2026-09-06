@@ -5,12 +5,15 @@ namespace Backend.Services;
 
 public interface IPostService
 {
-    // TODO: nah I think again this is a dumb way to handle it, im going to move
-    // everything to just using the is draft boolean to determine what to get in the same query
+    /// <summary>The public feed: published posts by any author, no caller required.</summary>
     Task<PagedResult<PostSummaryDto>> GetPublicAsync(
             PostQueryRequest request,
             CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The authoring feed: the signed-in author's own posts. Pass isDraft to narrow it to
+    /// drafts or published posts; null returns both. Always scoped to the caller.
+    /// </summary>
     Task<PagedResult<PostSummaryDto>> GetByDraftAsync(
         PostQueryRequest request,
         bool? isDraft = null,
@@ -18,8 +21,10 @@ public interface IPostService
 
     Task<PostDto> GetPublicBySlugAsync(string slug, CancellationToken cancellationToken = default);
 
+    /// <summary>Reads one of the caller's own posts, draft or not.</summary>
     Task<PostDto> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a draft owned by the caller. The author is never taken from the body.</summary>
     Task<PostDto> CreateAsync(CreatePostDto dto, CancellationToken cancellationToken = default);
 
     Task<PostDto> UpdateAsync(int id, UpdatePostDto dto, CancellationToken cancellationToken = default);
@@ -30,6 +35,5 @@ public interface IPostService
 
     Task DeleteAsync(int id, CancellationToken cancellationToken = default);
 
-    // TODO: this one seems kind of redundant, will consider removing it
     Task<int> RegisterViewAsync(string slug, CancellationToken cancellationToken = default);
 }
