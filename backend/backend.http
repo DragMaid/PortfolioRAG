@@ -1,6 +1,78 @@
 @backend_HostAddress = http://localhost:5009
 
-GET {{backend_HostAddress}}/weatherforecast/
+### Sign in as the seeded development author.
+# @name login
+POST {{backend_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "author@example.com", "password": "ChangeMe!Dev123" }
+
+###
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### Register a new author.
+POST {{backend_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{ "name": "Someone New", "email": "new@example.com", "password": "a long enough password" }
+
+### Sign in with Google. The frontend obtains idToken from Google Identity Services;
+### this needs Authentication:Google:ClientId to be configured.
+POST {{backend_HostAddress}}/api/auth/oauth/google
+Content-Type: application/json
+
+{ "idToken": "<google-id-token>" }
+
+### Add Google to the signed-in account.
+POST {{backend_HostAddress}}/api/auth/oauth/google/link
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{ "idToken": "<google-id-token>" }
+
+### Who am I, and how can this account sign in?
+GET {{backend_HostAddress}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Trade the refresh token for a new pair. The old one is spent.
+POST {{backend_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "{{refreshToken}}" }
+
+### Sign out this session.
+POST {{backend_HostAddress}}/api/auth/logout
+Content-Type: application/json
+
+{ "refreshToken": "{{refreshToken}}" }
+
+### Public feed: published posts only.
+GET {{backend_HostAddress}}/api/posts
 Accept: application/json
+
+### Authoring feed: your own posts, drafts included. 401 without a token.
+GET {{backend_HostAddress}}/api/admin/posts
+Authorization: Bearer {{accessToken}}
+
+### Only your drafts.
+GET {{backend_HostAddress}}/api/admin/posts?isDraft=true
+Authorization: Bearer {{accessToken}}
+
+### Create a draft. It is filed under whoever the token identifies.
+# @name createPost
+POST {{backend_HostAddress}}/api/admin/posts
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{ "title": "A post written over HTTP", "summary": "Optional.", "body": "The body." }
+
+### Publish it.
+POST {{backend_HostAddress}}/api/admin/posts/{{createPost.response.body.id}}/publish
+Authorization: Bearer {{accessToken}}
+
+### Someone else's post: 403.
+POST {{backend_HostAddress}}/api/admin/posts/4/publish
+Authorization: Bearer {{accessToken}}
 
 ###
