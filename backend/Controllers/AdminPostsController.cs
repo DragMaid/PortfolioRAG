@@ -1,20 +1,22 @@
 using Backend.Models.DTOs;
 using Backend.Models.Requests;
 using Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
 /// <summary>
-/// Authoring endpoints: drafts posts are visible here as well.
-/// Actions performed by authorized users like creation, publishing, etc is here also 
+/// Authoring endpoints. Every action here is scoped to the signed-in author: they see
+/// their own drafts, and they create, edit, publish and delete only their own posts.
+/// Nobody can act on another author's behalf.
 /// </summary>
 [ApiController]
 [Route("api/admin/posts")]
 [Produces("application/json")]
+[Authorize]
 public class AdminPostsController : ControllerBase
 {
-    // TODO: no authentication is wired up yet — put these behind an auth policy before deploying.
     private readonly IPostService _postService;
 
     public AdminPostsController(IPostService postService)
@@ -22,25 +24,30 @@ public class AdminPostsController : ControllerBase
         _postService = postService;
     }
 
+    /// <summary>Your own posts, drafts included. The AuthorId filter is ignored here.</summary>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<PostSummaryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<PagedResult<PostSummaryDto>>> GetAll(
         [FromQuery] PostQueryRequest request,
         CancellationToken cancellationToken) =>
-        // TODO: this generic function call might not be the best idea
-        // maybe move over to business level functions would be more readable
-        Ok(await _postService.GetByDraftAsync(request, isDraft: null, cancellationToken));
+        Ok(await _postService.GetByDraftAsync(request, request.IsDraft, cancellationToken));
 
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PostDto>> GetById(int id, CancellationToken cancellationToken) =>
         Ok(await _postService.GetByIdAsync(id, cancellationToken));
 
+    /// <summary>Creates a draft owned by you. The author comes from your access token.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<PostDto>> Create(
@@ -54,6 +61,8 @@ public class AdminPostsController : ControllerBase
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<PostDto>> Update(
@@ -64,18 +73,24 @@ public class AdminPostsController : ControllerBase
 
     [HttpPost("{id:int}/publish")]
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PostDto>> Publish(int id, CancellationToken cancellationToken) =>
         Ok(await _postService.PublishAsync(id, cancellationToken));
 
     [HttpPost("{id:int}/unpublish")]
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PostDto>> Unpublish(int id, CancellationToken cancellationToken) =>
         Ok(await _postService.UnpublishAsync(id, cancellationToken));
 
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
