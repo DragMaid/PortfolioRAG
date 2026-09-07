@@ -12,7 +12,6 @@ public class SetPasswordDto
     [StringLength(PasswordHasher.MaximumPasswordLength)]
     public string? CurrentPassword { get; init; }
 
-    // TODO: use default password hasher
     [Required]
     [StringLength(PasswordHasher.MaximumPasswordLength, MinimumLength = PasswordHasher.MinimumPasswordLength)]
     public string NewPassword { get; init; } = string.Empty;

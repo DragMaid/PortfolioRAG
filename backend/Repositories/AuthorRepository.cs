@@ -65,10 +65,6 @@ public class AuthorRepository : IAuthorRepository
             cancellationToken);
     }
 
-    // NOTE: using sync func here to return the task to be awaited outside of the code instead
-    public Task<bool> HasPostsAsync(int authorId, CancellationToken cancellationToken = default) =>
-        _context.Posts.AnyAsync(p => p.AuthorId == authorId, cancellationToken);
-
     public async Task AddAsync(Author author, CancellationToken cancellationToken = default) =>
         await _context.Authors.AddAsync(author, cancellationToken);
 
