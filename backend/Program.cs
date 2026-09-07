@@ -26,9 +26,20 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// TODO: move to postgresql instead
+// NOTE: failing here rather than at the first query — a missing connection string is a
+// deployment mistake, and an API that boots and then 500s on every request hides it.
+var connectionString = builder.Configuration.GetConnectionString("Postgres");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "The 'Postgres' connection string is not configured. Development reads it from " +
+        "appsettings.Development.json (docker compose up -d db); elsewhere supply it through " +
+        "user secrets or the ConnectionStrings__Postgres environment variable.");
+}
+
 builder.Services.AddDbContext<BlogDbContext>(options =>
-    options.UseInMemoryDatabase("BlogDB"));
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
 
@@ -145,12 +156,12 @@ if (app.Environment.IsDevelopment())
     app.UseOpenApi();
     app.UseSwaggerUi();
 
-    // NOTE: this part will seed the database if the service is in development mode
+    // NOTE: development brings its own database up to date and seeds it, so a fresh clone
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
     var timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
-    // TODO: make it so only in developmental mode will the seeder be ran
+    await context.Database.MigrateAsync();
     await BlogDbSeeder.SeedAsync(context, timeProvider);
 }
 
