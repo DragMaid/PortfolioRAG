@@ -30,6 +30,9 @@ public class DefaultExceptionHandler : IExceptionHandler
         {
             // NOTE: all custom exceptions must be mapped here
             NotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
+            UnauthorizedException => (StatusCodes.Status401Unauthorized, "Not authenticated"),
+            ForbiddenException => (StatusCodes.Status403Forbidden, "Not authorized"),
+            NotConfiguredException => (StatusCodes.Status503ServiceUnavailable, "Feature not configured"),
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
             ValidationException => (StatusCodes.Status400BadRequest, "Invalid request"),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occured")

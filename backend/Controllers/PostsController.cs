@@ -1,13 +1,19 @@
 using Backend.Models.DTOs;
 using Backend.Models.Requests;
 using Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
+/// <summary>
+/// The public blog. Only published posts are reachable here — a draft is a 404 to
+/// everyone, including its own author, who reads it through /api/admin/posts instead.
+/// </summary>
 [ApiController]
 [Route("api/posts")]
 [Produces("application/json")]
+[AllowAnonymous]
 public class PostsController : ControllerBase
 {
     private readonly IPostService _postService;

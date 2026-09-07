@@ -19,6 +19,35 @@ public class AuthorRepository : IAuthorRepository
         return query.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
+    public Task<Author?> GetByEmailAsync(
+        string email,
+        bool tracked = false,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var query = tracked ? _context.Authors : _context.Authors.AsNoTracking();
+        return query.FirstOrDefaultAsync(a => a.Email.ToLower() == normalized, cancellationToken);
+    }
+
+    public Task<ExternalLogin?> GetExternalLoginAsync(
+        ExternalLoginProvider provider,
+        string subject,
+        CancellationToken cancellationToken = default) =>
+        _context.ExternalLogins.FirstOrDefaultAsync(
+            e => e.Provider == provider && e.Subject == subject,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<ExternalLogin>> GetExternalLoginsAsync(
+        int authorId,
+        CancellationToken cancellationToken = default) =>
+        await _context.ExternalLogins
+            .AsNoTracking()
+            .Where(e => e.AuthorId == authorId)
+            .ToListAsync(cancellationToken);
+
+    public async Task AddExternalLoginAsync(ExternalLogin login, CancellationToken cancellationToken = default) =>
+        await _context.ExternalLogins.AddAsync(login, cancellationToken);
+
     public async Task<IReadOnlyList<Author>> GetAllAsync(CancellationToken cancellationToken = default) =>
         await _context.Authors
             .AsNoTracking()

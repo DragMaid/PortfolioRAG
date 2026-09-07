@@ -19,7 +19,4 @@ public class CreatePostDto
     [Required]
     [StringLength(50000, MinimumLength = 1)]
     public string Body { get; init; } = string.Empty;
-
-    [Range(1, int.MaxValue)]
-    public int AuthorId { get; init; }
 }

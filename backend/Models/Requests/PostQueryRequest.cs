@@ -1,5 +1,3 @@
-using Backend.Models.Entities;
-
 namespace Backend.Models.Requests;
 
 public class PostQueryRequest : PagedRequest

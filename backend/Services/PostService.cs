@@ -5,6 +5,7 @@ using Backend.Models.Entities;
 using Backend.Models.Requests;
 using Backend.Mapping;
 using Backend.Common;
+using Backend.Common.Security;
 
 namespace Backend.Services;
 
@@ -12,15 +13,18 @@ public class PostService : IPostService
 {
     private readonly IPostRepository _posts;
     private readonly IAuthorRepository _authors;
+    private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
 
     public PostService(
         IPostRepository posts,
         IAuthorRepository authors,
+        ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _posts = posts;
         _authors = authors;
+        _currentUser = currentUser;
         _timeProvider = timeProvider;
     }
 
@@ -29,12 +33,17 @@ public class PostService : IPostService
         CancellationToken cancellationToken = default) =>
         QueryAsync(request, cancellationToken, isDraft: false);
 
-    // TODO: not sure if I should do this one or not
     public Task<PagedResult<PostSummaryDto>> GetByDraftAsync(
         PostQueryRequest request,
         bool? isDraft = null,
-        CancellationToken cancellationToken = default) =>
-        QueryAsync(request, cancellationToken, isDraft: isDraft);
+        CancellationToken cancellationToken = default)
+    {
+        // NOTE: the authoring list only ever shows the caller's own posts, so whatever
+        // AuthorId the query string asked for is overwritten rather than trusted. Drafts
+        // are only ever reachable through this path.
+        request.AuthorId = _currentUser.RequireAuthorId();
+        return QueryAsync(request, cancellationToken, isDraft: isDraft);
+    }
 
     public async Task<PostDto> GetPublicBySlugAsync(
         string slug,
@@ -56,13 +65,19 @@ public class PostService : IPostService
     {
         var post = await _posts.GetByIdAsync(id, tracked: false, cancellationToken)
             ?? throw NotFoundException.For("Post", id);
+
+        EnsureOwnedByCaller(post);
         return post.ToDto();
     }
 
     public async Task<PostDto> CreateAsync(CreatePostDto dto, CancellationToken cancellationToken = default)
     {
-        var author = await _authors.GetByIdAsync(dto.AuthorId, tracked: true, cancellationToken)
-            ?? throw NotFoundException.For("Author", dto.AuthorId);
+        // NOTE: the author is taken from the access token, never from the request body.
+        // There is no way to ask for a post to be filed under somebody else.
+        var authorId = _currentUser.RequireAuthorId();
+
+        var author = await _authors.GetByIdAsync(authorId, tracked: true, cancellationToken)
+            ?? throw new UnauthorizedException("The signed-in account no longer exists.");
 
         var slug = await ResolveSlugAsync(dto.Slug, dto.Title, excludingPostId: null, cancellationToken);
         var now = _timeProvider.GetUtcNow();
@@ -93,6 +108,8 @@ public class PostService : IPostService
     {
         var post = await _posts.GetByIdAsync(id, tracked: true, cancellationToken)
             ?? throw NotFoundException.For("Post", id);
+
+        EnsureOwnedByCaller(post);
 
         if (!string.IsNullOrWhiteSpace(dto.Slug))
             post.Slug = await ResolveSlugAsync(dto.Slug, dto.Title, excludingPostId: id, cancellationToken);
@@ -137,6 +154,8 @@ public class PostService : IPostService
     {
         var post = await _posts.GetByIdAsync(id, tracked: true, cancellationToken)
             ?? throw NotFoundException.For("Post", id);
+
+        EnsureOwnedByCaller(post);
         await _posts.RemoveAsync(post, cancellationToken);
         await _posts.SaveChangesAsync(cancellationToken);
     }
@@ -161,15 +180,32 @@ public class PostService : IPostService
         bool isDraft,
         CancellationToken cancellationToken)
     {
-        // TODO: this one doesnt really make sense to throw the exception here
         var post = await _posts.GetByIdAsync(id, tracked: true, cancellationToken)
             ?? throw NotFoundException.For("Post", id);
+
+        EnsureOwnedByCaller(post);
+
         var now = _timeProvider.GetUtcNow();
         post.IsDraft = isDraft;
         post.UpdatedAt = now;
 
+        // NOTE: stamp the first publication only. Re-publishing after a spell as a draft
+        // keeps the original date so the public ordering does not shuffle.
+        if (!isDraft)
+            post.PublishedAt ??= now;
+
         await _posts.SaveChangesAsync(cancellationToken);
         return post.ToDto();
+    }
+
+    /// <summary>
+    /// The single ownership rule: an author may only ever act on their own posts. Nobody —
+    /// no role, no flag — writes or publishes on another author's behalf.
+    /// </summary>
+    private void EnsureOwnedByCaller(Post post)
+    {
+        if (post.AuthorId != _currentUser.RequireAuthorId())
+            throw ForbiddenException.For("post", post.Id);
     }
 
     private async Task<string> ResolveSlugAsync(
