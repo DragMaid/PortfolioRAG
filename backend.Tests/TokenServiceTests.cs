@@ -8,7 +8,7 @@ public class TokenServiceTests
     [Fact]
     public async Task Issue_returns_an_access_token_and_a_refresh_token()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
 
         var result = await harness.Tokens.IssueAsync(author);
@@ -23,7 +23,7 @@ public class TokenServiceTests
     [Fact]
     public async Task The_raw_refresh_token_is_never_stored()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
 
         var result = await harness.Tokens.IssueAsync(author);
@@ -36,7 +36,7 @@ public class TokenServiceTests
     [Fact]
     public async Task Rotate_spends_the_old_token_and_issues_a_new_one()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
         var first = await harness.Tokens.IssueAsync(author);
 
@@ -51,7 +51,7 @@ public class TokenServiceTests
     [Fact]
     public async Task Replaying_a_spent_token_revokes_every_token_the_author_holds()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
         var first = await harness.Tokens.IssueAsync(author);
         var second = await harness.Tokens.RotateAsync(first.RefreshToken);
@@ -68,7 +68,7 @@ public class TokenServiceTests
     {
         // Signing out on one device, or changing the password, must not let that device's
         // dead token take down the session that replaced it.
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
         var abandoned = await harness.Tokens.IssueAsync(author);
         await harness.Tokens.RevokeAsync(abandoned.RefreshToken);
@@ -84,7 +84,7 @@ public class TokenServiceTests
     [Fact]
     public async Task An_expired_token_cannot_be_rotated()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
         var issued = await harness.Tokens.IssueAsync(author);
 
@@ -96,21 +96,21 @@ public class TokenServiceTests
     [Fact]
     public async Task An_unknown_token_is_rejected()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         await Assert.ThrowsAsync<UnauthorizedException>(() => harness.Tokens.RotateAsync("never-issued"));
     }
 
     [Fact]
     public async Task Revoking_an_unknown_token_is_not_an_error()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         await harness.Tokens.RevokeAsync("never-issued");
     }
 
     [Fact]
     public async Task RevokeAll_ends_every_active_session()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("a@example.com", "a password here");
 
         var sessions = new List<AuthResultDto>
@@ -131,7 +131,7 @@ public class TokenServiceTests
     [Fact]
     public async Task One_authors_tokens_are_untouched_when_another_signs_out_everywhere()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var first = await harness.AddAuthorAsync("first@example.com", "a password here");
         var second = await harness.AddAuthorAsync("second@example.com", "a password here");
 

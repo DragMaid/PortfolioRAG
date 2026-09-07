@@ -8,8 +8,6 @@ public interface IPostRepository
     Task<Post?> GetByIdAsync(int id, bool tracked = false, CancellationToken cancellationToken = default);
 
     Task<Post?> GetBySlugAsync(string slug, bool tracked = false, CancellationToken cancellationToken = default);
-
-    // TODO: define the post request the
     Task<(IReadOnlyList<Post> Items, int TotalItems)> QueryAsync(
         PostQueryRequest request,
         bool? isDraft,

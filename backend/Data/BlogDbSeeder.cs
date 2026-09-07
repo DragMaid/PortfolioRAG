@@ -11,8 +11,8 @@ namespace Backend.Data;
 /// </summary>
 public static class BlogDbSeeder
 {
-    // NOTE: development only, and the in-memory database is thrown away on shutdown.
-    // A real deployment registers its first author through POST /api/auth/register.
+    // NOTE: development only. These credentials reach a local container and nothing else —
+    // a real deployment registers its first author through POST /api/auth/register.
     public const string DemoEmail = "author@example.com";
     public const string DemoPassword = "ChangeMe!Dev123";
 
