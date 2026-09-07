@@ -9,10 +9,10 @@ namespace Backend.Services;
 
 public class AuthService : IAuthService
 {
-    // TODO: im not sure if storing the message on the backend is a good idea or not, maybe
-    // we can just move them all to the frontend instead
     // NOTE: one message for every credential failure. Saying "no such account" would turn
-    // the login endpoint into a way to enumerate which addresses are registered.
+    // the login endpoint into a way to enumerate which addresses are registered. It has to
+    // be decided here rather than left to the frontend for exactly that reason: the client
+    // can only phrase a distinction it was told about, and telling it is the leak.
     private const string InvalidCredentials = "The email address or password is incorrect.";
 
     private const int MaxNameLength = 100;
@@ -52,7 +52,6 @@ public class AuthService : IAuthService
             Name = dto.Name.Trim(),
             Email = email,
             Biography = string.IsNullOrWhiteSpace(dto.Biography) ? null : dto.Biography.Trim(),
-            // TODO: use default password hasher instead
             PasswordHash = PasswordHasher.Hash(dto.Password),
             // NOTE: nothing has vouched for this address yet, which is exactly what keeps a
             // later Google sign-in from silently adopting the account. See SignInWithGoogleAsync.
@@ -73,13 +72,11 @@ public class AuthService : IAuthService
         // In case the user was registered fully via gmail and has no password
         if (author?.PasswordHash is null)
         {
-            // TODO: goofy ass way to do it, wonder if it would actually improve ux since this got recommended by AI
             // NOTE: hash anyway so a missing account and a wrong password take the same time.
             PasswordHasher.BurnVerificationTime();
             throw new UnauthorizedException(InvalidCredentials);
         }
 
-        // TODO: use default hasher instead
         if (!PasswordHasher.Verify(dto.Password, author.PasswordHash))
             throw new UnauthorizedException(InvalidCredentials);
 
@@ -142,8 +139,6 @@ public class AuthService : IAuthService
         // with a password before its real owner ever showed up. Only adopt accounts that
         // cannot be sitting on a squatted address: ones with no password, or ones whose
         // address a provider has already confirmed.
-        // TODO: something seems wrong here, if EmailConfirmedAt is null then the account have
-        // yet been linked by another email
         if (byEmail.PasswordHash is not null && byEmail.EmailConfirmedAt is null)
         {
             throw new ConflictException(
@@ -221,14 +216,12 @@ public class AuthService : IAuthService
 
         // NOTE: an account created through Google has no password to prove, so it may set
         // its first one straight away. Changing an existing one always needs the old one.
-        // TODO: use default hasher
         if (author.PasswordHash is not null &&
             !PasswordHasher.Verify(dto.CurrentPassword ?? string.Empty, author.PasswordHash))
         {
             throw new UnauthorizedException("The current password is incorrect.");
         }
 
-        // TODO: use default hasher
         author.PasswordHash = PasswordHasher.Hash(dto.NewPassword);
         await _authors.SaveChangesAsync(cancellationToken);
 

@@ -1,5 +1,21 @@
 namespace Backend.Models.Entities;
 
+/// <summary>
+/// The file types a post may embed. A closed set rather than free text: the extension
+/// decides how the frontend renders the item and what the eventual upload endpoint will
+/// accept, and neither can act on a value it does not know.
+/// </summary>
+public enum MediaExtension
+{
+    Png = 0,
+    Jpeg = 1,
+    Gif = 2,
+    Webp = 3,
+    Svg = 4,
+    Mp4 = 5,
+    Webm = 6
+}
+
 public class Media
 { 
     public int Id { get; set; } 
@@ -8,7 +24,7 @@ public class Media
 
     public string Url { get; set; } = String.Empty;
 
-    public string Extension { get; set; } = String.Empty;
+    public MediaExtension Extension { get; set; }
 
     public int PostId { get; set; }
 

@@ -10,13 +10,16 @@ public class AuthorService : IAuthorService
 {
     private readonly IAuthorRepository _authors;
     private readonly ICurrentUser _currentUser;
+    private readonly TimeProvider _timeProvider;
 
     public AuthorService(
         IAuthorRepository authors,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        TimeProvider timeProvider)
     {
         _authors = authors;
         _currentUser = currentUser;
+        _timeProvider = timeProvider;
     }
 
     public async Task<IReadOnlyList<AuthorDto>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -47,12 +50,11 @@ public class AuthorService : IAuthorService
         if (await _authors.EmailExistsAsync(email, id, cancellationToken))
             throw new ConflictException($"An author with the email '{email}' already exists.");
 
-        // TODO: handling this also means that if i were to migrate to a new mail
-        // but the email havent been confirmed, then i might need to revert back to
-        // the original email (check for this potential bug later)
-        // NOTE: moving to a new address drops the confirmation the old one carried.
+        // NOTE: making sure that the new linked email is not the current one being used
         if (!string.Equals(author.Email, email, StringComparison.OrdinalIgnoreCase))
+        {
             author.EmailConfirmedAt = null;
+        }
 
         author.Name = dto.Name.Trim();
         author.Email = email;
@@ -70,12 +72,8 @@ public class AuthorService : IAuthorService
         var author = await _authors.GetByIdAsync(id, tracked: true, cancellationToken)
             ?? throw NotFoundException.For("Author", id);
 
-        // TODO: this has post thing doesn't really make sense as It would most
-        // probably be deleted on cascade, not handling this for now, remove the haspost check after
-        // if (await _authors.HasPostsAsync(id, CancellationToken))
-        // The desired behavior should be that if the user wants to delete their account
-        // then remove all their posts also, dont let anything survive whatsoever
-
+        // NOTE: closing an account takes everything with it — posts, their media, the
+        // external logins and every refresh token
         _authors.Remove(author);
         await _authors.SaveChangesAsync(cancellationToken);
     }

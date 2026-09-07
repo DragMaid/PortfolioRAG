@@ -67,10 +67,12 @@ public class BlogDbContext : DbContext
             entity.Property(p => p.Body).IsRequired();
             entity.HasIndex(p => p.Slug).IsUnique();
 
+            // NOTE: deleting an account takes its posts — and, through them, their media —
+            // with it. Nothing of a closed account survives. See AuthorService.DeleteAsync.
             entity.HasOne(p => p.Author)
                 .WithMany(a => a.Posts)
                 .HasForeignKey(p => p.AuthorId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Media>(entity =>
@@ -78,13 +80,14 @@ public class BlogDbContext : DbContext
             entity.HasKey(m => m.Id);
             entity.Property(m => m.Filename).IsRequired().HasMaxLength(100);
             entity.Property(m => m.Url).IsRequired().HasMaxLength(256);
-            // TODO: maybe change the supported extensions to just be some predefined enums
-            entity.Property(m => m.Extension).IsRequired().HasMaxLength(100);
+            entity.Property(m => m.Extension).IsRequired();
 
+            // NOTE: a media row is meaningless without the post it belongs to, so the
+            // database drops it with the post rather than the repository doing it by hand.
             entity.HasOne(m => m.Post)
                 .WithMany(p => p.Medias)
                 .HasForeignKey(m => m.PostId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
