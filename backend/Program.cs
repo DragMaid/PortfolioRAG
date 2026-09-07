@@ -26,6 +26,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+// TODO: move to postgresql instead
 builder.Services.AddDbContext<BlogDbContext>(options =>
     options.UseInMemoryDatabase("BlogDB"));
 
@@ -148,6 +149,8 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
     var timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+
+    // TODO: make it so only in developmental mode will the seeder be ran
     await BlogDbSeeder.SeedAsync(context, timeProvider);
 }
 
