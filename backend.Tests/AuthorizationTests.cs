@@ -1,5 +1,6 @@
 using Backend.Common.Exceptions;
 using Backend.Models.DTOs;
+using Backend.Models.DTOs.Auth;
 using Backend.Models.Requests;
 
 namespace Backend.Tests;
@@ -14,7 +15,7 @@ public class AuthorizationTests
     public async Task Drafts_are_only_listed_for_their_own_author()
     {
         // Arrage
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
         var theirs = await harness.AddAuthorAsync("theirs@example.com", "a long enough password");
 
@@ -35,7 +36,7 @@ public class AuthorizationTests
     public async Task An_author_id_in_the_query_string_cannot_widen_the_listing()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
         var theirs = await harness.AddAuthorAsync("theirs@example.com", "a long enough password");
 
@@ -54,7 +55,7 @@ public class AuthorizationTests
     [Fact]
     public async Task The_authoring_list_needs_a_signed_in_caller()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // NOTE: this one sounds weird because the get by draft is available only to authors
         // while the GetPublicPosts can be called by annoynomous users
@@ -66,7 +67,7 @@ public class AuthorizationTests
     public async Task Another_authors_post_cannot_be_read_edited_published_or_deleted()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // ACtion
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -92,7 +93,7 @@ public class AuthorizationTests
     public async Task An_author_can_publish_their_own_draft()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -109,7 +110,7 @@ public class AuthorizationTests
     public async Task Republishing_keeps_the_original_publication_date()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         
 
         // Act
@@ -129,7 +130,7 @@ public class AuthorizationTests
     public async Task A_new_post_is_filed_under_the_caller_and_starts_as_a_draft()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -152,7 +153,7 @@ public class AuthorizationTests
     [Fact]
     public async Task Creating_a_post_needs_a_signed_in_caller()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         await Assert.ThrowsAsync<UnauthorizedException>(() => harness.PostService.CreateAsync(
             new CreatePostDto { Title = "Anonymous post", Body = "The body." }));
@@ -161,7 +162,7 @@ public class AuthorizationTests
     [Fact]
     public async Task A_post_without_a_summary_can_be_created()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
         harness.SignIn(mine);
 
@@ -177,7 +178,7 @@ public class AuthorizationTests
     [Fact]
     public async Task The_public_feed_shows_published_posts_only()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
         await harness.AddPostAsync(author, isDraft: true);
         var published = await harness.AddPostAsync(author, isDraft: false);
@@ -193,7 +194,7 @@ public class AuthorizationTests
     public async Task A_draft_is_not_reachable_by_slug_even_by_its_own_author()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var author = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -210,7 +211,7 @@ public class AuthorizationTests
     public async Task A_missing_post_is_a_404_not_a_403()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var author = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -224,7 +225,7 @@ public class AuthorizationTests
     public async Task An_author_can_only_edit_and_delete_their_own_account()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -243,7 +244,7 @@ public class AuthorizationTests
     public async Task Editing_your_own_profile_is_persisted()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
@@ -271,7 +272,7 @@ public class AuthorizationTests
     public async Task Moving_to_a_new_address_drops_its_confirmation()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         
         // Act
         var mine = await harness.AddAuthorAsync(
@@ -290,28 +291,31 @@ public class AuthorizationTests
         Assert.Null(harness.Context.Authors.Single(a => a.Id == mine.Id).EmailConfirmedAt);
     }
 
-    // TODO: remove this behavior
-    // [Fact]
-    // public async Task An_account_with_posts_cannot_be_deleted()
-    // {
-    //     // Arrange
-    //     using var harness = new TestHarness();
+    [Fact]
+    public async Task Deleting_an_account_takes_its_posts_with_it()
+    {
+        // Arrange
+        await using var harness = await TestHarness.CreateAsync();
+        var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
+        var theirs = await harness.AddAuthorAsync("theirs@example.com", "a long enough password");
 
-    //     // Act
-    //     var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
-    //     await harness.AddPostAsync(mine);
-    //     harness.SignIn(mine);
+        // Act
+        await harness.AddPostAsync(mine, title: "Mine");
+        var survivor = await harness.AddPostAsync(theirs, title: "Theirs");
 
-    //     // Assert
-    //     await Assert.ThrowsAsync<ConflictException>(() => harness.AuthorService.DeleteAsync(mine.Id));
-    //     Assert.Single(harness.Context.Authors);
-    // }
+        harness.SignIn(mine);
+        await harness.AuthorService.DeleteAsync(mine.Id);
+
+        // Assert: closing an account leaves nothing of it behind, and touches nobody else's.
+        Assert.Empty(harness.Context.Posts.Where(p => p.AuthorId == mine.Id));
+        Assert.Equal(survivor.Id, harness.Context.Posts.Single().Id);
+    }
 
     [Fact]
     public async Task Author_profiles_are_readable_without_signing_in()
     {
         // Arrange
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         // Act
         var author = await harness.AddAuthorAsync("mine@example.com", "a long enough password");

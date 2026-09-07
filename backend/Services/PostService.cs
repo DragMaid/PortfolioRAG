@@ -135,10 +135,7 @@ public class PostService : IPostService
         CancellationToken cancellationToken,
         bool? isDraft = null)
     {
-        // TODO: fix the implementation of QueryAsync to use nullable isDraft
         var (items, totalItems) = await _posts.QueryAsync(request, isDraft, cancellationToken);
-
-        // TODO: finish all the other components later, interface function implementations
         return new PagedResult<PostSummaryDto>
         {
             Items = items

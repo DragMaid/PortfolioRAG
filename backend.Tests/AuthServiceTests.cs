@@ -12,7 +12,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Register_creates_an_account_and_signs_it_in()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         var result = await harness.Auth.RegisterAsync(new RegisterDto
         {
@@ -35,7 +35,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Register_refuses_an_address_that_is_already_taken()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         await harness.AddAuthorAsync("taken@example.com", Password);
 
         await Assert.ThrowsAsync<ConflictException>(() => harness.Auth.RegisterAsync(new RegisterDto
@@ -49,7 +49,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Login_accepts_the_right_password()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         await harness.AddAuthorAsync("jane@example.com", Password);
 
         var result = await harness.Auth.LoginAsync(new LoginDto { Email = "Jane@Example.com", Password = Password });
@@ -61,7 +61,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Login_rejects_a_wrong_password_and_an_unknown_address_identically()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         await harness.AddAuthorAsync("jane@example.com", Password);
 
         var wrong = await Assert.ThrowsAsync<UnauthorizedException>(
@@ -75,7 +75,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Login_refuses_an_account_that_has_no_password()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         await harness.AddAuthorAsync("google-only@example.com", password: null);
 
         await Assert.ThrowsAsync<UnauthorizedException>(() =>
@@ -85,7 +85,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_creates_an_account_the_first_time()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", subject: "google-123", email: "new@example.com", name: "New Person");
 
         var result = await harness.Auth.SignInWithGoogleAsync(new GoogleSignInDto { IdToken = "token" });
@@ -106,7 +106,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_falls_back_to_the_address_when_no_name_is_supplied()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", "google-123", "someone@example.com", name: null);
 
         var result = await harness.Auth.SignInWithGoogleAsync(new GoogleSignInDto { IdToken = "token" });
@@ -117,7 +117,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_returns_to_the_same_account_on_the_second_visit()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", "google-123", "new@example.com");
 
         var first = await harness.Auth.SignInWithGoogleAsync(new GoogleSignInDto { IdToken = "token" });
@@ -131,7 +131,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_follows_the_subject_when_the_address_changes()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", "google-123", "old@example.com");
         var first = await harness.Auth.SignInWithGoogleAsync(new GoogleSignInDto { IdToken = "token" });
 
@@ -146,7 +146,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_refuses_an_unverified_address()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", "google-123", "unverified@example.com", emailVerified: false);
 
         await Assert.ThrowsAsync<UnauthorizedException>(() =>
@@ -158,7 +158,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_refuses_a_token_it_cannot_verify()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
 
         await Assert.ThrowsAsync<UnauthorizedException>(() =>
             harness.Auth.SignInWithGoogleAsync(new GoogleSignInDto { IdToken = "forged" }));
@@ -169,7 +169,7 @@ public class AuthServiceTests
     {
         // The takeover this guards against: someone registers a password account on an
         // address they do not own, then waits for its real owner to arrive through Google.
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var squatter = await harness.AddAuthorAsync("victim@example.com", Password, emailConfirmedAt: null);
         harness.Google.Add("token", "google-123", "victim@example.com");
 
@@ -183,7 +183,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_adopts_an_account_that_has_no_password()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var existing = await harness.AddAuthorAsync("passwordless@example.com", password: null);
         harness.Google.Add("token", "google-123", "passwordless@example.com");
 
@@ -197,7 +197,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Google_sign_in_adopts_a_password_account_whose_address_is_confirmed()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var existing = await harness.AddAuthorAsync(
             "confirmed@example.com", Password, emailConfirmedAt: harness.TimeProvider.GetUtcNow());
         harness.Google.Add("token", "google-123", "confirmed@example.com");
@@ -211,7 +211,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Linking_google_gives_a_password_account_a_second_way_in()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("jane@example.com", Password);
         harness.SignIn(author);
         harness.Google.Add("token", "google-123", "jane@example.com");
@@ -231,7 +231,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Linking_a_google_account_under_a_different_address_does_not_confirm_the_account()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("jane@example.com", Password);
         harness.SignIn(author);
         harness.Google.Add("token", "google-123", "jane.personal@example.com");
@@ -245,7 +245,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Linking_is_idempotent()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("jane@example.com", Password);
         harness.SignIn(author);
         harness.Google.Add("token", "google-123", "jane@example.com");
@@ -260,7 +260,7 @@ public class AuthServiceTests
     [Fact]
     public async Task A_google_account_cannot_be_linked_to_two_authors()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var first = await harness.AddAuthorAsync("first@example.com", Password);
         var second = await harness.AddAuthorAsync("second@example.com", Password);
         harness.Google.Add("token", "google-123", "first@example.com");
@@ -276,7 +276,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Linking_requires_a_signed_in_caller()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", "google-123", "jane@example.com");
 
         await Assert.ThrowsAsync<UnauthorizedException>(() =>
@@ -286,7 +286,7 @@ public class AuthServiceTests
     [Fact]
     public async Task The_profile_describes_the_ways_the_account_can_sign_in()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("google-only@example.com", password: null);
         harness.SignIn(author);
 
@@ -299,7 +299,7 @@ public class AuthServiceTests
     [Fact]
     public async Task A_google_account_can_set_its_first_password_without_proving_an_old_one()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("google-only@example.com", password: null);
         harness.SignIn(author);
 
@@ -313,7 +313,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Changing_a_password_requires_the_current_one()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("jane@example.com", Password);
         harness.SignIn(author);
 
@@ -327,7 +327,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Changing_a_password_ends_other_sessions_but_not_this_one()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("jane@example.com", Password);
         harness.SignIn(author);
 
@@ -349,7 +349,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Signing_out_kills_only_the_token_presented()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("jane@example.com", Password);
 
         var phone = await harness.Auth.LoginAsync(new LoginDto { Email = "jane@example.com", Password = Password });
@@ -366,7 +366,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Deleting_an_author_takes_their_logins_and_tokens_with_it()
     {
-        using var harness = new TestHarness();
+        await using var harness = await TestHarness.CreateAsync();
         harness.Google.Add("token", "google-123", "jane@example.com");
         var result = await harness.Auth.SignInWithGoogleAsync(new GoogleSignInDto { IdToken = "token" });
 

@@ -12,8 +12,6 @@ public interface IAuthorRepository
 
     Task<bool> EmailExistsAsync(string email, int? excludingAuthorId = null, CancellationToken cancellationToken = default);
 
-    Task<bool> HasPostsAsync(int authorId, CancellationToken cancellationToken = default);
-
     Task<ExternalLogin?> GetExternalLoginAsync(
         ExternalLoginProvider provider,
         string subject,

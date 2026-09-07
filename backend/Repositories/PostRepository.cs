@@ -37,10 +37,6 @@ public class PostRepository : IPostRepository
             query = query.Where(p => p.AuthorId == request.AuthorId.Value);
         }
 
-        // TODO: will make this to be more user specific later, we 
-        // are not going to be a conventional blog social media system
-        // TODO: maybe consider being capable of seeing other people portfolio
-        // that would be nice indeed
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim().ToLowerInvariant();

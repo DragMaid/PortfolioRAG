@@ -66,8 +66,6 @@ public class TokenService : ITokenService
             // we assume that a replay attack is being executed and revoke all active tokens
             // this is done because we also assume that the attacker is able to steal the
             // next refresh tokens using the same trick
-            // TODO: this might be overkill, I got this from a book so maybe replace it if
-            // it becomes too annoying
             if (stored.ReplacedByTokenHash is not null)
             {
                 _logger.LogWarning(

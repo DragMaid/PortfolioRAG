@@ -48,15 +48,23 @@ public sealed class StubGoogleTokenValidator : IGoogleTokenValidator
 }
 
 /// <summary>
-/// Wires the real services over an isolated in-memory database, so tests exercise the
-/// production code paths rather than mocks of them.
+/// Wires the real services over a Postgres database of this harness's own, so tests
+/// exercise the production code paths — and the real schema, with its real constraints and
+/// cascades — rather than mocks of them.
 /// </summary>
-public sealed class TestHarness : IDisposable
+public sealed class TestHarness : IAsyncDisposable
 {
-    public TestHarness()
+    /// <summary>
+    /// Builds a harness on a fresh database. Async because the database has to exist first;
+    /// see <see cref="PostgresFixture"/>.
+    /// </summary>
+    public static async Task<TestHarness> CreateAsync(CancellationToken cancellationToken = default) =>
+        new(await PostgresFixture.CreateDatabaseAsync(cancellationToken));
+
+    private TestHarness(string connectionString)
     {
         var options = new DbContextOptionsBuilder<BlogDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseNpgsql(connectionString)
             .Options;
 
         Context = new BlogDbContext(options);
@@ -80,7 +88,7 @@ public sealed class TestHarness : IDisposable
 
         Auth = new AuthService(Authors, Tokens, Google, CurrentUser, TimeProvider);
         PostService = new PostService(Posts, Authors, CurrentUser, TimeProvider);
-        AuthorService = new AuthorService(Authors, CurrentUser);
+        AuthorService = new AuthorService(Authors, CurrentUser, TimeProvider);
     }
 
     public BlogDbContext Context { get; }
@@ -115,7 +123,6 @@ public sealed class TestHarness : IDisposable
         {
             Name = email.Split('@')[0],
             Email = email.ToLowerInvariant(),
-            // TODO: use default hasher instead
             PasswordHash = password is null ? null : PasswordHasher.Hash(password),
             EmailConfirmedAt = emailConfirmedAt,
             CreatedAt = TimeProvider.GetUtcNow()
@@ -156,5 +163,5 @@ public sealed class TestHarness : IDisposable
 
     public void SignOut() => CurrentUser.AuthorId = null;
 
-    public void Dispose() => Context.Dispose();
+    public ValueTask DisposeAsync() => Context.DisposeAsync();
 }

@@ -14,7 +14,6 @@ public class RegisterDto
     [StringLength(256)]
     public string Email { get; init; } = string.Empty;
 
-    // TODO: use the default password hasher here also
     [Required]
     [StringLength(PasswordHasher.MaximumPasswordLength, MinimumLength = PasswordHasher.MinimumPasswordLength)]
     public string Password { get; init; } = string.Empty;
