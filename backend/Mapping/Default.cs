@@ -37,9 +37,13 @@ public static class MappingExtensions
         LinkedProviders = linkedProviders
     };
 
-    // TODO: I should have kept it simple, having external url here is kind of annoying and doesnt contribute much
+    /// <summary>
+    /// Where a reader fetches this author's picture, or null when they never uploaded one.
+    /// A path on this API rather than an address: the bucket is private, so that route mints
+    /// a link that expires, and this one does not.
+    /// </summary>
     public static string? ResolveAvatarUrl(this Author author) =>
-        author.AvatarObjectKey is null ? author.AvatarUrl : $"/api/authors/{author.Id}/avatar";
+        author.AvatarObjectKey is null ? null : $"/api/authors/{author.Id}/avatar";
 
     public static MediaDto ToDto(this Media media) => new()
     {

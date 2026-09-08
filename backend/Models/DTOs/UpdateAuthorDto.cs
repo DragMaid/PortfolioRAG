@@ -16,7 +16,6 @@ public class UpdateAuthorDto
     [StringLength(1000)]
     public string? Biography { get; init; }
 
-    // NOTE: no avatar will be set on creation, must do in update
-    [StringLength(256)]
-    public string? AvatarUrl { get; init; }
+    // NOTE: the avatar is not part of this. It is a file, not a field — see
+    // PUT /api/authors/me/avatar.
 }

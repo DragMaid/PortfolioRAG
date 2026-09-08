@@ -118,7 +118,6 @@ public class AuthService : IAuthService
             {
                 Name = ResolveName(info),
                 Email = info.Email,
-                AvatarUrl = info.PictureUrl,
                 // NOTE: no password assigned if signed in externally
                 PasswordHash = null,
                 EmailConfirmedAt = now,
@@ -148,7 +147,6 @@ public class AuthService : IAuthService
 
         await AddLinkAsync(byEmail.Id, info, now, cancellationToken);
         byEmail.EmailConfirmedAt ??= now;
-        byEmail.AvatarUrl ??= info.PictureUrl;
         await _authors.SaveChangesAsync(cancellationToken);
 
         return await _tokens.IssueAsync(byEmail, cancellationToken);

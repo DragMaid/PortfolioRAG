@@ -17,6 +17,7 @@ public class MediaService : IMediaService
     private readonly IAuthorRepository _authors;
     private readonly IBackblazeService _storage;
     private readonly IImageOptimizer _optimizer;
+    private readonly IMediaTypeDetector _detector;
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
     private readonly MediaOptions _options;
@@ -31,6 +32,7 @@ public class MediaService : IMediaService
         IAuthorRepository authors,
         IBackblazeService storage,
         IImageOptimizer optimizer,
+        IMediaTypeDetector detector,
         ICurrentUser currentUser,
         TimeProvider timeProvider,
         IOptions<MediaOptions> options,
@@ -41,6 +43,7 @@ public class MediaService : IMediaService
         _authors = authors;
         _storage = storage;
         _optimizer = optimizer;
+        _detector = detector;
         _currentUser = currentUser;
         _timeProvider = timeProvider;
         _options = options.Value;
@@ -264,9 +267,6 @@ public class MediaService : IMediaService
     /// </summary>
     private async Task PurgePrefixAsync(string prefix, CancellationToken cancellationToken)
     {
-        if (!_storage.IsConfigured)
-            return;
-
         try
         {
             // NOTE: driven off the bucket rather than off the media rows, so an object whose
@@ -342,7 +342,7 @@ public class MediaService : IMediaService
                 content = buffer;
             }
 
-            var extension = await DetectExtensionAsync(content, cancellationToken);
+            var extension = DetectExtension(content);
 
             if (extension.IsVideo() && !allowVideo)
                 throw new UnsupportedMediaTypeException("An avatar has to be a picture, not a video.");
@@ -354,8 +354,9 @@ public class MediaService : IMediaService
 
             if (!extension.IsRaster())
             {
-                // SVG is markup and video is already compressed — both are stored as they
-                // arrived, having been identified from their bytes rather than their name.
+                // Video is stored exactly as it arrived — already compressed, and nothing
+                // here is going to re-encode it better. It was still identified from its
+                // bytes rather than from what the upload claimed to be.
                 content.Position = 0;
                 return new UploadedContent(content, extension, ownsStream: true);
             }
@@ -378,22 +379,11 @@ public class MediaService : IMediaService
         }
     }
 
-    private static async Task<MediaExtension> DetectExtensionAsync(
-        Stream content,
-        CancellationToken cancellationToken)
-    {
-        content.Position = 0;
-
-        var header = new byte[MediaFormats.HeaderBytes];
-        var read = await content.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, cancellationToken);
-        content.Position = 0;
-
-        if (MediaFormats.TryDetect(header.AsSpan(0, read), out var extension))
-            return extension;
-
-        throw new UnsupportedMediaTypeException(
-            "That file type cannot be embedded in a post. Accepted: PNG, JPEG, GIF, WebP, SVG, MP4 and WebM.");
-    }
+    private MediaExtension DetectExtension(Stream content) =>
+        _detector.Detect(content)
+            ?? throw new UnsupportedMediaTypeException(
+                "That file type cannot be embedded in a post. " +
+                "Accepted: PNG, JPEG, GIF, WebP, MP4 and WebM.");
 
     /// <summary>
     /// Builds the key an object is stored under. The uploaded name never becomes the key:

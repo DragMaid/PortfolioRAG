@@ -254,18 +254,15 @@ public class AuthorizationTests
         {
             Name = "New Name",
             Email = "mine@example.com",
-            Biography = "A bio.",
-            AvatarUrl = "https://example.com/avatar.png"
+            Biography = "A bio."
         });
 
         // Assert
         Assert.Equal("New Name", updated.Name);
         Assert.Equal("A bio.", updated.Biography);
-        Assert.Equal("https://example.com/avatar.png", updated.AvatarUrl);
 
         var stored = harness.Context.Authors.Single(a => a.Id == mine.Id);
         Assert.Equal("New Name", stored.Name);
-        Assert.Equal("https://example.com/avatar.png", stored.AvatarUrl);
     }
 
     [Fact]

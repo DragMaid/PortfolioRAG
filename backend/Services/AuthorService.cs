@@ -62,7 +62,6 @@ public class AuthorService : IAuthorService
         author.Name = dto.Name.Trim();
         author.Email = email;
         author.Biography = string.IsNullOrWhiteSpace(dto.Biography) ? null : dto.Biography.Trim();
-        author.AvatarUrl = string.IsNullOrWhiteSpace(dto.AvatarUrl) ? null : dto.AvatarUrl.Trim();
 
         await _authors.SaveChangesAsync(cancellationToken);
         return author.ToDto();

@@ -22,7 +22,6 @@ public class MediaController : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetContent(int id, CancellationToken cancellationToken)
     {
         var url = await _mediaService.GetContentUrlAsync(id, cancellationToken);

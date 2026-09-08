@@ -7,6 +7,7 @@ using Backend.Common.Security;
 using Backend.Data;
 using Backend.Repositories;
 using Backend.Services;
+using FileSignatures;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -59,9 +60,7 @@ builder.Services.AddScoped<IMediaService, MediaService>();
 // Media storage
 // ---------------------------------------------------------------------------
 
-// NOTE: uploads are optional, the way Google sign-in is. A deployment with no bucket
-// behind it still boots, serves posts and signs people in; the upload endpoints answer
-// 503. Half a configuration, on the other hand, is a mistake and stops startup.
+// NOTE: If backblaze service not configured then fail the program
 var backblazeOptions = builder.Configuration
     .GetSection(BackblazeOptions.SectionName)
     .Get<BackblazeOptions>() ?? new BackblazeOptions();
@@ -80,30 +79,16 @@ builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaO
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IImageOptimizer, ImageOptimizer>();
 
-if (backblazeOptions.IsConfigured)
+// FileSignatures assembly to collect the format list, and it holds no per-call state.
+builder.Services.AddSingleton<IFileFormatInspector>(_ => new FileFormatInspector());
+builder.Services.AddSingleton<IMediaTypeDetector, FileSignatureMediaTypeDetector>();
+builder.Services.AddBackblazeAgent(options =>
 {
-    builder.Services.AddBackblazeAgent(options =>
-    {
-        options.KeyId = backblazeOptions.KeyId;
-        options.ApplicationKey = backblazeOptions.ApplicationKey;
-    });
+    options.KeyId = backblazeOptions.KeyId;
+    options.ApplicationKey = backblazeOptions.ApplicationKey;
+});
 
-    builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
-}
-else
-{
-    builder.Services.AddSingleton<IBackblazeService, UnconfiguredBackblazeService>();
-}
-
-// NOTE: the form reader's own ceiling has to clear the largest upload the options allow, or
-// the body is cut off before any of the checks in MediaService get to run and the failure
-// reads as a parse error rather than "your file is too big". This is the outer bound only;
-// the per-kind limits live in MediaService.
-//
-// Kestrel's global 30 MB cap is deliberately left where it is — raising it for everyone so
-// that one endpoint can take a video would let any request in the API buffer that much.
-// Only the post upload opts out of it, and this bounds it instead; an avatar is held to
-// the picture limit, which is already well inside the global cap.
+builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = mediaOptions.MaxUploadBytes + RequestOverheadBytes;
@@ -163,8 +148,7 @@ builder.Services
             ValidAudience = jwtOptions.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
             NameClaimType = JwtRegisteredClaimNames.Name,
-            // An access token lives ~15 minutes; letting an expired one linger for another
-            // five would defeat the point.
+            // An access token lives ~15 minutes; letting an expired one linger for another five would defeat the point.
             ClockSkew = TimeSpan.Zero
         };
     });

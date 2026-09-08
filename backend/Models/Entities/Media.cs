@@ -11,7 +11,6 @@ public enum MediaExtension
     Jpeg = 1,
     Gif = 2,
     Webp = 3,
-    Svg = 4,
     Mp4 = 5,
     Webm = 6
 }
