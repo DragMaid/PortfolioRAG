@@ -13,7 +13,7 @@ public static class MappingExtensions
         Id = author.Id,
         Name = author.Name,
         Email = author.Email,
-        AvatarUrl = author.AvatarUrl,
+        AvatarUrl = author.ResolveAvatarUrl(),
         Biography = author.Biography,
         CreatedAt = author.CreatedAt
     };
@@ -29,12 +29,27 @@ public static class MappingExtensions
         Id = author.Id,
         Name = author.Name,
         Email = author.Email,
-        AvatarUrl = author.AvatarUrl,
+        AvatarUrl = author.ResolveAvatarUrl(),
         Biography = author.Biography,
         CreatedAt = author.CreatedAt,
         HasPassword = author.PasswordHash is not null,
         IsEmailConfirmed = author.EmailConfirmedAt is not null,
         LinkedProviders = linkedProviders
+    };
+
+    // TODO: I should have kept it simple, having external url here is kind of annoying and doesnt contribute much
+    public static string? ResolveAvatarUrl(this Author author) =>
+        author.AvatarObjectKey is null ? author.AvatarUrl : $"/api/authors/{author.Id}/avatar";
+
+    public static MediaDto ToDto(this Media media) => new()
+    {
+        Id = media.Id,
+        Filename = media.Filename,
+        Url = $"/api/media/{media.Id}/content",
+        Extension = media.Extension,
+        ByteSize = media.ByteSize,
+        PostId = media.PostId,
+        CreatedAt = media.CreatedAt
     };
 
     public static AuthorSummaryDto ToSummaryDto(this Author author) => new()

@@ -25,6 +25,7 @@ public class BlogDbContext : DbContext
             entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
             entity.Property(a => a.AvatarUrl).HasMaxLength(256);
+            entity.Property(a => a.AvatarObjectKey).HasMaxLength(512);
             entity.Property(a => a.Biography).HasMaxLength(1000);
             // NOTE: stored lowercase so the unique index doubles as case-insensitive lookup.
             entity.HasIndex(a => a.Email).IsUnique();
@@ -79,8 +80,9 @@ public class BlogDbContext : DbContext
         {
             entity.HasKey(m => m.Id);
             entity.Property(m => m.Filename).IsRequired().HasMaxLength(100);
-            entity.Property(m => m.Url).IsRequired().HasMaxLength(256);
+            entity.Property(m => m.ObjectKey).IsRequired().HasMaxLength(512);
             entity.Property(m => m.Extension).IsRequired();
+            entity.HasIndex(m => m.ObjectKey).IsUnique();
 
             // NOTE: a media row is meaningless without the post it belongs to, so the
             // database drops it with the post rather than the repository doing it by hand.
