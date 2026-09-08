@@ -2,8 +2,8 @@ namespace Backend.Models.Entities;
 
 /// <summary>
 /// The file types a post may embed. A closed set rather than free text: the extension
-/// decides how the frontend renders the item and what the eventual upload endpoint will
-/// accept, and neither can act on a value it does not know.
+/// decides how the frontend renders the item and what the upload endpoint will accept,
+/// and neither can act on a value it does not know.
 /// </summary>
 public enum MediaExtension
 {
@@ -11,18 +11,24 @@ public enum MediaExtension
     Jpeg = 1,
     Gif = 2,
     Webp = 3,
-    Svg = 4,
     Mp4 = 5,
     Webm = 6
 }
 
 public class Media
-{ 
-    public int Id { get; set; } 
+{
+    public int Id { get; set; }
 
     public string Filename { get; set; } = String.Empty;
 
-    public string Url { get; set; } = String.Empty;
+    /// <summary>
+    /// Where the bytes live in the bucket. Not an address: the bucket is private, so a
+    /// reader is sent to a signed link minted on demand
+    /// </summary>
+    public string ObjectKey { get; set; } = String.Empty;
+
+    /// <summary>Size of the stored object, which is post-optimization and rarely what was uploaded.</summary>
+    public long ByteSize { get; set; }
 
     public MediaExtension Extension { get; set; }
 

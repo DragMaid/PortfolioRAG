@@ -7,7 +7,9 @@ using Backend.Common.Security;
 using Backend.Data;
 using Backend.Repositories;
 using Backend.Services;
+using FileSignatures;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
@@ -46,11 +48,51 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IMediaService, MediaService>();
+
+// ---------------------------------------------------------------------------
+// Media storage
+// ---------------------------------------------------------------------------
+
+// NOTE: If backblaze service not configured then fail the program
+var backblazeOptions = builder.Configuration
+    .GetSection(BackblazeOptions.SectionName)
+    .Get<BackblazeOptions>() ?? new BackblazeOptions();
+backblazeOptions.Validate();
+
+var mediaOptions = builder.Configuration
+    .GetSection(MediaOptions.SectionName)
+    .Get<MediaOptions>() ?? new MediaOptions();
+mediaOptions.Validate();
+
+builder.Services.Configure<BackblazeOptions>(builder.Configuration.GetSection(BackblazeOptions.SectionName));
+builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
+
+// The Backblaze client caches authorization and upload URLs here; the download tokens
+// BackblazeService hands out share the same cache.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IImageOptimizer, ImageOptimizer>();
+
+// FileSignatures assembly to collect the format list, and it holds no per-call state.
+builder.Services.AddSingleton<IFileFormatInspector>(_ => new FileFormatInspector());
+builder.Services.AddSingleton<IMediaTypeDetector, FileSignatureMediaTypeDetector>();
+builder.Services.AddBackblazeAgent(options =>
+{
+    options.KeyId = backblazeOptions.KeyId;
+    options.ApplicationKey = backblazeOptions.ApplicationKey;
+});
+
+builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = mediaOptions.MaxUploadBytes + RequestOverheadBytes;
+});
 
 // NOTE: this one add problem+json instead of 500s for debuggability
 builder.Services.AddProblemDetails();
@@ -106,8 +148,7 @@ builder.Services
             ValidAudience = jwtOptions.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
             NameClaimType = JwtRegisteredClaimNames.Name,
-            // An access token lives ~15 minutes; letting an expired one linger for another
-            // five would defeat the point.
+            // An access token lives ~15 minutes; letting an expired one linger for another five would defeat the point.
             ClockSkew = TimeSpan.Zero
         };
     });
@@ -178,4 +219,11 @@ app.MapControllers();
 app.Run();
 
 // NOTE: exposed so the integration tests can spin the real pipeline up with WebApplicationFactory.
-public partial class Program;
+public partial class Program
+{
+    /// <summary>
+    /// Slack over the configured file size for the multipart envelope itself — boundaries,
+    /// headers and the other fields of the form.
+    /// </summary>
+    private const long RequestOverheadBytes = 1024 * 1024;
+}

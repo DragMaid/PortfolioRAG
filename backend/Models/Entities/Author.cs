@@ -8,7 +8,12 @@ public class Author
 
     public string Email { get; set; } = string.Empty;
 
-    public string? AvatarUrl { get; set; }
+    /// <summary>
+    /// Where the account's avatar lives in the bucket, or null when it never uploaded one.
+    /// The only source of an avatar: the bucket is private, so this is a key rather than an
+    /// address, and readers are redirected through GET /api/authors/{id}/avatar.
+    /// </summary>
+    public string? AvatarObjectKey { get; set; }
 
     public string? Biography { get; set; }
 

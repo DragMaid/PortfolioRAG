@@ -17,10 +17,12 @@ namespace Backend.Controllers;
 public class PostsController : ControllerBase
 {
     private readonly IPostService _postService;
+    private readonly IMediaService _mediaService;
 
-    public PostsController(IPostService postService)
+    public PostsController(IPostService postService, IMediaService mediaService)
     {
         _postService = postService;
+        _mediaService = mediaService;
     }
 
     [HttpGet]
@@ -36,6 +38,18 @@ public class PostsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PostDto>> GetBySlug(string slug, CancellationToken cancellationToken) =>
         Ok(await _postService.GetPublicBySlugAsync(slug, cancellationToken));
+
+    /// <summary>
+    /// The files attached to a published post. The body usually embeds them already; this
+    /// is for anything that needs the list itself, a gallery or a cover image.
+    /// </summary>
+    [HttpGet("{slug}/media")]
+    [ProducesResponseType(typeof(IReadOnlyList<MediaDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<MediaDto>>> GetMedia(
+        string slug,
+        CancellationToken cancellationToken) =>
+        Ok(await _mediaService.GetForPublicPostAsync(slug, cancellationToken));
 
     [HttpPost("{slug}/views")]
     [ProducesResponseType(StatusCodes.Status200OK)]
