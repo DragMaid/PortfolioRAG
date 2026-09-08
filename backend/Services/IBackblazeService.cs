@@ -20,12 +20,6 @@ public sealed record BlobItem(string ObjectKey, long ByteSize, string ContentTyp
 public interface IBackblazeService
 {
     /// <summary>
-    /// False when the deployment supplied no credentials. Every other member throws
-    /// <see cref="Common.Exceptions.NotConfiguredException"/> in that state.
-    /// </summary>
-    bool IsConfigured { get; }
-
-    /// <summary>
     /// Stores <paramref name="content"/> under <paramref name="objectKey"/>, overwriting any
     /// object already there.
     /// </summary>

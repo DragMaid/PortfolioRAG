@@ -24,7 +24,6 @@ public class BlogDbContext : DbContext
             entity.HasKey(a => a.Id);
             entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
-            entity.Property(a => a.AvatarUrl).HasMaxLength(256);
             entity.Property(a => a.AvatarObjectKey).HasMaxLength(512);
             entity.Property(a => a.Biography).HasMaxLength(1000);
             // NOTE: stored lowercase so the unique index doubles as case-insensitive lookup.

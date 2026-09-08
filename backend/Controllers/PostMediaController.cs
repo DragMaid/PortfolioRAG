@@ -49,7 +49,6 @@ public class PostMediaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<MediaDto>> Upload(
         int postId,
         IFormFile file,
@@ -69,7 +68,6 @@ public class PostMediaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Delete(int postId, int mediaId, CancellationToken cancellationToken)
     {
         await _mediaService.DeleteAsync(postId, mediaId, cancellationToken);

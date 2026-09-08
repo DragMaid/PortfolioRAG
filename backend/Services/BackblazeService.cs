@@ -63,8 +63,6 @@ public class BackblazeService : IBackblazeService
             .Build();
     }
 
-    public bool IsConfigured => _options.IsConfigured;
-
     public async Task<StoredBlob> UploadAsync(
         Stream content,
         string objectKey,
@@ -207,8 +205,6 @@ public class BackblazeService : IBackblazeService
     public async Task<IReadOnlyList<string>> GetPermittedBucketNamesAsync(
         CancellationToken cancellationToken = default)
     {
-        EnsureConfigured();
-
         var results = await _retryPipeline.ExecuteAsync(
             async _ => (await _client.Buckets.ListAsync()).EnsureSuccessStatusCode(),
             cancellationToken);
@@ -222,8 +218,6 @@ public class BackblazeService : IBackblazeService
     /// </summary>
     private async Task<string> EnsureConnectedAsync(CancellationToken cancellationToken)
     {
-        EnsureConfigured();
-
         if (_bucketId is not null)
             return _bucketId;
 
@@ -326,16 +320,6 @@ public class BackblazeService : IBackblazeService
             lifetime);
 
         return token;
-    }
-
-    private void EnsureConfigured()
-    {
-        if (_options.IsConfigured)
-            return;
-
-        throw new NotConfiguredException(
-            "Media storage is not configured. Supply Backblaze:KeyId, Backblaze:ApplicationKey " +
-            "and Backblaze:BucketName to enable uploads.");
     }
 
     /// <summary>The folder an object sits in, including the trailing slash. Empty at the root.</summary>

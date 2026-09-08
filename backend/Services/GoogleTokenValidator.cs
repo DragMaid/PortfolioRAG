@@ -86,8 +86,7 @@ public class GoogleTokenValidator : IGoogleTokenValidator
             subject,
             email.Trim().ToLowerInvariant(),
             IsTrue(FindClaim(result, "email_verified")),
-            FindClaim(result, "name"),
-            FindClaim(result, "picture"));
+            FindClaim(result, "name"));
     }
 
     private static string? FindClaim(TokenValidationResult result, string type) =>

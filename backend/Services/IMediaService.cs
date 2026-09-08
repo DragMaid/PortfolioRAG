@@ -34,7 +34,7 @@ public interface IMediaService
     /// <summary>Replaces the caller's own avatar. Returns the profile as it now reads.</summary>
     Task<AuthorDto> SetAvatarAsync(IFormFile file, CancellationToken cancellationToken = default);
 
-    /// <summary>Drops the caller's uploaded avatar, falling back to whatever a provider supplied.</summary>
+    /// <summary>Drops the caller's avatar. The account then has none until one is uploaded.</summary>
     Task<AuthorDto> RemoveAvatarAsync(CancellationToken cancellationToken = default);
 
     /// <summary>A signed link to an author's uploaded avatar. Public, like the profile it belongs to.</summary>

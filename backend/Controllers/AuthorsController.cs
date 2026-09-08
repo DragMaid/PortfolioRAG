@@ -55,15 +55,13 @@ public class AuthorsController : ControllerBase
         Ok(await _authorService.UpdateAsync(id, dto, cancellationToken));
 
     /// <summary>
-    /// Redirects to an author's uploaded avatar. Public, like the profile it belongs to,
-    /// and a 404 for an account that never uploaded one — an avatar taken from a sign-in
-    /// provider is already a plain URL on the profile.
+    /// Redirects to an author's avatar. Public, like the profile it belongs to, and a 404
+    /// for an account that never uploaded one — an avatar is only ever a file in the bucket.
     /// </summary>
     [HttpGet("{id:int}/avatar")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status302Found)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetAvatar(int id, CancellationToken cancellationToken)
     {
         var url = await _mediaService.GetAvatarUrlAsync(id, cancellationToken);
@@ -75,8 +73,7 @@ public class AuthorsController : ControllerBase
     }
 
     /// <summary>
-    /// Replaces your own avatar. The picture is scaled down and re-encoded, and takes
-    /// precedence over any AvatarUrl on the profile until you delete it again.
+    /// Replaces your own avatar. The picture is scaled down and re-encoded on the way in.
     /// </summary>
     [HttpPut("me/avatar")]
     [Consumes("multipart/form-data")]
@@ -85,17 +82,15 @@ public class AuthorsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<AuthorDto>> SetAvatar(
         IFormFile file,
         CancellationToken cancellationToken) =>
         Ok(await _mediaService.SetAvatarAsync(file, cancellationToken));
 
-    /// <summary>Drops your uploaded avatar, falling back to whatever a provider supplied.</summary>
+    /// <summary>Drops your avatar. The account then has none until you upload another.</summary>
     [HttpDelete("me/avatar")]
     [ProducesResponseType(typeof(AuthorDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<AuthorDto>> RemoveAvatar(CancellationToken cancellationToken) =>
         Ok(await _mediaService.RemoveAvatarAsync(cancellationToken));
 

@@ -37,8 +37,9 @@ public class BackblazeOptions
         && !string.IsNullOrWhiteSpace(BucketName);
 
     /// <summary>
-    /// Throws when the section is present but unusable. A section that is entirely absent is
-    /// not an error — see <see cref="IsConfigured"/>.
+    /// Throws unless the deployment can actually reach a bucket. Media storage is required:
+    /// an API that boots without it serves posts whose every image is broken, and finds out
+    /// one request at a time.
     /// </summary>
     public void Validate()
     {
@@ -54,9 +55,9 @@ public class BackblazeOptions
             throw new InvalidOperationException(
                 $"Configuration section '{SectionName}' is incomplete: " +
                 $"the following required settings are missing: {string.Join(", ", missing)}. " +
-                $"Set KeyId, ApplicationKey and BucketName (user secrets, or " +
-                $"{SectionName}__KeyId and friends in the environment), or remove the section " +
-                "entirely to run without media uploads.");
+                "Media storage is required — supply them through user secrets " +
+                $"(dotnet user-secrets set \"{SectionName}:KeyId\" ...) or the environment " +
+                $"({SectionName}__KeyId and friends).");
         }
 
         if (DownloadTokenSeconds is < 1 or > MaximumDownloadTokenSeconds)
