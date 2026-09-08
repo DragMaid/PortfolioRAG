@@ -35,6 +35,9 @@ public class DefaultExceptionHandler : IExceptionHandler
             NotConfiguredException => (StatusCodes.Status503ServiceUnavailable, "Feature not configured"),
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
             ValidationException => (StatusCodes.Status400BadRequest, "Invalid request"),
+            PayloadTooLargeException => (StatusCodes.Status413PayloadTooLarge, "Upload too large"),
+            InvalidDataException => (StatusCodes.Status413PayloadTooLarge, "Upload too large"),
+            UnsupportedMediaTypeException => (StatusCodes.Status415UnsupportedMediaType, "Unsupported file type"),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occured")
         };
 
