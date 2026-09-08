@@ -8,6 +8,7 @@ using Backend.Data;
 using Backend.Repositories;
 using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
@@ -46,11 +47,67 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 
 builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IMediaService, MediaService>();
+
+// ---------------------------------------------------------------------------
+// Media storage
+// ---------------------------------------------------------------------------
+
+// NOTE: uploads are optional, the way Google sign-in is. A deployment with no bucket
+// behind it still boots, serves posts and signs people in; the upload endpoints answer
+// 503. Half a configuration, on the other hand, is a mistake and stops startup.
+var backblazeOptions = builder.Configuration
+    .GetSection(BackblazeOptions.SectionName)
+    .Get<BackblazeOptions>() ?? new BackblazeOptions();
+backblazeOptions.Validate();
+
+var mediaOptions = builder.Configuration
+    .GetSection(MediaOptions.SectionName)
+    .Get<MediaOptions>() ?? new MediaOptions();
+mediaOptions.Validate();
+
+builder.Services.Configure<BackblazeOptions>(builder.Configuration.GetSection(BackblazeOptions.SectionName));
+builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
+
+// The Backblaze client caches authorization and upload URLs here; the download tokens
+// BackblazeService hands out share the same cache.
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IImageOptimizer, ImageOptimizer>();
+
+if (backblazeOptions.IsConfigured)
+{
+    builder.Services.AddBackblazeAgent(options =>
+    {
+        options.KeyId = backblazeOptions.KeyId;
+        options.ApplicationKey = backblazeOptions.ApplicationKey;
+    });
+
+    builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
+}
+else
+{
+    builder.Services.AddSingleton<IBackblazeService, UnconfiguredBackblazeService>();
+}
+
+// NOTE: the form reader's own ceiling has to clear the largest upload the options allow, or
+// the body is cut off before any of the checks in MediaService get to run and the failure
+// reads as a parse error rather than "your file is too big". This is the outer bound only;
+// the per-kind limits live in MediaService.
+//
+// Kestrel's global 30 MB cap is deliberately left where it is — raising it for everyone so
+// that one endpoint can take a video would let any request in the API buffer that much.
+// Only the post upload opts out of it, and this bounds it instead; an avatar is held to
+// the picture limit, which is already well inside the global cap.
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = mediaOptions.MaxUploadBytes + RequestOverheadBytes;
+});
 
 // NOTE: this one add problem+json instead of 500s for debuggability
 builder.Services.AddProblemDetails();
@@ -178,4 +235,11 @@ app.MapControllers();
 app.Run();
 
 // NOTE: exposed so the integration tests can spin the real pipeline up with WebApplicationFactory.
-public partial class Program;
+public partial class Program
+{
+    /// <summary>
+    /// Slack over the configured file size for the multipart envelope itself — boundaries,
+    /// headers and the other fields of the form.
+    /// </summary>
+    private const long RequestOverheadBytes = 1024 * 1024;
+}

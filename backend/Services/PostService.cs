@@ -13,17 +13,20 @@ public class PostService : IPostService
 {
     private readonly IPostRepository _posts;
     private readonly IAuthorRepository _authors;
+    private readonly IMediaService _media;
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
 
     public PostService(
         IPostRepository posts,
         IAuthorRepository authors,
+        IMediaService media,
         ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _posts = posts;
         _authors = authors;
+        _media = media;
         _currentUser = currentUser;
         _timeProvider = timeProvider;
     }
@@ -153,8 +156,16 @@ public class PostService : IPostService
             ?? throw NotFoundException.For("Post", id);
 
         EnsureOwnedByCaller(post);
+        var authorId = post.AuthorId;
+
         await _posts.RemoveAsync(post, cancellationToken);
         await _posts.SaveChangesAsync(cancellationToken);
+
+        // NOTE: after the commit, not before. The media rows go with the post by cascade,
+        // and once they are gone nothing in the database remembers the keys — so this is
+        // the last moment the files can be found, and it must not run against a delete
+        // that then rolls back.
+        await _media.PurgePostObjectsAsync(post.Id, authorId, cancellationToken);
     }
 
     public async Task<int> RegisterViewAsync(string slug, CancellationToken cancellationToken = default)

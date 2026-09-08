@@ -87,7 +87,7 @@ public class ImageOptimizer : IImageOptimizer
         });
 
 
-        // TODO: Strips EXIF, XMP and ICC metadata also
+        // NOTE: Strips EXIF, XMP and ICC metadata also
         var encoder = new WebpEncoder
         {
             Quality = _options.ImageQuality,
