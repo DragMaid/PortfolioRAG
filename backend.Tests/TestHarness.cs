@@ -4,6 +4,7 @@ using Backend.Data;
 using Backend.Models.Entities;
 using Backend.Repositories;
 using Backend.Services;
+using FileSignatures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -36,7 +37,7 @@ public sealed class StubGoogleTokenValidator : IGoogleTokenValidator
         bool emailVerified = true,
         string? name = null)
     {
-        var info = new ExternalUserInfo(ExternalLoginProvider.Google, subject, email, emailVerified, name, null);
+        var info = new ExternalUserInfo(ExternalLoginProvider.Google, subject, email, emailVerified, name);
         Tokens[token] = info;
         return info;
     }
@@ -58,10 +59,18 @@ public sealed class TestHarness : IAsyncDisposable
     /// Builds a harness on a fresh database. Async because the database has to exist first;
     /// see <see cref="PostgresFixture"/>.
     /// </summary>
-    public static async Task<TestHarness> CreateAsync(CancellationToken cancellationToken = default) =>
-        new(await PostgresFixture.CreateDatabaseAsync(cancellationToken));
+    public static async Task<TestHarness> CreateAsync(
+        Action<MediaOptions>? configureMedia = null,
+        CancellationToken cancellationToken = default) =>
+        new(await PostgresFixture.CreateDatabaseAsync(cancellationToken), configureMedia);
 
-    private TestHarness(string connectionString)
+    /// <summary>
+    /// Collecting the format list reflects over an assembly, so it is done once for the test
+    /// run rather than once per harness — and a harness is built per test.
+    /// </summary>
+    private static readonly IFileFormatInspector FormatInspector = new FileFormatInspector();
+
+    private TestHarness(string connectionString, Action<MediaOptions>? configureMedia)
     {
         var options = new DbContextOptionsBuilder<BlogDbContext>()
             .UseNpgsql(connectionString)
@@ -72,9 +81,13 @@ public sealed class TestHarness : IAsyncDisposable
         CurrentUser = new StubCurrentUser();
         Google = new StubGoogleTokenValidator();
 
-        Authors = new AuthorRepository(Context);
+        // NOTE: the decorators are inert unless a test sets FailNextSave. They are the only
+        // way to make a save fail, which is what the compensating deletes in MediaService
+        // are there to survive.
+        Authors = new FailingSaveAuthorRepository(new AuthorRepository(Context));
         Posts = new PostRepository(Context);
         RefreshTokens = new RefreshTokenRepository(Context);
+        Medias = new FailingSaveMediaRepository(new MediaRepository(Context));
 
         var jwtOptions = Options.Create(new JwtOptions
         {
@@ -86,9 +99,32 @@ public sealed class TestHarness : IAsyncDisposable
         Tokens = new TokenService(
             RefreshTokens, Authors, TimeProvider, jwtOptions, NullLogger<TokenService>.Instance);
 
+        // NOTE: the defaults allow a 10 MB picture and 50 megapixels. A test that wants to
+        // prove a limit is enforced shrinks it here rather than building a file big enough
+        // to trip the real one.
+        MediaOptions = new MediaOptions();
+        configureMedia?.Invoke(MediaOptions);
+        var mediaOptions = Options.Create(MediaOptions);
+
+        // NOTE: an in-memory bucket, not the real one. It keeps the bytes, so a test can
+        // check what was actually stored rather than trusting the row that points at it.
+        Storage = new FakeBackblazeService();
+
+        MediaService = new MediaService(
+            Medias,
+            Posts,
+            Authors,
+            Storage,
+            new ImageOptimizer(mediaOptions, NullLogger<ImageOptimizer>.Instance),
+            new FileSignatureMediaTypeDetector(FormatInspector),
+            CurrentUser,
+            TimeProvider,
+            mediaOptions,
+            NullLogger<MediaService>.Instance);
+
         Auth = new AuthService(Authors, Tokens, Google, CurrentUser, TimeProvider);
-        PostService = new PostService(Posts, Authors, CurrentUser, TimeProvider);
-        AuthorService = new AuthorService(Authors, CurrentUser, TimeProvider);
+        PostService = new PostService(Posts, Authors, MediaService, CurrentUser, TimeProvider);
+        AuthorService = new AuthorService(Authors, MediaService, CurrentUser, TimeProvider);
     }
 
     public BlogDbContext Context { get; }
@@ -99,11 +135,19 @@ public sealed class TestHarness : IAsyncDisposable
 
     public StubGoogleTokenValidator Google { get; }
 
-    public IAuthorRepository Authors { get; }
+    public FailingSaveAuthorRepository Authors { get; }
 
     public IPostRepository Posts { get; }
 
     public IRefreshTokenRepository RefreshTokens { get; }
+
+    public FailingSaveMediaRepository Medias { get; }
+
+    public FakeBackblazeService Storage { get; }
+
+    public IMediaService MediaService { get; }
+
+    public MediaOptions MediaOptions { get; }
 
     public ITokenService Tokens { get; }
 
