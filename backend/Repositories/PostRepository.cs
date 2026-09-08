@@ -78,17 +78,11 @@ public class PostRepository : IPostRepository
     public async Task AddAsync(Post post, CancellationToken cancellationToken = default) =>
         await _context.Posts.AddAsync(post, cancellationToken);
 
-    public async Task RemoveAsync(Post post, CancellationToken cancellationToken = default)
+    // NOTE: clearing the medias in the bucket is PostService's job so not included here
+    public Task RemoveAsync(Post post, CancellationToken cancellationToken = default)
     {
-        // TODO: this is gonna have to remove all the damn medias file also
-        // TODO: maybe this is kind of a in-memory quirk, when i move to relational db
-        // these should be handled automatically via cascaE so no problem, remove later
-        var medias = await _context.Medias
-            .Where(m => m.PostId == post.Id)
-            .ToListAsync(cancellationToken);
-
-        _context.Medias.RemoveRange(medias);
         _context.Posts.Remove(post);
+        return Task.CompletedTask;
     }
 
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>

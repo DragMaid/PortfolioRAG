@@ -9,15 +9,18 @@ namespace Backend.Services;
 public class AuthorService : IAuthorService
 {
     private readonly IAuthorRepository _authors;
+    private readonly IMediaService _media;
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
 
     public AuthorService(
         IAuthorRepository authors,
+        IMediaService media,
         ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _authors = authors;
+        _media = media;
         _currentUser = currentUser;
         _timeProvider = timeProvider;
     }
@@ -76,6 +79,10 @@ public class AuthorService : IAuthorService
         // external logins and every refresh token
         _authors.Remove(author);
         await _authors.SaveChangesAsync(cancellationToken);
+
+        // The cascade clears the rows; the bucket has never heard of them. Everything this
+        // account ever uploaded lives under one prefix precisely so this is one sweep.
+        await _media.PurgeAuthorObjectsAsync(id, cancellationToken);
     }
 
     /// <summary>

@@ -8,7 +8,18 @@ public class Author
 
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>
+    /// An avatar the account did not upload — the picture Google vouched for, typically.
+    /// An uploaded avatar lands in <see cref="AvatarObjectKey"/> instead, and wins.
+    /// </summary>
     public string? AvatarUrl { get; set; }
+
+    /// <summary>
+    /// Where an uploaded avatar lives in the bucket, or null when the account never
+    /// uploaded one. The bucket is private, so this is a key rather than an address and
+    /// readers are redirected through GET /api/authors/{id}/avatar.
+    /// </summary>
+    public string? AvatarObjectKey { get; set; }
 
     public string? Biography { get; set; }
 
