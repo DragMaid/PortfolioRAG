@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using Backend.Common;
@@ -18,6 +19,16 @@ using Microsoft.IdentityModel.Tokens;
 using NSwag;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var noCheck = args.Contains("--noCheck");
+
+if (noCheck && !builder.Environment.IsDevelopment())
+{
+    throw new InvalidOperationException(
+        "--noCheck skips the startup configuration checks and is only accepted in the Development " +
+        $"environment; this process is running as '{builder.Environment.EnvironmentName}'. Drop the " +
+        "flag and supply the missing configuration.");
+}
 
 // Add services to the container.
 
@@ -64,12 +75,14 @@ builder.Services.AddScoped<IMediaService, MediaService>();
 var backblazeOptions = builder.Configuration
     .GetSection(BackblazeOptions.SectionName)
     .Get<BackblazeOptions>() ?? new BackblazeOptions();
-backblazeOptions.Validate();
+if (!noCheck)
+    backblazeOptions.Validate();
 
 var mediaOptions = builder.Configuration
     .GetSection(MediaOptions.SectionName)
     .Get<MediaOptions>() ?? new MediaOptions();
-mediaOptions.Validate();
+if (!noCheck)
+    mediaOptions.Validate();
 
 builder.Services.Configure<BackblazeOptions>(builder.Configuration.GetSection(BackblazeOptions.SectionName));
 builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
@@ -82,13 +95,25 @@ builder.Services.AddSingleton<IImageOptimizer, ImageOptimizer>();
 // FileSignatures assembly to collect the format list, and it holds no per-call state.
 builder.Services.AddSingleton<IFileFormatInspector>(_ => new FileFormatInspector());
 builder.Services.AddSingleton<IMediaTypeDetector, FileSignatureMediaTypeDetector>();
-builder.Services.AddBackblazeAgent(options =>
-{
-    options.KeyId = backblazeOptions.KeyId;
-    options.ApplicationKey = backblazeOptions.ApplicationKey;
-});
 
-builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
+// Only reachable under --noCheck, which Validate() above would otherwise have stopped. The
+// storage client cannot be constructed without credentials, so the media surface is served
+// by a stand-in that answers 503 rather than by nothing at all.
+if (backblazeOptions.IsConfigured)
+{
+    builder.Services.AddBackblazeAgent(options =>
+    {
+        options.KeyId = backblazeOptions.KeyId;
+        options.ApplicationKey = backblazeOptions.ApplicationKey;
+    });
+
+    builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
+}
+else
+{
+    builder.Services.AddSingleton<IBackblazeService, UnconfiguredBackblazeService>();
+}
+
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = mediaOptions.MaxUploadBytes + RequestOverheadBytes;
@@ -106,9 +131,19 @@ builder.Services.AddExceptionHandler<DefaultExceptionHandler>();
 // the first login. Development supplies a throwaway key in appsettings.Development.json;
 // anything else has to provide its own (user secrets, or the Jwt__Key environment variable).
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
-jwtOptions.Validate();
+if (!noCheck)
+    jwtOptions.Validate();
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+
+if (noCheck && (string.IsNullOrWhiteSpace(jwtOptions.Key) || jwtOptions.Key.Length < JwtOptions.MinimumKeyLength))
+{
+    jwtOptions.Key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(JwtOptions.MinimumKeyLength));
+
+    var ephemeralKey = jwtOptions.Key;
+    builder.Services.PostConfigure<JwtOptions>(options => options.Key = ephemeralKey);
+}
+
 builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection(GoogleAuthOptions.SectionName));
 
 builder.Services.AddHttpContextAccessor();
@@ -190,6 +225,15 @@ builder.Services.AddOpenApiDocument(settings =>
 
 var app = builder.Build();
 app.UseExceptionHandler();
+
+// NOTE: Said once at boot rather than from the stand-in service, which is not constructed until the first media request
+if (!backblazeOptions.IsConfigured)
+{
+    app.Logger.LogWarning(
+        "Backblaze is not configured: media storage is disabled and every media request will answer " +
+        "503. Supply KeyId, ApplicationKey and BucketName under the '{SectionName}' section to enable it.",
+        BackblazeOptions.SectionName);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
