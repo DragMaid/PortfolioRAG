@@ -120,6 +120,7 @@ public class PostService : IPostService
         post.Title = dto.Title.Trim();
         post.Summary = string.IsNullOrWhiteSpace(dto.Summary) ? null : dto.Summary.Trim();
         post.Body = dto.Body;
+        post.IsFeatured = dto.IsFeatured;
         post.UpdatedAt = _timeProvider.GetUtcNow();
 
         await _posts.SaveChangesAsync(cancellationToken);

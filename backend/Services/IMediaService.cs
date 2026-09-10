@@ -22,6 +22,16 @@ public interface IMediaService
     /// <summary>The media on a published post. A draft is a 404 here, as everywhere public.</summary>
     Task<IReadOnlyList<MediaDto>> GetForPublicPostAsync(string slug, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Rewrites the caption on one item of the caller's own post. The only editable part of
+    /// an upload — everything else about it is fixed by the bytes that arrived.
+    /// </summary>
+    Task<MediaDto> UpdateAsync(
+        int postId,
+        int mediaId,
+        UpdateMediaDto dto,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Removes one item from the caller's own post, bucket object included.</summary>
     Task DeleteAsync(int postId, int mediaId, CancellationToken cancellationToken = default);
 
