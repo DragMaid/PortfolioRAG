@@ -1,4 +1,7 @@
-import { authorsApi, postsApi } from "@/lib/api/generated/client";
+import { cache } from "react";
+import { apiUrl, authorsApi, postsApi } from "@/lib/api/generated/client";
+import { profilePlaceholder } from "@/lib/data/profile";
+import type { Profile } from "@/lib/types";
 import type { AuthorDto, PostDto, PostSummaryDto } from "@/lib/api/generated";
 import { PostSortOrder } from "@/lib/api/generated";
 
@@ -15,6 +18,43 @@ export async function getOwner(): Promise<AuthorDto | null> {
     return null;
   }
 }
+
+// Initials from a display name, e.g. "Alexander Vance" -> "AV".
+function initialsOf(name: string): string {
+  const letters = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() ?? "");
+  if (letters.length === 0) return profilePlaceholder.monogram;
+  return (letters[0] + (letters.at(-1) ?? "")).slice(0, 2);
+}
+
+/** Splits a stored biography into paragraphs on blank lines. */
+function toParagraphs(biography: string): string[] {
+  const paragraphs = biography
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  return paragraphs.length > 0 ? paragraphs : profilePlaceholder.biography;
+}
+
+export const getProfile = cache(async (): Promise<Profile> => {
+  const author = await getOwner();
+  if (!author) return profilePlaceholder;
+
+  const name = author.name?.trim() || profilePlaceholder.name;
+
+  return {
+    ...profilePlaceholder,
+    name,
+    monogram: initialsOf(name),
+    email: author.email?.trim() || profilePlaceholder.email,
+    avatarUrl: apiUrl(author.avatarUrl) ?? profilePlaceholder.avatarUrl,
+    biography: author.biography?.trim()
+      ? toParagraphs(author.biography)
+      : profilePlaceholder.biography,
+  };
+});
 
 export async function getAuthor(id: number): Promise<AuthorDto | null> {
   try {
