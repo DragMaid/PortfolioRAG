@@ -17,6 +17,9 @@ public class Post
 
     public bool IsDraft { get; set; } = true;
 
+    /// <summary>Marks the post as the showcase piece the portfolio leads with</summary>
+    public bool IsFeatured { get; set; }
+
     public int AuthorId { get; set; }
 
     public Author Author { get; set; } = null!;

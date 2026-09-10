@@ -142,19 +142,23 @@ public class MediaService : IMediaService
         return medias.Select(m => m.ToDto()).ToList();
     }
 
+    public async Task<MediaDto> UpdateAsync(
+        int postId,
+        int mediaId,
+        UpdateMediaDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var media = await LoadOwnedAsync(postId, mediaId, cancellationToken);
+
+        media.Caption = string.IsNullOrWhiteSpace(dto.Caption) ? null : dto.Caption.Trim();
+
+        await _medias.SaveChangesAsync(cancellationToken);
+        return media.ToDto();
+    }
+
     public async Task DeleteAsync(int postId, int mediaId, CancellationToken cancellationToken = default)
     {
-        var media = await _medias.GetByIdAsync(mediaId, tracked: true, cancellationToken)
-            ?? throw NotFoundException.For("Media", mediaId);
-
-        // The route says this item belongs to that post. If it does not, the address is
-        // wrong and there is nothing at it — answering on the item anyway would let one
-        // post's URL act on another's file.
-        if (media.PostId != postId)
-            throw NotFoundException.For("Media", mediaId);
-
-        if (media.Post.AuthorId != _currentUser.RequireAuthorId())
-            throw ForbiddenException.For("media", mediaId);
+        var media = await LoadOwnedAsync(postId, mediaId, cancellationToken);
 
         // NOTE: bucket first. If it fails the row survives and the delete can be retried;
         // the other order would leave an object nothing remembers the key of.
@@ -265,6 +269,23 @@ public class MediaService : IMediaService
     /// account is being deleted, and a storage outage must not be able to keep somebody's
     /// account open. What survives is a logged, addressable prefix rather than silence.
     /// </summary>
+    private async Task<Media> LoadOwnedAsync(
+        int postId,
+        int mediaId,
+        CancellationToken cancellationToken)
+    {
+        var media = await _medias.GetByIdAsync(mediaId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("Media", mediaId);
+
+        if (media.PostId != postId)
+            throw NotFoundException.For("Media", mediaId);
+
+        if (media.Post.AuthorId != _currentUser.RequireAuthorId())
+            throw ForbiddenException.For("media", mediaId);
+
+        return media;
+    }
+
     private async Task PurgePrefixAsync(string prefix, CancellationToken cancellationToken)
     {
         try

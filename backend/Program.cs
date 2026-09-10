@@ -60,12 +60,21 @@ builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
+builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 
 builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+
+// NOTE: the visitor salt is too insignificant so ill leave it as optional for now
+var analyticsOptions = builder.Configuration
+    .GetSection(AnalyticsOptions.SectionName)
+    .Get<AnalyticsOptions>() ?? new AnalyticsOptions();
+
+builder.Services.Configure<AnalyticsOptions>(builder.Configuration.GetSection(AnalyticsOptions.SectionName));
 
 // ---------------------------------------------------------------------------
 // Media storage
@@ -225,6 +234,15 @@ builder.Services.AddOpenApiDocument(settings =>
 
 var app = builder.Build();
 app.UseExceptionHandler();
+
+if (!app.Environment.IsDevelopment() &&
+    string.Equals(analyticsOptions.VisitorSalt, new AnalyticsOptions().VisitorSalt, StringComparison.Ordinal))
+{
+    app.Logger.LogWarning(
+        "Analytics is using the built-in development visitor salt. Set '{SectionName}:VisitorSalt' " +
+        "(or Analytics__VisitorSalt) to a value of this deployment's own.",
+        AnalyticsOptions.SectionName);
+}
 
 // NOTE: Said once at boot rather than from the stand-in service, which is not constructed until the first media request
 if (!backblazeOptions.IsConfigured)

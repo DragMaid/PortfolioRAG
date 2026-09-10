@@ -5,6 +5,7 @@ using Backend.Models.Entities;
 using Backend.Repositories;
 using Backend.Services;
 using FileSignatures;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -23,6 +24,11 @@ public sealed class StubCurrentUser : ICurrentUser
 
     public int RequireAuthorId() =>
         AuthorId ?? throw new Backend.Common.Exceptions.UnauthorizedException("Not signed in.");
+}
+
+public sealed class StubHttpContextAccessor : IHttpContextAccessor
+{
+    public HttpContext? HttpContext { get; set; }
 }
 
 /// <summary>Stands in for Google so the linking rules can be exercised without a real token.</summary>
@@ -88,6 +94,7 @@ public sealed class TestHarness : IAsyncDisposable
         Posts = new PostRepository(Context);
         RefreshTokens = new RefreshTokenRepository(Context);
         Medias = new FailingSaveMediaRepository(new MediaRepository(Context));
+        PageViews = new AnalyticsRepository(Context);
 
         var jwtOptions = Options.Create(new JwtOptions
         {
@@ -122,6 +129,20 @@ public sealed class TestHarness : IAsyncDisposable
             mediaOptions,
             NullLogger<MediaService>.Instance);
 
+        // NOTE: analytics counts a reader by their address and user agent, which come off the
+        // connection rather than the request body. A real HttpContext is the only way to put
+        // a caller behind one — see AsVisitor.
+        HttpContextAccessor = new StubHttpContextAccessor { HttpContext = new DefaultHttpContext() };
+        AsVisitor("203.0.113.1", "test-agent");
+
+        Analytics = new AnalyticsService(
+            PageViews,
+            Posts,
+            CurrentUser,
+            HttpContextAccessor,
+            TimeProvider,
+            Options.Create(new AnalyticsOptions { VisitorSalt = "test-salt", SelfHosts = ["example.com"] }));
+
         Auth = new AuthService(Authors, Tokens, Google, CurrentUser, TimeProvider);
         PostService = new PostService(Posts, Authors, MediaService, CurrentUser, TimeProvider);
         AuthorService = new AuthorService(Authors, MediaService, CurrentUser, TimeProvider);
@@ -142,6 +163,12 @@ public sealed class TestHarness : IAsyncDisposable
     public IRefreshTokenRepository RefreshTokens { get; }
 
     public FailingSaveMediaRepository Medias { get; }
+
+    public IAnalyticsRepository PageViews { get; }
+
+    public IHttpContextAccessor HttpContextAccessor { get; }
+
+    public IAnalyticsService Analytics { get; }
 
     public FakeBackblazeService Storage { get; }
 
@@ -177,7 +204,11 @@ public sealed class TestHarness : IAsyncDisposable
         return author;
     }
 
-    public async Task<Post> AddPostAsync(Author author, bool isDraft = true, string title = "A post")
+    public async Task<Post> AddPostAsync(
+        Author author,
+        bool isDraft = true,
+        string title = "A post",
+        bool isFeatured = false)
     {
         var now = TimeProvider.GetUtcNow();
 
@@ -187,6 +218,7 @@ public sealed class TestHarness : IAsyncDisposable
             Slug = Guid.NewGuid().ToString("N"),
             Body = "body",
             IsDraft = isDraft,
+            IsFeatured = isFeatured,
             Author = author,
             CreatedAt = now,
             UpdatedAt = now,
@@ -196,6 +228,17 @@ public sealed class TestHarness : IAsyncDisposable
         Context.Posts.Add(post);
         await Context.SaveChangesAsync();
         return post;
+    }
+
+    /// <summary>
+    /// Puts the next reading behind this address and user agent. Two readings from different
+    /// addresses are two visitors; the same pair on the same day is one.
+    /// </summary>
+    public void AsVisitor(string ipAddress, string userAgent)
+    {
+        var context = HttpContextAccessor.HttpContext!;
+        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(ipAddress);
+        context.Request.Headers.UserAgent = userAgent;
     }
 
     /// <summary>Signs the given author in for the rest of the test.</summary>

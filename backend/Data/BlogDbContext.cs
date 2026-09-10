@@ -17,6 +17,8 @@ public class BlogDbContext : DbContext
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<PageView> PageViews => Set<PageView>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Author>(entity =>
@@ -67,8 +69,6 @@ public class BlogDbContext : DbContext
             entity.Property(p => p.Body).IsRequired();
             entity.HasIndex(p => p.Slug).IsUnique();
 
-            // NOTE: deleting an account takes its posts — and, through them, their media —
-            // with it. Nothing of a closed account survives. See AuthorService.DeleteAsync.
             entity.HasOne(p => p.Author)
                 .WithMany(a => a.Posts)
                 .HasForeignKey(p => p.AuthorId)
@@ -81,6 +81,7 @@ public class BlogDbContext : DbContext
             entity.Property(m => m.Filename).IsRequired().HasMaxLength(100);
             entity.Property(m => m.ObjectKey).IsRequired().HasMaxLength(512);
             entity.Property(m => m.Extension).IsRequired();
+            entity.Property(m => m.Caption).HasMaxLength(200);
             entity.HasIndex(m => m.ObjectKey).IsUnique();
 
             // NOTE: a media row is meaningless without the post it belongs to, so the
@@ -89,6 +90,29 @@ public class BlogDbContext : DbContext
                 .WithMany(p => p.Medias)
                 .HasForeignKey(m => m.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PageView>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+            entity.Property(v => v.Path).IsRequired().HasMaxLength(400);
+            entity.Property(v => v.VisitorHash).IsRequired().HasMaxLength(64);
+            entity.Property(v => v.ReferrerHost).HasMaxLength(255);
+
+            // NOTE: index chosen because analytics is also time sensitive
+            entity.HasIndex(v => new { v.AuthorId, v.OccurredAt });
+            entity.HasIndex(v => new { v.PostId, v.OccurredAt });
+
+            // NOTE: deleting a post keeps its analytics, just referenced to null
+            entity.HasOne(v => v.Post)
+                .WithMany()
+                .HasForeignKey(v => v.PostId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(v => v.Author)
+                .WithMany()
+                .HasForeignKey(v => v.AuthorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

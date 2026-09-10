@@ -19,4 +19,7 @@ public class UpdatePostDto
     [Required]
     [StringLength(50000, MinimumLength = 1)]
     public string Body { get; init; } = string.Empty;
+
+    /// <summary>Whether this is the portfolio's showcase piece</summary>
+    public bool IsFeatured { get; init; }
 }

@@ -37,6 +37,11 @@ public class PostRepository : IPostRepository
             query = query.Where(p => p.AuthorId == request.AuthorId.Value);
         }
 
+        if (request.IsFeatured.HasValue)
+        {
+            query = query.Where(p => p.IsFeatured == request.IsFeatured.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim().ToLowerInvariant();
