@@ -12,6 +12,9 @@ public class PostSummaryDto
 
     public bool IsDraft { get; init; }
 
+    /// <summary>Whether the post is the showcase piece the portfolio leads with.</summary>
+    public bool IsFeatured { get; init; }
+
     public AuthorSummaryDto Author { get; init; } = new();
 
     public int ViewCount { get; init; }
