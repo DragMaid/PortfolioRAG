@@ -1,36 +1,28 @@
 
-# MediaDto
+# DailyTrafficDto
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`id` | number
-`filename` | string
-`url` | string
-`extension` | [MediaExtension](MediaExtension.md)
-`caption` | string
-`byteSize` | number
-`postId` | number
-`createdAt` | Date
+`date` | Date
+`visitors` | number
+`reads` | number
+`baseline` | number
 
 ## Example
 
 ```typescript
-import type { MediaDto } from ''
+import type { DailyTrafficDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
-  "filename": null,
-  "url": null,
-  "extension": null,
-  "caption": null,
-  "byteSize": null,
-  "postId": null,
-  "createdAt": null,
-} satisfies MediaDto
+  "date": null,
+  "visitors": null,
+  "reads": null,
+  "baseline": null,
+} satisfies DailyTrafficDto
 
 console.log(example)
 
@@ -39,7 +31,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as MediaDto
+const exampleParsed = JSON.parse(exampleJSON) as DailyTrafficDto
 console.log(exampleParsed)
 ```
 

@@ -1,36 +1,22 @@
 
-# MediaDto
+# UpdateMediaDto
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`id` | number
-`filename` | string
-`url` | string
-`extension` | [MediaExtension](MediaExtension.md)
 `caption` | string
-`byteSize` | number
-`postId` | number
-`createdAt` | Date
 
 ## Example
 
 ```typescript
-import type { MediaDto } from ''
+import type { UpdateMediaDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
-  "filename": null,
-  "url": null,
-  "extension": null,
   "caption": null,
-  "byteSize": null,
-  "postId": null,
-  "createdAt": null,
-} satisfies MediaDto
+} satisfies UpdateMediaDto
 
 console.log(example)
 
@@ -39,7 +25,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as MediaDto
+const exampleParsed = JSON.parse(exampleJSON) as UpdateMediaDto
 console.log(exampleParsed)
 ```
 

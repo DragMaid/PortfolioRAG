@@ -145,7 +145,7 @@ No authorization required
 
 ## postsGetPublished
 
-> PagedResultOfPostSummaryDto postsGetPublished(search, authorId, isDraft, sort, page, pageSize, skip)
+> PagedResultOfPostSummaryDto postsGetPublished(search, authorId, isDraft, isFeatured, sort, page, pageSize, skip)
 
 
 
@@ -169,6 +169,8 @@ async function example() {
     authorId: 56,
     // boolean (optional)
     isDraft: true,
+    // boolean (optional)
+    isFeatured: true,
     // PostSortOrder (optional)
     sort: ...,
     // number (optional)
@@ -199,6 +201,7 @@ example().catch(console.error);
 | **search** | `string` |  | [Optional] [Defaults to `undefined`] |
 | **authorId** | `number` |  | [Optional] [Defaults to `undefined`] |
 | **isDraft** | `boolean` |  | [Optional] [Defaults to `undefined`] |
+| **isFeatured** | `boolean` |  | [Optional] [Defaults to `undefined`] |
 | **sort** | `PostSortOrder` |  | [Optional] [Defaults to `undefined`] [Enum: Newest, Oldest, MostViewed, Title] |
 | **page** | `number` |  | [Optional] [Defaults to `undefined`] |
 | **pageSize** | `number` |  | [Optional] [Defaults to `undefined`] |

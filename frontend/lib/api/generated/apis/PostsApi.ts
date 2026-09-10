@@ -70,6 +70,10 @@ export interface PostsGetPublishedRequest {
     /**
      * 
      */
+    isFeatured?: boolean | null;
+    /**
+     * 
+     */
     sort?: PostSortOrder;
     /**
      * 
@@ -199,6 +203,10 @@ export class PostsApi extends runtime.BaseAPI {
 
         if (requestParameters['isDraft'] != null) {
             queryParameters['IsDraft'] = requestParameters['isDraft'];
+        }
+
+        if (requestParameters['isFeatured'] != null) {
+            queryParameters['IsFeatured'] = requestParameters['isFeatured'];
         }
 
         if (requestParameters['sort'] != null) {

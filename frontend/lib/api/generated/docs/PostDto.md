@@ -12,6 +12,7 @@ Name | Type
 `summary` | string
 `body` | string
 `isDraft` | boolean
+`isFeatured` | boolean
 `author` | [AuthorSummaryDto](AuthorSummaryDto.md)
 `viewCount` | number
 `createdAt` | Date
@@ -31,6 +32,7 @@ const example = {
   "summary": null,
   "body": null,
   "isDraft": null,
+  "isFeatured": null,
   "author": null,
   "viewCount": null,
   "createdAt": null,

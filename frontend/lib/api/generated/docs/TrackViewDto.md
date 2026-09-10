@@ -1,40 +1,28 @@
 
-# PostSummaryDto
+# TrackViewDto
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`id` | number
-`title` | string
+`path` | string
 `slug` | string
-`summary` | string
-`isDraft` | boolean
-`isFeatured` | boolean
-`author` | [AuthorSummaryDto](AuthorSummaryDto.md)
-`viewCount` | number
-`createdAt` | Date
-`publishedAt` | Date
+`referrer` | string
+`dwellSeconds` | number
 
 ## Example
 
 ```typescript
-import type { PostSummaryDto } from ''
+import type { TrackViewDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
-  "title": null,
+  "path": null,
   "slug": null,
-  "summary": null,
-  "isDraft": null,
-  "isFeatured": null,
-  "author": null,
-  "viewCount": null,
-  "createdAt": null,
-  "publishedAt": null,
-} satisfies PostSummaryDto
+  "referrer": null,
+  "dwellSeconds": null,
+} satisfies TrackViewDto
 
 console.log(example)
 
@@ -43,7 +31,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as PostSummaryDto
+const exampleParsed = JSON.parse(exampleJSON) as TrackViewDto
 console.log(exampleParsed)
 ```
 

@@ -6,6 +6,7 @@ All URIs are relative to *http://localhost:5009*
 |------------- | ------------- | -------------|
 | [**postMediaDelete**](PostMediaApi.md#postmediadelete) | **DELETE** /api/admin/posts/{postId}/media/{mediaId} |  |
 | [**postMediaGetAll**](PostMediaApi.md#postmediagetall) | **GET** /api/admin/posts/{postId}/media |  |
+| [**postMediaUpdate**](PostMediaApi.md#postmediaupdate) | **PUT** /api/admin/posts/{postId}/media/{mediaId} |  |
 | [**postMediaUpload**](PostMediaApi.md#postmediaupload) | **POST** /api/admin/posts/{postId}/media |  |
 
 
@@ -150,6 +151,85 @@ example().catch(console.error);
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 | **200** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## postMediaUpdate
+
+> MediaDto postMediaUpdate(postId, mediaId, updateMediaDto)
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  PostMediaApi,
+} from '';
+import type { PostMediaUpdateRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new PostMediaApi(config);
+
+  const body = {
+    // number
+    postId: 56,
+    // number
+    mediaId: 56,
+    // UpdateMediaDto
+    updateMediaDto: ...,
+  } satisfies PostMediaUpdateRequest;
+
+  try {
+    const data = await api.postMediaUpdate(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **postId** | `number` |  | [Defaults to `undefined`] |
+| **mediaId** | `number` |  | [Defaults to `undefined`] |
+| **updateMediaDto** | [UpdateMediaDto](UpdateMediaDto.md) |  | |
+
+### Return type
+
+[**MediaDto**](MediaDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **400** |  |  -  |
 | **401** |  |  -  |
 | **403** |  |  -  |
 | **404** |  |  -  |

@@ -47,6 +47,10 @@ export interface MediaDto {
     /**
      * 
      */
+    caption?: string | null;
+    /**
+     * 
+     */
     byteSize?: number;
     /**
      * 
@@ -81,6 +85,7 @@ export function MediaDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
         'filename': json['filename'] == null ? undefined : json['filename'],
         'url': json['url'] == null ? undefined : json['url'],
         'extension': json['extension'] == null ? undefined : MediaExtensionFromJSON(json['extension']),
+        'caption': json['caption'] === undefined ? undefined : json['caption'] === null ? null : json['caption'],
         'byteSize': json['byteSize'] == null ? undefined : json['byteSize'],
         'postId': json['postId'] == null ? undefined : json['postId'],
         'createdAt': json['createdAt'] == null ? undefined : (parseDateTime(json['createdAt'])),
@@ -102,6 +107,7 @@ export function MediaDtoToJSONTyped(value?: MediaDto | null, ignoreDiscriminator
         'filename': value['filename'],
         'url': value['url'],
         'extension': MediaExtensionToJSON(value['extension']),
+        'caption': value['caption'],
         'byteSize': value['byteSize'],
         'postId': value['postId'],
         'createdAt': value['createdAt'] == null ? value['createdAt'] : serializeDateTime(value['createdAt']),

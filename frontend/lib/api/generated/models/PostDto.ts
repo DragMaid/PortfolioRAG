@@ -55,6 +55,10 @@ export interface PostDto {
     /**
      * 
      */
+    isFeatured?: boolean;
+    /**
+     * 
+     */
     author?: AuthorSummaryDto;
     /**
      * 
@@ -97,6 +101,7 @@ export function PostDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): P
         'summary': json['summary'] === undefined ? undefined : json['summary'] === null ? null : json['summary'],
         'body': json['body'] == null ? undefined : json['body'],
         'isDraft': json['isDraft'] == null ? undefined : json['isDraft'],
+        'isFeatured': json['isFeatured'] == null ? undefined : json['isFeatured'],
         'author': json['author'] == null ? undefined : AuthorSummaryDtoFromJSON(json['author']),
         'viewCount': json['viewCount'] == null ? undefined : json['viewCount'],
         'createdAt': json['createdAt'] == null ? undefined : (parseDateTime(json['createdAt'])),
@@ -122,6 +127,7 @@ export function PostDtoToJSONTyped(value?: PostDto | null, ignoreDiscriminator: 
         'summary': value['summary'],
         'body': value['body'],
         'isDraft': value['isDraft'],
+        'isFeatured': value['isFeatured'],
         'author': AuthorSummaryDtoToJSON(value['author']),
         'viewCount': value['viewCount'],
         'createdAt': value['createdAt'] == null ? value['createdAt'] : serializeDateTime(value['createdAt']),

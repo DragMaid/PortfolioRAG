@@ -10,6 +10,7 @@ Name | Type
 `slug` | string
 `summary` | string
 `body` | string
+`isFeatured` | boolean
 
 ## Example
 
@@ -22,6 +23,7 @@ const example = {
   "slug": null,
   "summary": null,
   "body": null,
+  "isFeatured": null,
 } satisfies UpdatePostDto
 
 console.log(example)

@@ -36,6 +36,10 @@ export interface UpdatePostDto {
      * 
      */
     body: string;
+    /**
+     * 
+     */
+    isFeatured?: boolean;
 }
 
 /**
@@ -61,6 +65,7 @@ export function UpdatePostDtoFromJSONTyped(json: any, ignoreDiscriminator: boole
         'slug': json['slug'] === undefined ? undefined : json['slug'] === null ? null : json['slug'],
         'summary': json['summary'] === undefined ? undefined : json['summary'] === null ? null : json['summary'],
         'body': json['body'],
+        'isFeatured': json['isFeatured'] == null ? undefined : json['isFeatured'],
     };
 }
 
@@ -79,6 +84,7 @@ export function UpdatePostDtoToJSONTyped(value?: UpdatePostDto | null, ignoreDis
         'slug': value['slug'],
         'summary': value['summary'],
         'body': value['body'],
+        'isFeatured': value['isFeatured'],
     };
 }
 

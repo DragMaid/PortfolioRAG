@@ -24,6 +24,11 @@ import {
     ProblemDetailsFromJSON,
     ProblemDetailsToJSON,
 } from '../models/ProblemDetails';
+import {
+    type UpdateMediaDto,
+    UpdateMediaDtoFromJSON,
+    UpdateMediaDtoToJSON,
+} from '../models/UpdateMediaDto';
 
 export interface PostMediaDeleteRequest {
     /**
@@ -41,6 +46,21 @@ export interface PostMediaGetAllRequest {
      * 
      */
     postId: number;
+}
+
+export interface PostMediaUpdateRequest {
+    /**
+     * 
+     */
+    postId: number;
+    /**
+     * 
+     */
+    mediaId: number;
+    /**
+     * 
+     */
+    updateMediaDto: UpdateMediaDto;
 }
 
 export interface PostMediaUploadRequest {
@@ -165,6 +185,75 @@ export class PostMediaApi extends runtime.BaseAPI {
      */
     async postMediaGetAll(requestParameters: PostMediaGetAllRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<MediaDto>> {
         const response = await this.postMediaGetAllRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for postMediaUpdate without sending the request
+     */
+    async postMediaUpdateRequestOpts(requestParameters: PostMediaUpdateRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['postId'] == null) {
+            throw new runtime.RequiredError(
+                'postId',
+                'Required parameter "postId" was null or undefined when calling postMediaUpdate().'
+            );
+        }
+
+        if (requestParameters['mediaId'] == null) {
+            throw new runtime.RequiredError(
+                'mediaId',
+                'Required parameter "mediaId" was null or undefined when calling postMediaUpdate().'
+            );
+        }
+
+        if (requestParameters['updateMediaDto'] == null) {
+            throw new runtime.RequiredError(
+                'updateMediaDto',
+                'Required parameter "updateMediaDto" was null or undefined when calling postMediaUpdate().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/admin/posts/{postId}/media/{mediaId}`;
+        urlPath = urlPath.replace('{postId}', encodeURIComponent(String(requestParameters['postId'])));
+        urlPath = urlPath.replace('{mediaId}', encodeURIComponent(String(requestParameters['mediaId'])));
+
+        return {
+            path: urlPath,
+            method: 'PUT',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateMediaDtoToJSON(requestParameters['updateMediaDto']),
+        };
+    }
+
+    /**
+     */
+    async postMediaUpdateRaw(requestParameters: PostMediaUpdateRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MediaDto>> {
+        const requestOptions = await this.postMediaUpdateRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MediaDtoFromJSON(jsonValue));
+    }
+
+    /**
+     */
+    async postMediaUpdate(requestParameters: PostMediaUpdateRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MediaDto> {
+        const response = await this.postMediaUpdateRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
