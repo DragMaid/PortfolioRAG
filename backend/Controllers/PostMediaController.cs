@@ -63,6 +63,20 @@ public class PostMediaController : ControllerBase
             media);
     }
 
+    // Update the file metadata, not the actual file itself
+    [HttpPut("{mediaId:int}")]
+    [ProducesResponseType(typeof(MediaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MediaDto>> Update(
+        int postId,
+        int mediaId,
+        [FromBody] UpdateMediaDto dto,
+        CancellationToken cancellationToken) =>
+        Ok(await _mediaService.UpdateAsync(postId, mediaId, dto, cancellationToken));
+
     [HttpDelete("{mediaId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

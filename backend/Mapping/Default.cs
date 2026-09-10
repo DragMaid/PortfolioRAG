@@ -51,6 +51,7 @@ public static class MappingExtensions
         Filename = media.Filename,
         Url = $"/api/media/{media.Id}/content",
         Extension = media.Extension,
+        Caption = media.Caption,
         ByteSize = media.ByteSize,
         PostId = media.PostId,
         CreatedAt = media.CreatedAt
@@ -70,6 +71,7 @@ public static class MappingExtensions
         Summary = post.Summary,
         Body = post.Body,
         IsDraft = post.IsDraft,
+        IsFeatured = post.IsFeatured,
         Author = post.Author.ToSummaryDto(),
         ViewCount = post.ViewCount,
         CreatedAt = post.CreatedAt,
@@ -84,6 +86,7 @@ public static class MappingExtensions
         Slug = post.Slug,
         Summary = post.Summary,
         IsDraft = post.IsDraft,
+        IsFeatured = post.IsFeatured,
         Author = post.Author.ToSummaryDto(),
         ViewCount = post.ViewCount,
         CreatedAt = post.CreatedAt,

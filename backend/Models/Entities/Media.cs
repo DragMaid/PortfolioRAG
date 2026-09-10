@@ -32,6 +32,13 @@ public class Media
 
     public MediaExtension Extension { get; set; }
 
+    /// <summary>
+    /// What the file is for, in the author's words — "Hero architecture figure". Shown
+    /// beside the item in the asset list and used as the alt text when the editor inserts
+    /// it into the body, so it is worth writing even though nothing requires it.
+    /// </summary>
+    public string? Caption { get; set; }
+
     public int PostId { get; set; }
 
     public Post Post { get; set; } = null!;
