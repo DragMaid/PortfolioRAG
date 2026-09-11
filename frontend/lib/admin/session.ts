@@ -15,6 +15,8 @@ export type Session = {
   authorId: number;
   authorName: string;
   authorEmail: string;
+  /** Where this account's portfolio is published: `/{handle}`. */
+  authorHandle: string;
 };
 
 // NOTE: the Symnol operation always return a unique identifier no matter what string is passed in
@@ -61,6 +63,7 @@ export function writeSession(result: AuthResultDto): Session | null {
     authorId: result.author.id,
     authorName: result.author.name ?? "",
     authorEmail: result.author.email ?? "",
+    authorHandle: result.author.handle ?? "",
   };
 
   persist(session);
