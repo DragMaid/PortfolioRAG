@@ -33,6 +33,7 @@ docs/LoginDto.md
 docs/MediaApi.md
 docs/MediaDto.md
 docs/MediaExtension.md
+docs/MediaRole.md
 docs/MetricDto.md
 docs/PagedResultOfPostSummaryDto.md
 docs/PostDto.md
@@ -67,6 +68,7 @@ models/GoogleSignInDto.ts
 models/LoginDto.ts
 models/MediaDto.ts
 models/MediaExtension.ts
+models/MediaRole.ts
 models/MetricDto.ts
 models/PagedResultOfPostSummaryDto.ts
 models/PostDto.ts

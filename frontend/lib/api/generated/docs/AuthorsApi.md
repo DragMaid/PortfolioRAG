@@ -1,12 +1,13 @@
 # AuthorsApi
 
-All URIs are relative to *http://localhost:5099*
+All URIs are relative to *http://localhost:5009*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
 | [**authorsDelete**](AuthorsApi.md#authorsdelete) | **DELETE** /api/authors/{id} |  |
 | [**authorsGetAll**](AuthorsApi.md#authorsgetall) | **GET** /api/authors |  |
 | [**authorsGetAvatar**](AuthorsApi.md#authorsgetavatar) | **GET** /api/authors/{id}/avatar |  |
+| [**authorsGetByHandle**](AuthorsApi.md#authorsgetbyhandle) | **GET** /api/authors/by-handle/{handle} |  |
 | [**authorsGetById**](AuthorsApi.md#authorsgetbyid) | **GET** /api/authors/{id} |  |
 | [**authorsRemoveAvatar**](AuthorsApi.md#authorsremoveavatar) | **DELETE** /api/authors/me/avatar |  |
 | [**authorsSetAvatar**](AuthorsApi.md#authorssetavatar) | **PUT** /api/authors/me/avatar |  |
@@ -205,6 +206,72 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 | **302** |  |  -  |
+| **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## authorsGetByHandle
+
+> AuthorDto authorsGetByHandle(handle)
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AuthorsApi,
+} from '';
+import type { AuthorsGetByHandleRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new AuthorsApi();
+
+  const body = {
+    // string
+    handle: handle_example,
+  } satisfies AuthorsGetByHandleRequest;
+
+  try {
+    const data = await api.authorsGetByHandle(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **handle** | `string` |  | [Defaults to `undefined`] |
+
+### Return type
+
+[**AuthorDto**](AuthorDto.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
 | **404** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)

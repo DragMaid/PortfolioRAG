@@ -16,6 +16,13 @@ Name | Type
 `viewCount` | number
 `createdAt` | Date
 `publishedAt` | Date
+`category` | string
+`domain` | string
+`repoUrl` | string
+`demoUrl` | string
+`specUrl` | string
+`thumbnail` | [MediaDto](MediaDto.md)
+`trailer` | [MediaDto](MediaDto.md)
 
 ## Example
 
@@ -34,6 +41,13 @@ const example = {
   "viewCount": null,
   "createdAt": null,
   "publishedAt": null,
+  "category": null,
+  "domain": null,
+  "repoUrl": null,
+  "demoUrl": null,
+  "specUrl": null,
+  "thumbnail": null,
+  "trailer": null,
 } satisfies PostSummaryDto
 
 console.log(example)

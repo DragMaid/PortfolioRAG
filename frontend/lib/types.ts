@@ -100,45 +100,30 @@ export type ExperienceEntry = {
   description: string;
 };
 
-/** Bar tint for a stat tile in the project preview window. */
-export type StatTone = "positive" | "accent" | "neutral";
-
-export type ProjectStat = {
-  label: string;
-  value: string;
-  /** Bar fill, 0-100. */
-  fill: number;
-  tone: StatTone;
+/** A project's trailer: a short video, or a still when there is no footage. */
+export type ProjectTrailer = {
+  /** The API's own content route, which redirects to a link that expires. */
+  url: string;
+  isVideo: boolean;
 };
 
-export type ProjectThumbnail =
-  | "vector"
-  | "shader"
-  | "kernel"
-  | "kinetic"
-  | "lsm"
-  | "wire";
-
 export type Project = {
-  /** Zero-padded ordinal, e.g. "01". */
+  /** Zero-padded ordinal, e.g. "01". Position in the list, not anything stored. */
   index: string;
-  /** Category shown beside the ordinal, e.g. "VECTOR CORE". */
+  /** Public slug, used as a stable React key and for the reader-facing link. */
+  slug: string;
+  /** Category shown beside the ordinal, e.g. "VECTOR CORE". Empty when unset. */
   category: string;
   title: string;
-  /** Long copy for the preview banner. */
-  description: string;
-  /** Condensed copy for the carousel card and catalog grid. */
+  /** The author's pitch. Drawn in full on the banner and clamped on the card. */
   summary: string;
-  /** Domain label in the card footer, e.g. "Vector Storage". */
+  /** Domain label in the card footer, e.g. "Vector Storage". Empty when unset. */
   domain: string;
+  /** Publication year, or "" while the project is unpublished. */
   year: string;
-  /** Headline figures for the preview banner. Not technology labels. */
-  metrics: { label: string; value: string }[];
-  /** URL rendered in the mock browser chrome. */
-  previewUrl: string;
-  stats: ProjectStat[];
-  thumbnail: ProjectThumbnail;
-  /** Two captions along the bottom of the card thumbnail. */
-  thumbnailFooter: { left: string; right: string; highlight?: boolean };
+  /** The card image. Required of every published project, so never null here. */
+  thumbnailUrl: string;
+  /** The preview reel. Required of every published project, so never null here. */
+  trailer: ProjectTrailer;
   links: { repo: string | null; demo: string | null; spec: string | null };
 };

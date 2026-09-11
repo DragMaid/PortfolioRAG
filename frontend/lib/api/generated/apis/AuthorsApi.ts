@@ -44,6 +44,13 @@ export interface AuthorsGetAvatarRequest {
     id: number;
 }
 
+export interface AuthorsGetByHandleRequest {
+    /**
+     * 
+     */
+    handle: string;
+}
+
 export interface AuthorsGetByIdRequest {
     /**
      * 
@@ -199,6 +206,49 @@ export class AuthorsApi extends runtime.BaseAPI {
      */
     async authorsGetAvatar(requestParameters: AuthorsGetAvatarRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.authorsGetAvatarRaw(requestParameters, initOverrides);
+    }
+
+    /**
+     * Creates request options for authorsGetByHandle without sending the request
+     */
+    async authorsGetByHandleRequestOpts(requestParameters: AuthorsGetByHandleRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['handle'] == null) {
+            throw new runtime.RequiredError(
+                'handle',
+                'Required parameter "handle" was null or undefined when calling authorsGetByHandle().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/api/authors/by-handle/{handle}`;
+        urlPath = urlPath.replace('{handle}', encodeURIComponent(String(requestParameters['handle'])));
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     */
+    async authorsGetByHandleRaw(requestParameters: AuthorsGetByHandleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AuthorDto>> {
+        const requestOptions = await this.authorsGetByHandleRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AuthorDtoFromJSON(jsonValue));
+    }
+
+    /**
+     */
+    async authorsGetByHandle(requestParameters: AuthorsGetByHandleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AuthorDto> {
+        const response = await this.authorsGetByHandleRaw(requestParameters, initOverrides);
+        return await response.value();
     }
 
     /**
