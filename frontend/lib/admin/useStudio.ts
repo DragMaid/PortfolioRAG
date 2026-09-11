@@ -15,7 +15,6 @@ export type Draft = {
   slug: string;
   summary: string;
   body: string;
-  tags: string[];
   isFeatured: boolean;
 };
 
@@ -233,7 +232,6 @@ export function useStudio() {
           title: "Untitled project",
           summary: "A one-line pitch for this project.",
           body: "# Untitled project\n\nStart writing.\n",
-          tags: [],
         },
       });
 
@@ -395,7 +393,6 @@ function toDraft(post: PostDto): Draft {
     slug: post.slug ?? "",
     summary: post.summary ?? "",
     body: post.body ?? "",
-    tags: post.tags ?? [],
     isFeatured: post.isFeatured ?? false,
   };
 }

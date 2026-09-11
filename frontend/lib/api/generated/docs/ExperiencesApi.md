@@ -1,92 +1,23 @@
-# AuthApi
+# ExperiencesApi
 
 All URIs are relative to *http://localhost:5099*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**authGoogleSignIn**](AuthApi.md#authgooglesignin) | **POST** /api/auth/oauth/google |  |
-| [**authLinkGoogle**](AuthApi.md#authlinkgoogle) | **POST** /api/auth/oauth/google/link |  |
-| [**authLogin**](AuthApi.md#authlogin) | **POST** /api/auth/login |  |
-| [**authLogout**](AuthApi.md#authlogout) | **POST** /api/auth/logout |  |
-| [**authMe**](AuthApi.md#authme) | **GET** /api/auth/me |  |
-| [**authRefresh**](AuthApi.md#authrefresh) | **POST** /api/auth/refresh |  |
-| [**authRegister**](AuthApi.md#authregister) | **POST** /api/auth/register |  |
-| [**authSetPassword**](AuthApi.md#authsetpassword) | **POST** /api/auth/password |  |
+| [**experiencesCreate**](ExperiencesApi.md#experiencescreate) | **POST** /api/experiences |  |
+| [**experiencesDelete**](ExperiencesApi.md#experiencesdelete) | **DELETE** /api/experiences/{id} |  |
+| [**experiencesGetAll**](ExperiencesApi.md#experiencesgetall) | **GET** /api/experiences |  |
+| [**experiencesGetById**](ExperiencesApi.md#experiencesgetbyid) | **GET** /api/experiences/{id} |  |
+| [**experiencesGetLogo**](ExperiencesApi.md#experiencesgetlogo) | **GET** /api/experiences/{id}/logo |  |
+| [**experiencesRemoveLogo**](ExperiencesApi.md#experiencesremovelogo) | **DELETE** /api/experiences/{id}/logo |  |
+| [**experiencesSetLogo**](ExperiencesApi.md#experiencessetlogo) | **PUT** /api/experiences/{id}/logo |  |
+| [**experiencesUpdate**](ExperiencesApi.md#experiencesupdate) | **PUT** /api/experiences/{id} |  |
 
 
 
-## authGoogleSignIn
+## experiencesCreate
 
-> AuthResultDto authGoogleSignIn(googleSignInDto)
-
-
-
-### Example
-
-```ts
-import {
-  Configuration,
-  AuthApi,
-} from '';
-import type { AuthGoogleSignInRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const api = new AuthApi();
-
-  const body = {
-    // GoogleSignInDto
-    googleSignInDto: ...,
-  } satisfies AuthGoogleSignInRequest;
-
-  try {
-    const data = await api.authGoogleSignIn(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
-
-### Parameters
-
-
-| Name | Type | Description  | Notes |
-|------------- | ------------- | ------------- | -------------|
-| **googleSignInDto** | [GoogleSignInDto](GoogleSignInDto.md) |  | |
-
-### Return type
-
-[**AuthResultDto**](AuthResultDto.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
-- **Content-Type**: `application/json`
-- **Accept**: `application/json`
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-| **200** |  |  -  |
-| **400** |  |  -  |
-| **401** |  |  -  |
-| **409** |  |  -  |
-| **503** |  |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
-
-
-## authLinkGoogle
-
-> AuthProfileDto authLinkGoogle(googleSignInDto)
+> ExperienceDto experiencesCreate(experienceInputDto)
 
 
 
@@ -95,9 +26,9 @@ No authorization required
 ```ts
 import {
   Configuration,
-  AuthApi,
+  ExperiencesApi,
 } from '';
-import type { AuthLinkGoogleRequest } from '';
+import type { ExperiencesCreateRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -105,15 +36,15 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AuthApi(config);
+  const api = new ExperiencesApi(config);
 
   const body = {
-    // GoogleSignInDto
-    googleSignInDto: ...,
-  } satisfies AuthLinkGoogleRequest;
+    // ExperienceInputDto
+    experienceInputDto: ...,
+  } satisfies ExperiencesCreateRequest;
 
   try {
-    const data = await api.authLinkGoogle(body);
+    const data = await api.experiencesCreate(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -129,11 +60,11 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **googleSignInDto** | [GoogleSignInDto](GoogleSignInDto.md) |  | |
+| **experienceInputDto** | [ExperienceInputDto](ExperienceInputDto.md) |  | |
 
 ### Return type
 
-[**AuthProfileDto**](AuthProfileDto.md)
+[**ExperienceDto**](ExperienceDto.md)
 
 ### Authorization
 
@@ -148,18 +79,16 @@ example().catch(console.error);
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **201** |  |  -  |
 | **400** |  |  -  |
 | **401** |  |  -  |
-| **409** |  |  -  |
-| **503** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## authLogin
+## experiencesDelete
 
-> AuthResultDto authLogin(loginDto)
+> experiencesDelete(id)
 
 
 
@@ -168,21 +97,25 @@ example().catch(console.error);
 ```ts
 import {
   Configuration,
-  AuthApi,
+  ExperiencesApi,
 } from '';
-import type { AuthLoginRequest } from '';
+import type { ExperiencesDeleteRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
-  const api = new AuthApi();
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new ExperiencesApi(config);
 
   const body = {
-    // LoginDto
-    loginDto: ...,
-  } satisfies AuthLoginRequest;
+    // number
+    id: 56,
+  } satisfies ExperiencesDeleteRequest;
 
   try {
-    const data = await api.authLogin(body);
+    const data = await api.experiencesDelete(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -198,11 +131,79 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **loginDto** | [LoginDto](LoginDto.md) |  | |
+| **id** | `number` |  | [Defaults to `undefined`] |
 
 ### Return type
 
-[**AuthResultDto**](AuthResultDto.md)
+`void` (Empty response body)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **204** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## experiencesGetAll
+
+> Array&lt;ExperienceDto&gt; experiencesGetAll(authorId)
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  ExperiencesApi,
+} from '';
+import type { ExperiencesGetAllRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new ExperiencesApi();
+
+  const body = {
+    // number (optional)
+    authorId: 56,
+  } satisfies ExperiencesGetAllRequest;
+
+  try {
+    const data = await api.experiencesGetAll(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **authorId** | `number` |  | [Optional] [Defaults to `undefined`] |
+
+### Return type
+
+[**Array&lt;ExperienceDto&gt;**](ExperienceDto.md)
 
 ### Authorization
 
@@ -210,7 +211,7 @@ No authorization required
 
 ### HTTP request headers
 
-- **Content-Type**: `application/json`
+- **Content-Type**: Not defined
 - **Accept**: `application/json`
 
 
@@ -218,15 +219,13 @@ No authorization required
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 | **200** |  |  -  |
-| **400** |  |  -  |
-| **401** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## authLogout
+## experiencesGetById
 
-> authLogout(refreshTokenDto)
+> ExperienceDto experiencesGetById(id)
 
 
 
@@ -235,21 +234,21 @@ No authorization required
 ```ts
 import {
   Configuration,
-  AuthApi,
+  ExperiencesApi,
 } from '';
-import type { AuthLogoutRequest } from '';
+import type { ExperiencesGetByIdRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
-  const api = new AuthApi();
+  const api = new ExperiencesApi();
 
   const body = {
-    // RefreshTokenDto
-    refreshTokenDto: ...,
-  } satisfies AuthLogoutRequest;
+    // number
+    id: 56,
+  } satisfies ExperiencesGetByIdRequest;
 
   try {
-    const data = await api.authLogout(body);
+    const data = await api.experiencesGetById(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -265,7 +264,73 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **refreshTokenDto** | [RefreshTokenDto](RefreshTokenDto.md) |  | |
+| **id** | `number` |  | [Defaults to `undefined`] |
+
+### Return type
+
+[**ExperienceDto**](ExperienceDto.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## experiencesGetLogo
+
+> experiencesGetLogo(id)
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  ExperiencesApi,
+} from '';
+import type { ExperiencesGetLogoRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const api = new ExperiencesApi();
+
+  const body = {
+    // number
+    id: 56,
+  } satisfies ExperiencesGetLogoRequest;
+
+  try {
+    const data = await api.experiencesGetLogo(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | `number` |  | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -277,22 +342,22 @@ No authorization required
 
 ### HTTP request headers
 
-- **Content-Type**: `application/json`
+- **Content-Type**: Not defined
 - **Accept**: `application/json`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **204** |  |  -  |
-| **400** |  |  -  |
+| **302** |  |  -  |
+| **404** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## authMe
+## experiencesRemoveLogo
 
-> AuthProfileDto authMe()
+> ExperienceDto experiencesRemoveLogo(id)
 
 
 
@@ -301,9 +366,9 @@ No authorization required
 ```ts
 import {
   Configuration,
-  AuthApi,
+  ExperiencesApi,
 } from '';
-import type { AuthMeRequest } from '';
+import type { ExperiencesRemoveLogoRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -311,10 +376,15 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AuthApi(config);
+  const api = new ExperiencesApi(config);
+
+  const body = {
+    // number
+    id: 56,
+  } satisfies ExperiencesRemoveLogoRequest;
 
   try {
-    const data = await api.authMe();
+    const data = await api.experiencesRemoveLogo(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -327,11 +397,14 @@ example().catch(console.error);
 
 ### Parameters
 
-This endpoint does not need any parameter.
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **id** | `number` |  | [Defaults to `undefined`] |
 
 ### Return type
 
-[**AuthProfileDto**](AuthProfileDto.md)
+[**ExperienceDto**](ExperienceDto.md)
 
 ### Authorization
 
@@ -348,13 +421,15 @@ This endpoint does not need any parameter.
 |-------------|-------------|------------------|
 | **200** |  |  -  |
 | **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## authRefresh
+## experiencesSetLogo
 
-> AuthResultDto authRefresh(refreshTokenDto)
+> ExperienceDto experiencesSetLogo(id, file)
 
 
 
@@ -363,21 +438,27 @@ This endpoint does not need any parameter.
 ```ts
 import {
   Configuration,
-  AuthApi,
+  ExperiencesApi,
 } from '';
-import type { AuthRefreshRequest } from '';
+import type { ExperiencesSetLogoRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
-  const api = new AuthApi();
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new ExperiencesApi(config);
 
   const body = {
-    // RefreshTokenDto
-    refreshTokenDto: ...,
-  } satisfies AuthRefreshRequest;
+    // number
+    id: 56,
+    // Blob (optional)
+    file: BINARY_DATA_HERE,
+  } satisfies ExperiencesSetLogoRequest;
 
   try {
-    const data = await api.authRefresh(body);
+    const data = await api.experiencesSetLogo(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -393,19 +474,20 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **refreshTokenDto** | [RefreshTokenDto](RefreshTokenDto.md) |  | |
+| **id** | `number` |  | [Defaults to `undefined`] |
+| **file** | `Blob` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
-[**AuthResultDto**](AuthResultDto.md)
+[**ExperienceDto**](ExperienceDto.md)
 
 ### Authorization
 
-No authorization required
+[Bearer](../README.md#Bearer)
 
 ### HTTP request headers
 
-- **Content-Type**: `application/json`
+- **Content-Type**: `multipart/form-data`
 - **Accept**: `application/json`
 
 
@@ -415,13 +497,16 @@ No authorization required
 | **200** |  |  -  |
 | **400** |  |  -  |
 | **401** |  |  -  |
+| **403** |  |  -  |
+| **413** |  |  -  |
+| **415** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## authRegister
+## experiencesUpdate
 
-> AuthResultDto authRegister(registerDto)
+> ExperienceDto experiencesUpdate(id, experienceInputDto)
 
 
 
@@ -430,76 +515,9 @@ No authorization required
 ```ts
 import {
   Configuration,
-  AuthApi,
+  ExperiencesApi,
 } from '';
-import type { AuthRegisterRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const api = new AuthApi();
-
-  const body = {
-    // RegisterDto
-    registerDto: ...,
-  } satisfies AuthRegisterRequest;
-
-  try {
-    const data = await api.authRegister(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
-
-### Parameters
-
-
-| Name | Type | Description  | Notes |
-|------------- | ------------- | ------------- | -------------|
-| **registerDto** | [RegisterDto](RegisterDto.md) |  | |
-
-### Return type
-
-[**AuthResultDto**](AuthResultDto.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
-- **Content-Type**: `application/json`
-- **Accept**: `application/json`
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-| **201** |  |  -  |
-| **400** |  |  -  |
-| **409** |  |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
-
-
-## authSetPassword
-
-> AuthResultDto authSetPassword(setPasswordDto)
-
-
-
-### Example
-
-```ts
-import {
-  Configuration,
-  AuthApi,
-} from '';
-import type { AuthSetPasswordRequest } from '';
+import type { ExperiencesUpdateRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -507,15 +525,17 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AuthApi(config);
+  const api = new ExperiencesApi(config);
 
   const body = {
-    // SetPasswordDto
-    setPasswordDto: ...,
-  } satisfies AuthSetPasswordRequest;
+    // number
+    id: 56,
+    // ExperienceInputDto
+    experienceInputDto: ...,
+  } satisfies ExperiencesUpdateRequest;
 
   try {
-    const data = await api.authSetPassword(body);
+    const data = await api.experiencesUpdate(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -531,11 +551,12 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **setPasswordDto** | [SetPasswordDto](SetPasswordDto.md) |  | |
+| **id** | `number` |  | [Defaults to `undefined`] |
+| **experienceInputDto** | [ExperienceInputDto](ExperienceInputDto.md) |  | |
 
 ### Return type
 
-[**AuthResultDto**](AuthResultDto.md)
+[**ExperienceDto**](ExperienceDto.md)
 
 ### Authorization
 
@@ -553,6 +574,8 @@ example().catch(console.error);
 | **200** |  |  -  |
 | **400** |  |  -  |
 | **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

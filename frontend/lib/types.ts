@@ -1,18 +1,50 @@
 /**
  * View-model types for the portfolio landing page.
  *
- * Components take these as props and hold no data of their own, so the swap
- * from the placeholder files in `lib/data/` to real API calls is a change of
- * loader, not a change of markup.
+ * Components take these as props and hold no data of their own, so what the loader in
+ * `lib/portfolio.ts` reads — the API, or the fallback copy in `lib/data/` when it cannot
+ * be reached — is a change of loader, not a change of markup.
  */
 
-export type SocialIcon = "github" | "linkedin" | "mail" | "x" | "key";
+/**
+ * Which mark is drawn beside a contact link.
+ *
+ * Purely a display concern, and so defined here rather than on the API: a channel is
+ * stored as a label and an address, and `detectContactIcon()` in `lib/contactChannels.ts`
+ * reads one of these off the address when it is rendered. Adding a service is a line in
+ * that file and a glyph in `components/icons` — no migration, and no address becomes
+ * unstorable in the meantime.
+ */
+export type ContactIcon =
+  | "Website"
+  | "Email"
+  | "Phone"
+  | "GitHub"
+  | "GitLab"
+  | "LinkedIn"
+  | "X"
+  | "Instagram"
+  | "YouTube"
+  | "Facebook"
+  | "Discord"
+  | "Telegram"
+  | "Reddit"
+  | "Twitch"
+  | "Dribbble"
+  | "Medium"
+  | "Bluesky"
+  | "Mastodon"
+  | "StackOverflow"
+  | "Threads"
+  | "Behance"
+  | "DevTo";
 
-export type SocialLink = {
+export type ContactLink = {
   /** Display text, e.g. "github.com/avance". */
   label: string;
+  /** The stored address, resolved to something an anchor can carry. */
   href: string;
-  icon: SocialIcon;
+  icon: ContactIcon;
   /** Shown in the footer's network column when it differs from `label`. */
   footerLabel?: string;
 };
@@ -21,56 +53,51 @@ export type Profile = {
   name: string;
   /** Sub-title under the name, e.g. "Staff Systems & Distributed Infrastructure". */
   title: string;
-  /** Two-letter mark used by the nav and footer badges. */
+  /** Two-letter mark used by the nav and footer badges. Derived from `name`. */
   monogram: string;
-  /** Lowercase nav handle, e.g. "alexander.vance / dev". */
+  /** Lowercase nav handle, e.g. "alexander.vance / dev". Derived from `name`. */
   handle: string;
   avatarUrl: string | null;
   /** Large serif statement at the top of the biography card. */
   headline: string;
-  /** Body paragraphs, rendered in order. */
-  biography: string[];
+  /** Long-form self-description, in Markdown. */
+  biography: string;
   email: string;
   location: string;
   /** Compact badge on the avatar, e.g. "SF / PST". */
   timezoneLabel: string;
   /** Long-form timezone for the footer colophon, e.g. "UTC -8 (PST)". */
   timezone: string;
-  /** Availability line beside the pulsing status dot. */
+  /** Availability line beside the pulsing status dot, in the card and the footer. */
   availability: string;
-  /** Footer availability line. */
-  advisoryNote: string;
   /** Bottom-left note on the profile card, e.g. "Primary focus: Systems / C++ / Rust". */
   focus: string;
-  year: string;
-  socials: SocialLink[];
+  contacts: ContactLink[];
   /** Short paragraph in the footer's first column. */
   footerBio: string;
   /** Copy for the "Initiate a conversation" call-out. */
   contactPitch: string;
-  /** Repository shortcuts listed in the footer. */
-  repositories: { name: string; href: string }[];
   colophon: string;
 };
-
-export type CompanyLogo = "stripe" | "vercel" | "openai";
 
 export type ExperienceEntry = {
   id: string;
   company: string;
-  logo: CompanyLogo;
+  /** Uploaded company mark, or null — the timeline then draws a lettermark. */
+  logoUrl: string | null;
   role: string;
-  /** Team or org line under the role. */
+  /** Team or org line under the role. Empty when the author did not give one. */
   team: string;
   /** Short range printed on the timeline node, e.g. "2019 — 2021". */
   period: string;
-  /** Caption under the node, e.g. "Stripe Payments". */
+  /** Caption under the node — the team, or the company when there is no team. */
   caption: string;
   /** Full range with tenure, e.g. "May 2019 — Sep 2021 (2.4 yrs)". */
   duration: string;
   /** Compact label for the mobile selector, e.g. "Stripe ('19)". */
   shortLabel: string;
-  highlights: string[];
+  /** What the author did there, in Markdown. */
+  description: string;
 };
 
 /** Bar tint for a stat tile in the project preview window. */
