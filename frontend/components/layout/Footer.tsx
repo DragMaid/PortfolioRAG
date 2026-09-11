@@ -23,7 +23,13 @@ function FooterColumn({
   );
 }
 
-/** Contact call-out, link columns and colophon. */
+/**
+ * Contact call-out, link columns and colophon.
+ *
+ * Three columns rather than the four this started with: the fourth listed hand-written
+ * "selected repos", and once the profile came from the API there was no field behind them
+ * and no studio screen to write them in. A repository worth listing is a contact channel.
+ */
 export function Footer({ profile }: { profile: Profile }) {
   const year = new Date().getFullYear();
 
@@ -44,11 +50,11 @@ export function Footer({ profile }: { profile: Profile }) {
           </p>
           <div className="flex items-center gap-2 pt-1 font-mono text-[11px] text-warm-accent">
             <StatusDot variant="muted" />
-            <span>{profile.advisoryNote}</span>
+            <span>{profile.availability}</span>
           </div>
         </div>
 
-        <FooterColumn title="Navigation" className="md:col-span-2">
+        <FooterColumn title="Navigation" className="md:col-span-3">
           <ul className="space-y-2 font-mono text-xs text-warm-slate">
             {navItems.map((item) => (
               <li key={item.href}>
@@ -60,40 +66,17 @@ export function Footer({ profile }: { profile: Profile }) {
           </ul>
         </FooterColumn>
 
-        <FooterColumn title="Selected Repos" className="md:col-span-3">
-          <ul className="space-y-2 font-mono text-xs text-warm-slate">
-            {profile.repositories.map((repo) => (
-              <li key={repo.name}>
-                <a
-                  href={repo.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center justify-between transition-colors hover:text-warm-black"
-                >
-                  <span>{repo.name}</span>
-                  <span
-                    aria-hidden
-                    className="text-warm-accent transition-transform group-hover:translate-x-0.5"
-                  >
-                    ↗
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </FooterColumn>
-
-        <FooterColumn title="Network &amp; Sync" className="md:col-span-3">
+        <FooterColumn title="Network &amp; Sync" className="md:col-span-5">
           <div className="flex flex-col space-y-2 font-mono text-xs text-warm-slate">
-            {profile.socials.map((social) => (
+            {profile.contacts.map((contact) => (
               <a
-                key={social.href}
-                href={social.href}
+                key={contact.href}
+                href={contact.href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="transition-colors hover:text-warm-black"
               >
-                {social.footerLabel ?? social.label}
+                {contact.footerLabel ?? contact.label}
               </a>
             ))}
             <a

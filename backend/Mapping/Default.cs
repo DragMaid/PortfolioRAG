@@ -14,8 +14,59 @@ public static class MappingExtensions
         Name = author.Name,
         Email = author.Email,
         AvatarUrl = author.ResolveAvatarUrl(),
+        Title = author.Title,
+        Headline = author.Headline,
         Biography = author.Biography,
-        CreatedAt = author.CreatedAt
+        FooterBio = author.FooterBio,
+        Location = author.Location,
+        Availability = author.Availability,
+        Focus = author.Focus,
+        ContactPitch = author.ContactPitch,
+        CreatedAt = author.CreatedAt,
+
+        // Sorting the experiences based on time
+        Experiences = author.Experiences
+            .OrderBy(e => e.StartedOn)
+            .ThenBy(e => e.Id)
+            .Select(e => e.ToDto())
+            .ToList(),
+
+        // Sorting the contact channels based on user prefered index
+        ContactChannels = author.ContactChannels
+            .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Id)
+            .Select(c => c.ToDto())
+            .ToList()
+    };
+
+    public static ExperienceDto ToDto(this Experience experience) => new()
+    {
+        Id = experience.Id,
+        AuthorId = experience.AuthorId,
+        Company = experience.Company,
+        Role = experience.Role,
+        Team = experience.Team,
+        Description = experience.Description,
+        LogoUrl = experience.ResolveLogoUrl(),
+        StartedOn = experience.StartedOn,
+        EndedOn = experience.EndedOn
+    };
+
+    /// <summary>
+    /// Where a reader fetches a company mark, or null when none was uploaded. A path on
+    /// this API for the same reason an avatar is one — see <see cref="ResolveAvatarUrl"/>.
+    /// </summary>
+    public static string? ResolveLogoUrl(this Experience experience) =>
+        experience.LogoObjectKey is null ? null : $"/api/experiences/{experience.Id}/logo";
+
+    public static ContactChannelDto ToDto(this ContactChannel channel) => new()
+    {
+        Id = channel.Id,
+        AuthorId = channel.AuthorId,
+        Label = channel.Label,
+        Url = channel.Url,
+        Handle = channel.Handle,
+        SortOrder = channel.SortOrder
     };
 
     /// <summary>

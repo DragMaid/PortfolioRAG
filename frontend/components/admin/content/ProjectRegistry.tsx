@@ -133,8 +133,6 @@ function ProjectCard({
   active: boolean;
   onSelect: () => void;
 }) {
-  const tags = post.tags ?? [];
-
   return (
     <button
       type="button"

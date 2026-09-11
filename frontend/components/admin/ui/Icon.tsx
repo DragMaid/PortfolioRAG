@@ -11,7 +11,9 @@ import { cn } from "@/lib/cn";
 // The shapes are approximations of the ones it named, not the originals.
 export type IconName =
   | "add"
+  | "arrow-down"
   | "arrow-outward"
+  | "arrow-up"
   | "bar-chart"
   | "check-circle"
   | "chevron-down"
@@ -25,6 +27,8 @@ export type IconName =
   | "folder-managed"
   | "hub"
   | "image"
+  | "link"
+  | "person"
   | "publish"
   | "save"
   | "schedule"
@@ -38,12 +42,15 @@ export type IconName =
   | "upload"
   | "verified"
   | "video"
+  | "work"
   | "x";
 
 /** 24x24 viewBox, stroked, so every glyph shares a weight with the rest of the interface. */
 const PATHS: Record<IconName, string> = {
   add: "M12 5v14M5 12h14",
+  "arrow-down": "M12 5v14m0 0 5-5m-5 5-5-5",
   "arrow-outward": "M7 17 17 7M9 7h8v8",
+  "arrow-up": "M12 19V5m0 0 5 5m-5-5-5 5",
   "bar-chart": "M4 20h16M8 20v-7M12 20V7M16 20v-4",
   "check-circle": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM8.5 12.5l2.5 2.5 4.5-5",
   "chevron-down": "m6 9 6 6 6-6",
@@ -58,6 +65,8 @@ const PATHS: Record<IconName, string> = {
     "M3 8V6a1 1 0 0 1 1-1h5l2 2.5h8a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8ZM9 14h6M9 11h6",
   hub: "M12 9.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM6 19.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM18 19.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM12 9.5v3M12 12.5 7 15.5M12 12.5l5 3",
   image: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM3 16l5-4 4 3 3-2.5 6 4.5M8.5 10a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z",
+  link: "M10.5 13.5a3.5 3.5 0 0 0 5 0l3-3a3.54 3.54 0 0 0-5-5l-1 1M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.54 3.54 0 0 0 5 5l1-1",
+  person: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20c0-3.3 3.1-5 7-5s7 1.7 7 5",
   publish: "M12 20V8m0 0-4 4m4-4 4 4M4 4h16",
   save: "M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1ZM8 4v5h7V4M8 20v-6h8v6",
   schedule: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7.5V12l3 2",
@@ -73,6 +82,7 @@ const PATHS: Record<IconName, string> = {
   verified:
     "m12 3 2.2 1.9 2.9-.3 1 2.7 2.6 1.3-.9 2.8.9 2.8-2.6 1.3-1 2.7-2.9-.3L12 21l-2.2-1.9-2.9.3-1-2.7-2.6-1.3.9-2.8-.9-2.8 2.6-1.3 1-2.7 2.9.3L12 3ZM9 12.2l2 2 4-4.4",
   video: "M4 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM16 10.5 21 8v8l-5-2.5v-3Z",
+  work: "M4 8h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM9 8V5.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V8M3 13h18",
   x: "M6 6l12 12M18 6 6 18",
 };
 

@@ -4,7 +4,7 @@ import type { Profile } from "@/lib/types";
 
 /** "Initiate a conversation" panel above the footer columns. */
 export function ContactCallout({ profile }: { profile: Profile }) {
-  const linkedin = profile.socials.find((social) => social.icon === "linkedin");
+  const linkedin = profile.contacts.find((contact) => contact.icon === "LinkedIn");
 
   return (
     <SurfaceCard className="mb-16 flex flex-col items-start justify-between gap-8 p-8 sm:p-12 md:flex-row md:items-center">

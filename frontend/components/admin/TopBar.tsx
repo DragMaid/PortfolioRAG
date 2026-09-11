@@ -11,6 +11,8 @@ type TopBarProps = {
   post: PostDto | null;
   isDirty: boolean;
   busy: null | "saving" | "publishing" | "creating";
+  /** False on a tab whose screen saves itself, where the three post actions do nothing. */
+  showPostActions: boolean;
   onSave: () => void;
   onPublish: () => void;
   onDiscard: () => void;
@@ -20,7 +22,15 @@ type TopBarProps = {
  * The system bar: who is signed in, whether there is anything unsaved, and the three
  * actions that act on the open project.
  */
-export function TopBar({ post, isDirty, busy, onSave, onPublish, onDiscard }: TopBarProps) {
+export function TopBar({
+  post,
+  isDirty,
+  busy,
+  showPostActions,
+  onSave,
+  onPublish,
+  onDiscard,
+}: TopBarProps) {
   const { session, signOut } = useAuth();
 
   const canAct = post !== null && busy === null;
@@ -62,51 +72,76 @@ export function TopBar({ post, isDirty, busy, onSave, onPublish, onDiscard }: To
           >
             <StatusDot tone={isDirty ? "accent" : "success"} pulse={isDirty} />
             <span className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
-              {isDirty ? "Unsaved changes" : post?.isDraft ? "Draft • saved" : "Live • synced"}
+              {isDirty
+                ? "Unsaved changes"
+                : !showPostActions
+                  ? "Profile • saved"
+                  : post?.isDraft
+                    ? "Draft • saved"
+                    : "Live • synced"}
             </span>
           </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          {liveUrl ? (
-            <a
-              href={liveUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden items-center gap-1.5 px-3 py-1.5 font-mono text-xs text-warm-slate transition-colors hover:text-warm-black md:inline-flex"
-            >
-              View live
-              <Icon name="arrow-outward" className="text-[15px]" />
-            </a>
+          {/*
+           * The portfolio itself. Always offered, on every tab — the studio writes what
+           * this page shows, and there is otherwise no way from here to go and look at it.
+           */}
+          <a
+            href="/"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded border border-warm-border bg-warm-surface px-3 py-1.5 font-mono text-xs text-warm-black transition-colors hover:bg-warm-sunken"
+          >
+            <Icon name="eye" className="text-[15px]" />
+            <span className="hidden sm:inline">Visit portfolio</span>
+            <Icon name="arrow-outward" className="text-[15px] text-warm-slate" />
+          </a>
+
+          {showPostActions ? (
+            <>
+              {liveUrl ? (
+                <a
+                  href={liveUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hidden items-center gap-1.5 px-3 py-1.5 font-mono text-xs text-warm-slate transition-colors hover:text-warm-black md:inline-flex"
+                >
+                  View live
+                  <Icon name="arrow-outward" className="text-[15px]" />
+                </a>
+              ) : null}
+
+              <Button onClick={onDiscard} disabled={!canAct || !isDirty}>
+                Discard
+              </Button>
+
+              <Button
+                icon="save"
+                onClick={onSave}
+                disabled={!canAct || !isDirty}
+                busy={busy === "saving"}
+              >
+                {/*
+                 * "Save draft" only while it is one. A PUT does not change whether a post is
+                 * published, so calling it that on a live post would suggest it takes the post
+                 * down, which it does not.
+                 */}
+                {post?.isDraft ? "Save draft" : "Save changes"}
+              </Button>
+
+              <Button
+                variant="primary"
+                icon="publish"
+                onClick={onPublish}
+                disabled={!canAct || (!post?.isDraft && !isDirty)}
+                busy={busy === "publishing"}
+              >
+                {post?.isDraft ? "Publish" : "Publish changes"}
+              </Button>
+            </>
           ) : null}
-
-          <Button onClick={onDiscard} disabled={!canAct || !isDirty}>
-            Discard
-          </Button>
-
-          <Button
-            icon="save"
-            onClick={onSave}
-            disabled={!canAct || !isDirty}
-            busy={busy === "saving"}
-          >
-            {/*
-             * "Save draft" only while it is one. A PUT does not change whether a post is
-             * published, so calling it that on a live post would suggest it takes the post
-             * down, which it does not.
-             */}
-            {post?.isDraft ? "Save draft" : "Save changes"}
-          </Button>
-
-          <Button
-            variant="primary"
-            icon="publish"
-            onClick={onPublish}
-            disabled={!canAct || (!post?.isDraft && !isDirty)}
-            busy={busy === "publishing"}
-          >
-            {post?.isDraft ? "Publish" : "Publish changes"}
-          </Button>
 
           <Button variant="ghost" onClick={() => void signOut()} title="Sign out">
             Sign out

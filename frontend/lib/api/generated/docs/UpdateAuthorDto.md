@@ -8,7 +8,16 @@ Name | Type
 ------------ | -------------
 `name` | string
 `email` | string
+`title` | string
+`headline` | string
 `biography` | string
+`footerBio` | string
+`location` | string
+`timeZoneLabel` | string
+`timeZone` | string
+`availability` | string
+`focus` | string
+`contactPitch` | string
 
 ## Example
 
@@ -19,7 +28,16 @@ import type { UpdateAuthorDto } from ''
 const example = {
   "name": null,
   "email": null,
+  "title": null,
+  "headline": null,
   "biography": null,
+  "footerBio": null,
+  "location": null,
+  "timeZoneLabel": null,
+  "timeZone": null,
+  "availability": null,
+  "focus": null,
+  "contactPitch": null,
 } satisfies UpdateAuthorDto
 
 console.log(example)

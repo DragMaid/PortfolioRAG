@@ -25,6 +25,32 @@ public interface IAuthorRepository
 
     Task AddAsync(Author author, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Experience>> GetExperiencesAsync(
+        int authorId,
+        CancellationToken cancellationToken = default);
+
+    Task<Experience?> GetExperienceAsync(
+        int id,
+        bool tracked = false,
+        CancellationToken cancellationToken = default);
+
+    Task AddExperienceAsync(Experience experience, CancellationToken cancellationToken = default);
+
+    void RemoveExperience(Experience experience);
+
+    Task<IReadOnlyList<ContactChannel>> GetContactChannelsAsync(
+        int authorId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContactChannel?> GetContactChannelAsync(
+        int id,
+        bool tracked = false,
+        CancellationToken cancellationToken = default);
+
+    Task AddContactChannelAsync(ContactChannel channel, CancellationToken cancellationToken = default);
+
+    void RemoveContactChannel(ContactChannel channel);
+
     void Remove(Author author);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useProfile } from "@/lib/admin/useProfile";
 import { useStudio } from "@/lib/admin/useStudio";
 import { AnalyticsPanel } from "./analytics/AnalyticsPanel";
 import { ContentPanel } from "./content/ContentPanel";
+import { ProfilePanel } from "./profile/ProfilePanel";
 import { TabNav, type StudioTab } from "./TabNav";
 import { TopBar } from "./TopBar";
 
 /**
- * The signed-in studio: the system bar, the two tabs, and whichever one is open.
+ * The signed-in studio: the system bar, the three tabs, and whichever one is open.
  *
  * Follows the prototype's structure and palette. Two things it does not follow: the
  * prototype set Manrope as the sans face, and this uses the Inter the rest of the site is
@@ -19,16 +21,22 @@ import { TopBar } from "./TopBar";
 // TODO(review): the two deviations above.
 export function Studio() {
   const studio = useStudio();
+  const profile = useProfile();
   const [tab, setTab] = useState<StudioTab>("content");
 
-  useUnsavedChangesPrompt(studio.isDirty);
+  // Either tab can hold unsaved work, and the browser only asks once.
+  useUnsavedChangesPrompt(studio.isDirty || profile.isDirty);
 
   return (
     <>
       <TopBar
         post={studio.baseline}
-        isDirty={studio.isDirty}
+        isDirty={tab === "profile" ? profile.isDirty : studio.isDirty}
         busy={studio.busy}
+        // NOTE: the bar's three actions all act on the open post, so they are hidden on the
+        // profile tab, which saves itself. Showing a greyed-out "Publish" over a screen
+        // that has nothing to publish would only ask to be clicked.
+        showPostActions={tab !== "profile"}
         onSave={() => void studio.save()}
         onPublish={() => void studio.publish()}
         onDiscard={studio.discard}
@@ -48,6 +56,10 @@ export function Studio() {
 
         <div hidden={tab !== "analytics"}>
           <AnalyticsPanel />
+        </div>
+
+        <div hidden={tab !== "profile"}>
+          <ProfilePanel profile={profile} />
         </div>
       </main>
     </>

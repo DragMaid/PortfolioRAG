@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 /** A labelled control. The label is always rendered — none of these are self-evident. */
@@ -38,6 +38,27 @@ export function TextInput({
     <input
       className={cn(
         "rounded border border-warm-border bg-warm-sunken px-3 py-2 text-warm-black",
+        "transition-colors placeholder:text-warm-slate/70",
+        "focus:border-warm-black focus:bg-warm-surface focus:outline-none",
+        "disabled:cursor-not-allowed disabled:opacity-60",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** The same control for copy that runs to more than one line. */
+export function TextArea({
+  className,
+  rows = 3,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      rows={rows}
+      className={cn(
+        "resize-y rounded border border-warm-border bg-warm-sunken px-3 py-2 text-warm-black",
         "transition-colors placeholder:text-warm-slate/70",
         "focus:border-warm-black focus:bg-warm-surface focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-60",

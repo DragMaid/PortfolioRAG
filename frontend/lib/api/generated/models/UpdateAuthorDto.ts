@@ -31,7 +31,43 @@ export interface UpdateAuthorDto {
     /**
      * 
      */
+    title?: string | null;
+    /**
+     * 
+     */
+    headline?: string | null;
+    /**
+     * 
+     */
     biography?: string | null;
+    /**
+     * 
+     */
+    footerBio?: string | null;
+    /**
+     * 
+     */
+    location?: string | null;
+    /**
+     * 
+     */
+    timeZoneLabel?: string | null;
+    /**
+     * 
+     */
+    timeZone?: string | null;
+    /**
+     * 
+     */
+    availability?: string | null;
+    /**
+     * 
+     */
+    focus?: string | null;
+    /**
+     * 
+     */
+    contactPitch?: string | null;
 }
 
 /**
@@ -55,7 +91,16 @@ export function UpdateAuthorDtoFromJSONTyped(json: any, ignoreDiscriminator: boo
         
         'name': json['name'],
         'email': json['email'],
+        'title': json['title'] === undefined ? undefined : json['title'] === null ? null : json['title'],
+        'headline': json['headline'] === undefined ? undefined : json['headline'] === null ? null : json['headline'],
         'biography': json['biography'] === undefined ? undefined : json['biography'] === null ? null : json['biography'],
+        'footerBio': json['footerBio'] === undefined ? undefined : json['footerBio'] === null ? null : json['footerBio'],
+        'location': json['location'] === undefined ? undefined : json['location'] === null ? null : json['location'],
+        'timeZoneLabel': json['timeZoneLabel'] === undefined ? undefined : json['timeZoneLabel'] === null ? null : json['timeZoneLabel'],
+        'timeZone': json['timeZone'] === undefined ? undefined : json['timeZone'] === null ? null : json['timeZone'],
+        'availability': json['availability'] === undefined ? undefined : json['availability'] === null ? null : json['availability'],
+        'focus': json['focus'] === undefined ? undefined : json['focus'] === null ? null : json['focus'],
+        'contactPitch': json['contactPitch'] === undefined ? undefined : json['contactPitch'] === null ? null : json['contactPitch'],
     };
 }
 
@@ -72,7 +117,16 @@ export function UpdateAuthorDtoToJSONTyped(value?: UpdateAuthorDto | null, ignor
         
         'name': value['name'],
         'email': value['email'],
+        'title': value['title'],
+        'headline': value['headline'],
         'biography': value['biography'],
+        'footerBio': value['footerBio'],
+        'location': value['location'],
+        'timeZoneLabel': value['timeZoneLabel'],
+        'timeZone': value['timeZone'],
+        'availability': value['availability'],
+        'focus': value['focus'],
+        'contactPitch': value['contactPitch'],
     };
 }
 

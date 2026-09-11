@@ -6,6 +6,8 @@ import {
   AuthApi,
   AuthorsApi,
   Configuration,
+  ContactChannelsApi,
+  ExperiencesApi,
   FetchError,
   PostMediaApi,
   ResponseError,
@@ -33,6 +35,8 @@ export const adminPostsApi = new AdminPostsApi(configuration);
 export const postMediaApi = new PostMediaApi(configuration);
 export const adminAnalyticsApi = new AdminAnalyticsApi(configuration);
 export const authorsApi = new AuthorsApi(configuration);
+export const experiencesApi = new ExperiencesApi(configuration);
+export const contactChannelsApi = new ContactChannelsApi(configuration);
 export const authApi = new AuthApi(new Configuration({ basePath: API_BASE_URL }));
 
 // Format the erorr into something more user-friendly

@@ -3,6 +3,8 @@ apis/AdminPostsApi.ts
 apis/AnalyticsApi.ts
 apis/AuthApi.ts
 apis/AuthorsApi.ts
+apis/ContactChannelsApi.ts
+apis/ExperiencesApi.ts
 apis/MediaApi.ts
 apis/PostMediaApi.ts
 apis/PostsApi.ts
@@ -17,8 +19,14 @@ docs/AuthResultDto.md
 docs/AuthorDto.md
 docs/AuthorSummaryDto.md
 docs/AuthorsApi.md
+docs/ContactChannelDto.md
+docs/ContactChannelInputDto.md
+docs/ContactChannelsApi.md
 docs/CreatePostDto.md
 docs/DailyTrafficDto.md
+docs/ExperienceDto.md
+docs/ExperienceInputDto.md
+docs/ExperiencesApi.md
 docs/ExternalLoginProvider.md
 docs/GoogleSignInDto.md
 docs/LoginDto.md
@@ -48,8 +56,12 @@ models/AuthProfileDto.ts
 models/AuthResultDto.ts
 models/AuthorDto.ts
 models/AuthorSummaryDto.ts
+models/ContactChannelDto.ts
+models/ContactChannelInputDto.ts
 models/CreatePostDto.ts
 models/DailyTrafficDto.ts
+models/ExperienceDto.ts
+models/ExperienceInputDto.ts
 models/ExternalLoginProvider.ts
 models/GoogleSignInDto.ts
 models/LoginDto.ts

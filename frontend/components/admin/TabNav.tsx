@@ -3,11 +3,12 @@
 import { cn } from "@/lib/cn";
 import { Icon, type IconName } from "./ui/Icon";
 
-export type StudioTab = "content" | "analytics";
+export type StudioTab = "content" | "analytics" | "profile";
 
 const TABS: { key: StudioTab; icon: IconName; label: string }[] = [
   { key: "content", icon: "edit-note", label: "01. Projects & editor" },
   { key: "analytics", icon: "bar-chart", label: "02. Traffic & analytics" },
+  { key: "profile", icon: "person", label: "03. Profile & presence" },
 ];
 
 export function TabNav({
