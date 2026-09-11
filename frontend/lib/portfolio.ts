@@ -2,15 +2,16 @@ import { cache } from "react";
 import { apiUrl, authorsApi, postsApi } from "@/lib/api/generated/client";
 import { contactHref, detectContactIcon } from "@/lib/contactChannels";
 import { profilePlaceholder } from "@/lib/data/profile";
-import type { ContactLink, ExperienceEntry, Profile } from "@/lib/types";
+import type { ContactLink, ExperienceEntry, Profile, Project } from "@/lib/types";
 import type {
   AuthorDto,
   ContactChannelDto,
   ExperienceDto,
+  MediaDto,
   PostDto,
   PostSummaryDto,
 } from "@/lib/api/generated";
-import { PostSortOrder } from "@/lib/api/generated";
+import { MediaExtension, PostSortOrder } from "@/lib/api/generated";
 
 // TODO: set the authorId by signing in
 const authorId = null;
@@ -72,8 +73,27 @@ function toContactLink(channel: ContactChannelDto): ContactLink | null {
   };
 }
 
-export const getProfile = cache(async (): Promise<Profile> => {
-  const author = await getOwner();
+/**
+ * The account at a public handle — how `/{handle}` resolves to somebody's portfolio.
+ *
+ * Every account gets a handle when it registers, because signing up is how somebody gets a
+ * portfolio of their own and a portfolio nothing can link to is not one.
+ */
+export const getAuthorByHandle = cache(async (handle: string): Promise<AuthorDto | null> => {
+  try {
+    return await authorsApi.authorsGetByHandle({ handle });
+  } catch {
+    return null;
+  }
+});
+
+/**
+ * An account's copy as the page renders it.
+ *
+ * Pure, and separate from {@link getProfile}, so the owner's page and any author's page at
+ * `/{handle}` share one mapping rather than two that can drift.
+ */
+export function toProfile(author: AuthorDto | null): Profile {
   if (!author) return profilePlaceholder;
 
   const name = orFallback(author.name, profilePlaceholder.name);
@@ -103,13 +123,19 @@ export const getProfile = cache(async (): Promise<Profile> => {
 
     colophon: profilePlaceholder.colophon,
   };
-});
+}
 
-/** The author's timeline, oldest first — the order the section draws it in. */
-export const getExperience = cache(async (): Promise<ExperienceEntry[]> => {
-  const author = await getOwner();
+/** The portfolio owner's copy. The landing page at `/` is always theirs. */
+export const getProfile = cache(async (): Promise<Profile> => toProfile(await getOwner()));
+
+/** An account's timeline, oldest first — the order the section draws it in. */
+export function toExperience(author: AuthorDto | null): ExperienceEntry[] {
   return (author?.experiences ?? []).map(toExperienceEntry);
-});
+}
+
+export const getExperience = cache(async (): Promise<ExperienceEntry[]> =>
+  toExperience(await getOwner()),
+);
 
 /* -------------------------------------------------------------------------- */
 /* Experience formatting                                                      */
@@ -191,6 +217,82 @@ export async function getAuthor(id: number): Promise<AuthorDto | null> {
   } catch {
     return null;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Projects                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The author's published projects, newest first — the order the carousel draws them in.
+ *
+ * Projects are posts: the studio has always called them that, and the API scopes both to
+ * one author. What makes a post a project is the thumbnail and the trailer it cannot be
+ * published without, which is what the section renders.
+ */
+export const getProjects = cache(async (authorId?: number): Promise<Project[]> => {
+  let posts: PostSummaryDto[];
+
+  try {
+    const result = await postsApi.postsGetPublished({
+      authorId,
+      isDraft: false,
+      sort: PostSortOrder.Newest,
+      pageSize: 50,
+    });
+
+    posts = result.items ?? [];
+  } catch {
+    // An unreachable API is an empty section, not a crash. ProjectsSection renders
+    // nothing at all when it has nothing to show.
+    return [];
+  }
+
+  return posts
+    .map(toProject)
+    .filter((project): project is Project => project !== null)
+    .map((project, position) => ({
+      ...project,
+      // The ordinal is the position in this list, so it stays 01..0n however the
+      // underlying ids happen to fall.
+      index: String(position + 1).padStart(2, "0"),
+    }));
+});
+
+/**
+ * One published post as the section renders it, or null if it cannot be drawn.
+ *
+ * Publishing requires both files, so a published post is missing one only if it was put
+ * in that state by something other than the API. Skipping it beats rendering a card with
+ * a hole where the picture goes.
+ */
+function toProject(post: PostSummaryDto): Project | null {
+  const thumbnailUrl = apiUrl(post.thumbnail?.url);
+  const trailerUrl = apiUrl(post.trailer?.url);
+
+  if (!thumbnailUrl || !trailerUrl || !post.slug) return null;
+
+  return {
+    index: "00",
+    slug: post.slug,
+    title: post.title?.trim() || "Untitled project",
+    summary: post.summary?.trim() ?? "",
+    category: post.category?.trim() ?? "",
+    domain: post.domain?.trim() ?? "",
+    year: post.publishedAt ? String(post.publishedAt.getFullYear()) : "",
+    thumbnailUrl,
+    trailer: { url: trailerUrl, isVideo: isVideo(post.trailer) },
+    links: {
+      repo: post.repoUrl?.trim() || null,
+      demo: post.demoUrl?.trim() || null,
+      spec: post.specUrl?.trim() || null,
+    },
+  };
+}
+
+/** Whether a trailer plays or is simply drawn. A still is a legitimate trailer. */
+function isVideo(media: MediaDto | null | undefined): boolean {
+  return media?.extension === MediaExtension.Mp4 || media?.extension === MediaExtension.Webm;
 }
 
 export async function getPosts(ownerId?: number): Promise<PostSummaryDto[]> {

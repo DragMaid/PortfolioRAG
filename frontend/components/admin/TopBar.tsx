@@ -13,6 +13,8 @@ type TopBarProps = {
   busy: null | "saving" | "publishing" | "creating";
   /** False on a tab whose screen saves itself, where the three post actions do nothing. */
   showPostActions: boolean;
+  /** What the open project still needs before it can go live, if anything. */
+  publishBlockers: string[];
   onSave: () => void;
   onPublish: () => void;
   onDiscard: () => void;
@@ -27,6 +29,7 @@ export function TopBar({
   isDirty,
   busy,
   showPostActions,
+  publishBlockers,
   onSave,
   onPublish,
   onDiscard,
@@ -87,9 +90,12 @@ export function TopBar({
           {/*
            * The portfolio itself. Always offered, on every tab — the studio writes what
            * this page shows, and there is otherwise no way from here to go and look at it.
+           *
+           * The signed-in account's own page, not "/": every account is its own tenant, and
+           * "/" is the site owner's portfolio, which for anyone else is somebody else's.
            */}
           <a
-            href="/"
+            href={session?.authorHandle ? `/${session.authorHandle}` : "/"}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded border border-warm-border bg-warm-surface px-3 py-1.5 font-mono text-xs text-warm-black transition-colors hover:bg-warm-sunken"
@@ -131,11 +137,25 @@ export function TopBar({
                 {post?.isDraft ? "Save draft" : "Save changes"}
               </Button>
 
+              {/*
+               * Blocked rather than merely discouraged: the API refuses a project with no
+               * thumbnail or trailer, so the button says why on hover instead of offering a
+               * click that can only fail.
+               */}
               <Button
                 variant="primary"
                 icon="publish"
                 onClick={onPublish}
-                disabled={!canAct || (!post?.isDraft && !isDirty)}
+                disabled={
+                  !canAct ||
+                  (!post?.isDraft && !isDirty) ||
+                  (post?.isDraft === true && publishBlockers.length > 0)
+                }
+                title={
+                  post?.isDraft && publishBlockers.length > 0
+                    ? `Needs ${publishBlockers.join(" and ")} first`
+                    : undefined
+                }
                 busy={busy === "publishing"}
               >
                 {post?.isDraft ? "Publish" : "Publish changes"}

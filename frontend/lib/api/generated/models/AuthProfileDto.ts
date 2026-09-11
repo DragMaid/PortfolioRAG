@@ -43,6 +43,10 @@ export interface AuthProfileDto {
     /**
      * 
      */
+    handle?: string;
+    /**
+     * 
+     */
     avatarUrl?: string | null;
     /**
      * 
@@ -86,6 +90,7 @@ export function AuthProfileDtoFromJSONTyped(json: any, ignoreDiscriminator: bool
         'id': json['id'] == null ? undefined : json['id'],
         'name': json['name'] == null ? undefined : json['name'],
         'email': json['email'] == null ? undefined : json['email'],
+        'handle': json['handle'] == null ? undefined : json['handle'],
         'avatarUrl': json['avatarUrl'] === undefined ? undefined : json['avatarUrl'] === null ? null : json['avatarUrl'],
         'biography': json['biography'] === undefined ? undefined : json['biography'] === null ? null : json['biography'],
         'createdAt': json['createdAt'] == null ? undefined : (parseDateTime(json['createdAt'])),
@@ -109,6 +114,7 @@ export function AuthProfileDtoToJSONTyped(value?: AuthProfileDto | null, ignoreD
         'id': value['id'],
         'name': value['name'],
         'email': value['email'],
+        'handle': value['handle'],
         'avatarUrl': value['avatarUrl'],
         'biography': value['biography'],
         'createdAt': value['createdAt'] == null ? value['createdAt'] : serializeDateTime(value['createdAt']),

@@ -14,6 +14,13 @@
  */
 
 import { mapValues, parseDate, parseDateTime, serializeDate, serializeDateTime } from '../runtime';
+import type { MediaDto } from './MediaDto';
+import {
+    MediaDtoFromJSON,
+    MediaDtoFromJSONTyped,
+    MediaDtoToJSON,
+    MediaDtoToJSONTyped,
+} from './MediaDto';
 import type { AuthorSummaryDto } from './AuthorSummaryDto';
 import {
     AuthorSummaryDtoFromJSON,
@@ -68,6 +75,34 @@ export interface PostSummaryDto {
      * 
      */
     publishedAt?: Date | null;
+    /**
+     * 
+     */
+    category?: string | null;
+    /**
+     * 
+     */
+    domain?: string | null;
+    /**
+     * 
+     */
+    repoUrl?: string | null;
+    /**
+     * 
+     */
+    demoUrl?: string | null;
+    /**
+     * 
+     */
+    specUrl?: string | null;
+    /**
+     * 
+     */
+    thumbnail?: MediaDto | null;
+    /**
+     * 
+     */
+    trailer?: MediaDto | null;
 }
 
 /**
@@ -97,6 +132,13 @@ export function PostSummaryDtoFromJSONTyped(json: any, ignoreDiscriminator: bool
         'viewCount': json['viewCount'] == null ? undefined : json['viewCount'],
         'createdAt': json['createdAt'] == null ? undefined : (parseDateTime(json['createdAt'])),
         'publishedAt': json['publishedAt'] === undefined ? undefined : json['publishedAt'] === null ? null : (parseDateTime(json['publishedAt'])),
+        'category': json['category'] === undefined ? undefined : json['category'] === null ? null : json['category'],
+        'domain': json['domain'] === undefined ? undefined : json['domain'] === null ? null : json['domain'],
+        'repoUrl': json['repoUrl'] === undefined ? undefined : json['repoUrl'] === null ? null : json['repoUrl'],
+        'demoUrl': json['demoUrl'] === undefined ? undefined : json['demoUrl'] === null ? null : json['demoUrl'],
+        'specUrl': json['specUrl'] === undefined ? undefined : json['specUrl'] === null ? null : json['specUrl'],
+        'thumbnail': json['thumbnail'] === undefined ? undefined : json['thumbnail'] === null ? null : MediaDtoFromJSON(json['thumbnail']),
+        'trailer': json['trailer'] === undefined ? undefined : json['trailer'] === null ? null : MediaDtoFromJSON(json['trailer']),
     };
 }
 
@@ -121,6 +163,13 @@ export function PostSummaryDtoToJSONTyped(value?: PostSummaryDto | null, ignoreD
         'viewCount': value['viewCount'],
         'createdAt': value['createdAt'] == null ? value['createdAt'] : serializeDateTime(value['createdAt']),
         'publishedAt': value['publishedAt'] == null ? value['publishedAt'] : serializeDateTime(value['publishedAt']),
+        'category': value['category'],
+        'domain': value['domain'],
+        'repoUrl': value['repoUrl'],
+        'demoUrl': value['demoUrl'],
+        'specUrl': value['specUrl'],
+        'thumbnail': MediaDtoToJSON(value['thumbnail']),
+        'trailer': MediaDtoToJSON(value['trailer']),
     };
 }
 

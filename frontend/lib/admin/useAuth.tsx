@@ -22,10 +22,20 @@ import {
 
 type AuthStatus = "loading" | "authenticated" | "anonymous";
 
+/** What a new account needs. Everything else about it is filled in from the profile tab. */
+export type Registration = {
+  name: string;
+  email: string;
+  password: string;
+};
+
 type AuthValue = {
   status: AuthStatus;
   session: Session | null;
   signIn: (email: string, password: string) => Promise<void>;
+  register: (registration: Registration) => Promise<void>;
+  /** Exchanges a Google ID token for this API's own pair. Creates the account on first use. */
+  signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -58,6 +68,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /*
+   * Registration signs the new account straight in: the API returns the same token pair a
+   * login does, and bouncing somebody to a sign-in form to retype what they just typed
+   * would be the only thing standing between them and their new portfolio.
+   */
+  const register = useCallback(async ({ name, email, password }: Registration) => {
+    try {
+      const result = await authApi.authRegister({
+        registerDto: { name: name.trim(), email: email.trim(), password },
+      });
+
+      const next = writeSession(result);
+      if (!next) throw new Error("The server did not return a usable session.");
+    } catch (error) {
+      throw new Error(await describeError(error, "Could not create your account."));
+    }
+  }, []);
+
+  /*
+   * One call for both signing up and signing in. The backend decides which it is — a
+   * Google subject it has never seen creates an account, one it knows signs in — so the
+   * frontend does not have to ask the user which they meant, and cannot get it wrong.
+   */
+  const signInWithGoogle = useCallback(async (idToken: string) => {
+    try {
+      const result = await authApi.authGoogleSignIn({ googleSignInDto: { idToken } });
+
+      const next = writeSession(result);
+      if (!next) throw new Error("The server did not return a usable session.");
+    } catch (error) {
+      throw new Error(await describeError(error, "Could not sign in with Google."));
+    }
+  }, []);
+
   // useCallback with no deps make sure that between re-renders, the func ref is always the same
   const signOut = useCallback(async () => {
     const current = readSession();
@@ -72,8 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // useMemo is used to cache a calc between re-renders
   const value = useMemo<AuthValue>(
-    () => ({ status, session, signIn, signOut }),
-    [status, session, signIn, signOut],
+    () => ({ status, session, signIn, register, signInWithGoogle, signOut }),
+    [status, session, signIn, register, signInWithGoogle, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

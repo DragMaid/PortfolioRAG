@@ -4,8 +4,7 @@ import { ExperienceSection } from "@/components/experience/ExperienceSection";
 import { Footer } from "@/components/layout/Footer";
 import { NavBar } from "@/components/layout/NavBar";
 import { ProjectsSection } from "@/components/projects/ProjectsSection";
-import { projectsPlaceholder } from "@/lib/data/projects";
-import { getExperience, getProfile } from "@/lib/portfolio";
+import { getExperience, getOwner, getProfile, getProjects } from "@/lib/portfolio";
 
 // Rendered per request rather than at build time, force the frontend to call the api everytime.
 export const dynamic = "force-dynamic";
@@ -18,9 +17,17 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// TODO: change this to the main site with CTA for users to sign up instead
 export default async function Home() {
-  // One request behind both: the profile carries its own timeline, and `getOwner()` is cached for the render pass.
-  const [profile, experience] = await Promise.all([getProfile(), getExperience()]);
+  // One request behind the first three: the profile carries its own timeline, and
+  // `getOwner()` is cached for the render pass.
+  const owner = await getOwner();
+
+  const [profile, experience, projects] = await Promise.all([
+    getProfile(),
+    getExperience(),
+    getProjects(owner?.id),
+  ]);
 
   return (
     <>
@@ -28,10 +35,8 @@ export default async function Home() {
       <div className="mx-auto w-full max-w-6xl px-6 sm:px-8">
         <main className="space-y-24 py-12 md:space-y-32 md:py-20">
           <AboutSection profile={profile} />
-          {/* Nothing to draw until the author has added a job in the studio. */}
           <ExperienceSection entries={experience} />
-          {/* TODO: placeholder data — no projects endpoint on the backend. */}
-          <ProjectsSection projects={projectsPlaceholder} />
+          <ProjectsSection projects={projects} />
         </main>
         <Footer profile={profile} />
       </div>
