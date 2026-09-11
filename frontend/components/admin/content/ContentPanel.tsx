@@ -57,7 +57,10 @@ export function ContentPanel({
           <DossierEditor
             post={studio.baseline}
             draft={studio.draft}
-            media={studio.media}
+            media={studio.attachments}
+            thumbnail={studio.thumbnail}
+            trailer={studio.trailer}
+            publishBlockers={studio.publishBlockers}
             state={studio.editorState}
             busy={studio.busy}
             onChange={studio.updateDraft}

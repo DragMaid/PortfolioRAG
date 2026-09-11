@@ -37,6 +37,7 @@ export function Studio() {
         // profile tab, which saves itself. Showing a greyed-out "Publish" over a screen
         // that has nothing to publish would only ask to be clicked.
         showPostActions={tab !== "profile"}
+        publishBlockers={studio.publishBlockers}
         onSave={() => void studio.save()}
         onPublish={() => void studio.publish()}
         onDiscard={studio.discard}
