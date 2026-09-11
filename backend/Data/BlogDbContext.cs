@@ -13,6 +13,10 @@ public class BlogDbContext : DbContext
 
     public DbSet<Media> Medias => Set<Media>();
 
+    public DbSet<Experience> Experiences => Set<Experience>();
+
+    public DbSet<ContactChannel> ContactChannels => Set<ContactChannel>();
+
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
@@ -27,8 +31,14 @@ public class BlogDbContext : DbContext
             entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
             entity.Property(a => a.AvatarObjectKey).HasMaxLength(512);
-            entity.Property(a => a.Biography).HasMaxLength(1000);
-            // NOTE: stored lowercase so the unique index doubles as case-insensitive lookup.
+            entity.Property(a => a.Title).HasMaxLength(150);
+            entity.Property(a => a.Headline).HasMaxLength(400);
+            entity.Property(a => a.Biography).HasMaxLength(3000);
+            entity.Property(a => a.FooterBio).HasMaxLength(500);
+            entity.Property(a => a.Location).HasMaxLength(120);
+            entity.Property(a => a.Availability).HasMaxLength(160);
+            entity.Property(a => a.Focus).HasMaxLength(160);
+            entity.Property(a => a.ContactPitch).HasMaxLength(500);
             entity.HasIndex(a => a.Email).IsUnique();
             entity.Property(a => a.PasswordHash).HasMaxLength(512);
         });
@@ -89,6 +99,39 @@ public class BlogDbContext : DbContext
             entity.HasOne(m => m.Post)
                 .WithMany(p => p.Medias)
                 .HasForeignKey(m => m.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Experience>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Company).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(160);
+            entity.Property(e => e.Team).HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(4000);
+            entity.Property(e => e.LogoObjectKey).HasMaxLength(512);
+
+            // The timeline is always read in date order for one author.
+            entity.HasIndex(e => new { e.AuthorId, e.StartedOn });
+
+            entity.HasOne(e => e.Author)
+                .WithMany(a => a.Experiences)
+                .HasForeignKey(e => e.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContactChannel>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Label).IsRequired().HasMaxLength(120);
+            entity.Property(c => c.Url).IsRequired().HasMaxLength(500);
+            entity.Property(c => c.Handle).HasMaxLength(150);
+
+            entity.HasIndex(c => new { c.AuthorId, c.SortOrder });
+
+            entity.HasOne(c => c.Author)
+                .WithMany(a => a.ContactChannels)
+                .HasForeignKey(c => c.AuthorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

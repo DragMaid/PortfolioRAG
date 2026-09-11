@@ -28,11 +28,51 @@ public static class BlogDbSeeder
         {
             Name = "Demo Author",
             Email = DemoEmail,
-            Biography = "Seeded account for local development.",
+            Title = "Staff Systems & Distributed Infrastructure",
+            Headline = "Designing high-throughput computing engines, fault-tolerant protocols, "
+                + "and quiet, tactile digital interfaces.",
+            Biography = "Seeded account for local development.\n\n"
+                + "The biography is **Markdown**, so the landing page renders whatever is written "
+                + "here — paragraphs, emphasis, links.",
+            FooterBio = "Seeded account for local development, so the footer has something to print.",
+            Location = "San Francisco, CA (Hybrid)",
+            Availability = "Open for Staff roles & select advisory",
+            Focus = "Primary focus: Systems / C++ / Rust",
+            ContactPitch = "Currently discussing principal/staff infrastructure roles, technical "
+                + "advisory engagements, and open source runtime architectures.",
             PasswordHash = PasswordHasher.Hash(DemoPassword),
             EmailConfirmedAt = null,
             CreatedAt = now.AddDays(-30)
         };
+
+        author.Experiences.Add(NewExperience(
+            "Stripe",
+            "Software Engineer — Core Infrastructure",
+            "Global Financial Messaging Layer & Payment Settlement",
+            new DateOnly(2019, 5, 1),
+            new DateOnly(2021, 9, 1),
+            now));
+
+        author.Experiences.Add(NewExperience(
+            "Vercel",
+            "Senior Systems Engineer",
+            "Edge Compute & Global Serverless Gateway",
+            new DateOnly(2021, 10, 1),
+            new DateOnly(2023, 10, 1),
+            now));
+
+        author.Experiences.Add(NewExperience(
+            "OpenAI",
+            "Staff Infrastructure Architect",
+            "AI Research Platform & Distributed Compute Cluster",
+            new DateOnly(2023, 11, 1),
+            endedOn: null,
+            now));
+
+        author.ContactChannels.Add(NewChannel("github.com/demo", "https://github.com/demo", "GitHub (@demo)", 0, now));
+        author.ContactChannels.Add(NewChannel(
+            "linkedin.com/in/demo", "https://linkedin.com/in/demo", "LinkedIn (/in/demo)", 1, now));
+        author.ContactChannels.Add(NewChannel("x.com/demo", "https://x.com/demo", "X / Twitter (@demo)", 2, now));
 
         var otherAuthor = new Author
         {
@@ -123,6 +163,48 @@ public static class BlogDbSeeder
             }
         }
     }
+
+    /// <summary>
+    /// A seeded job. The description is Markdown, which is what the timeline renders — the
+    /// bullet list is the shape the highlights took before they were free-form copy.
+    /// </summary>
+    private static Experience NewExperience(
+        string company,
+        string role,
+        string team,
+        DateOnly startedOn,
+        DateOnly? endedOn,
+        DateTimeOffset now) =>
+        new()
+        {
+            Company = company,
+            Role = role,
+            Team = team,
+            Description =
+                $"Seeded description for **{company}**.\n\n"
+                + "- Something built, with the number that made it matter.\n"
+                + "- Something made faster, from what to what.\n"
+                + "- Something hardened, and against what.",
+            StartedOn = startedOn,
+            EndedOn = endedOn,
+            CreatedAt = now
+        };
+
+    /// <summary>A seeded contact link.</summary>
+    private static ContactChannel NewChannel(
+        string label,
+        string url,
+        string handle,
+        int sortOrder,
+        DateTimeOffset now) =>
+        new()
+        {
+            Label = label,
+            Url = url,
+            Handle = handle,
+            SortOrder = sortOrder,
+            CreatedAt = now
+        };
 
     private static Post NewPost(
         Author author,
