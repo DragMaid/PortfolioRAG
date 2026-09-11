@@ -30,6 +30,7 @@ public class BlogDbContext : DbContext
             entity.HasKey(a => a.Id);
             entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
+            entity.Property(a => a.Handle).IsRequired().HasMaxLength(60);
             entity.Property(a => a.AvatarObjectKey).HasMaxLength(512);
             entity.Property(a => a.Title).HasMaxLength(150);
             entity.Property(a => a.Headline).HasMaxLength(400);
@@ -40,6 +41,7 @@ public class BlogDbContext : DbContext
             entity.Property(a => a.Focus).HasMaxLength(160);
             entity.Property(a => a.ContactPitch).HasMaxLength(500);
             entity.HasIndex(a => a.Email).IsUnique();
+            entity.HasIndex(a => a.Handle).IsUnique();
             entity.Property(a => a.PasswordHash).HasMaxLength(512);
         });
 
@@ -77,6 +79,11 @@ public class BlogDbContext : DbContext
             entity.Property(p => p.Slug).IsRequired().HasMaxLength(200);
             entity.Property(p => p.Summary).HasMaxLength(500);
             entity.Property(p => p.Body).IsRequired();
+            entity.Property(p => p.Category).HasMaxLength(60);
+            entity.Property(p => p.Domain).HasMaxLength(60);
+            entity.Property(p => p.RepoUrl).HasMaxLength(500);
+            entity.Property(p => p.DemoUrl).HasMaxLength(500);
+            entity.Property(p => p.SpecUrl).HasMaxLength(500);
             entity.HasIndex(p => p.Slug).IsUnique();
 
             entity.HasOne(p => p.Author)
@@ -91,8 +98,16 @@ public class BlogDbContext : DbContext
             entity.Property(m => m.Filename).IsRequired().HasMaxLength(100);
             entity.Property(m => m.ObjectKey).IsRequired().HasMaxLength(512);
             entity.Property(m => m.Extension).IsRequired();
+            entity.Property(m => m.Role).IsRequired();
             entity.Property(m => m.Caption).HasMaxLength(200);
             entity.HasIndex(m => m.ObjectKey).IsUnique();
+
+            // One post must only have one thumbnail or trailer
+            // Enforced using the below rule which create a unique index
+            // on the post the media only if the media role is thumbnail or trailer
+            entity.HasIndex(m => new { m.PostId, m.Role })
+                .IsUnique()
+                .HasFilter($"\"{nameof(Media.Role)}\" IN ({(int)MediaRole.Thumbnail}, {(int)MediaRole.Trailer})");
 
             // NOTE: a media row is meaningless without the post it belongs to, so the
             // database drops it with the post rather than the repository doing it by hand.

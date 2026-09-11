@@ -1,3 +1,4 @@
+using Backend.Common;
 using Backend.Common.Options;
 using Backend.Common.Security;
 using Backend.Data;
@@ -115,7 +116,7 @@ public sealed class TestHarness : IAsyncDisposable
 
         // NOTE: an in-memory bucket, not the real one. It keeps the bytes, so a test can
         // check what was actually stored rather than trusting the row that points at it.
-        Storage = new FakeBackblazeService();
+        Storage = new FakeObjectStorage();
 
         MediaService = new MediaService(
             Medias,
@@ -170,7 +171,7 @@ public sealed class TestHarness : IAsyncDisposable
 
     public IAnalyticsService Analytics { get; }
 
-    public FakeBackblazeService Storage { get; }
+    public FakeObjectStorage Storage { get; }
 
     public IMediaService MediaService { get; }
 
@@ -194,6 +195,10 @@ public sealed class TestHarness : IAsyncDisposable
         {
             Name = email.Split('@')[0],
             Email = email.ToLowerInvariant(),
+            // NOTE: unique in the schema, so it cannot be left at the default — two authors
+            // added by one test would collide on the empty string rather than on anything
+            // the test was trying to say.
+            Handle = SlugGenerator.Generate(email.Split('@')[0]) + "-" + Guid.NewGuid().ToString("N")[..8],
             PasswordHash = password is null ? null : PasswordHasher.Hash(password),
             EmailConfirmedAt = emailConfirmedAt,
             CreatedAt = TimeProvider.GetUtcNow()
@@ -204,11 +209,18 @@ public sealed class TestHarness : IAsyncDisposable
         return author;
     }
 
+    /// <param name="withArtwork">
+    /// Attaches the thumbnail and trailer that <c>PostService.PublishAsync</c> requires.
+    /// Off by default: most tests here put a post in a given state directly and care about
+    /// ownership, paging or uploads, and two extra media rows would only get in the way of
+    /// counting the ones they added themselves. Tests that actually publish ask for it.
+    /// </param>
     public async Task<Post> AddPostAsync(
         Author author,
         bool isDraft = true,
         string title = "A post",
-        bool isFeatured = false)
+        bool isFeatured = false,
+        bool withArtwork = false)
     {
         var now = TimeProvider.GetUtcNow();
 
@@ -227,7 +239,41 @@ public sealed class TestHarness : IAsyncDisposable
 
         Context.Posts.Add(post);
         await Context.SaveChangesAsync();
+
+        if (withArtwork)
+            await AddArtworkAsync(post);
+
         return post;
+    }
+
+    /// <summary>
+    /// Gives a post the thumbnail and trailer publishing insists on. The rows point at keys
+    /// the fake bucket holds, so deleting the post sweeps them like any other upload.
+    /// </summary>
+    public async Task AddArtworkAsync(Post post)
+    {
+        var now = TimeProvider.GetUtcNow();
+
+        foreach (var role in new[] { MediaRole.Thumbnail, MediaRole.Trailer })
+        {
+            var name = role.ToString().ToLowerInvariant();
+            var objectKey = $"authors/{post.AuthorId}/posts/{post.Id}/{Guid.NewGuid():N}-{name}.webp";
+
+            await Storage.UploadAsync(new MemoryStream(TestFiles.Png()), objectKey, "image/webp");
+
+            Context.Medias.Add(new Media
+            {
+                Filename = $"{name}.webp",
+                ObjectKey = objectKey,
+                ByteSize = 64,
+                Extension = MediaExtension.Webp,
+                Role = role,
+                PostId = post.Id,
+                CreatedAt = now
+            });
+        }
+
+        await Context.SaveChangesAsync();
     }
 
     /// <summary>
@@ -246,6 +292,13 @@ public sealed class TestHarness : IAsyncDisposable
     {
         CurrentUser.AuthorId = author.Id;
         CurrentUser.Email = author.Email;
+    }
+
+    /// <summary>The same, for a test that only holds what a registration handed back.</summary>
+    public void SignIn(int authorId, string email)
+    {
+        CurrentUser.AuthorId = authorId;
+        CurrentUser.Email = email;
     }
 
     public void SignOut() => CurrentUser.AuthorId = null;

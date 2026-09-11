@@ -2,27 +2,35 @@
 
 import { useId } from "react";
 import type { MediaDto, PostDto } from "@/lib/api/generated";
+import { MediaRole } from "@/lib/api/generated";
 import type { Draft } from "@/lib/admin/useStudio";
 import { formatDate } from "@/lib/admin/format";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Field, TextInput } from "../ui/Field";
-import { Panel } from "../ui/Panel";
+import { Icon } from "../ui/Icon";
+import { Panel, PanelHeader } from "../ui/Panel";
 import { Toggle } from "../ui/Toggle";
+import { ArtworkSlot } from "./ArtworkSlot";
 import { AssetManager } from "./AssetManager";
 import { MarkdownEditor } from "./MarkdownEditor";
 
 type DossierEditorProps = {
   post: PostDto | null;
   draft: Draft | null;
+  /** Ordinary files the body embeds. The two leading slots are passed separately. */
   media: MediaDto[];
+  thumbnail: MediaDto | null;
+  trailer: MediaDto | null;
+  /** What is still missing before this project can go live, if anything. */
+  publishBlockers: string[];
   state: "idle" | "loading" | "ready" | "error";
   busy: null | "saving" | "publishing" | "creating";
   onChange: (patch: Partial<Draft>) => void;
   onUnpublish: () => void;
   onDelete: () => void;
-  onUpload: (files: FileList | File[]) => Promise<void>;
+  onUpload: (files: FileList | File[], role?: MediaRole) => Promise<void>;
   onCaptionChange: (mediaId: number, caption: string) => Promise<void>;
   onDeleteMedia: (mediaId: number) => Promise<void>;
   onCreate: () => void;
@@ -33,6 +41,9 @@ export function DossierEditor({
   post,
   draft,
   media,
+  thumbnail,
+  trailer,
+  publishBlockers,
   state,
   busy,
   onChange,
@@ -132,6 +143,23 @@ export function DossierEditor({
         </div>
       </header>
 
+      {/*
+       * Said here, once, rather than left to be discovered by clicking a Publish button
+       * that answers with an error toast. The API enforces the same rule; this only saves
+       * the round trip.
+       */}
+      {post.isDraft && publishBlockers.length > 0 ? (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded border border-warm-accent/35 bg-warm-accent/10 px-3 py-2 font-mono text-[11.5px] leading-relaxed text-warm-black"
+        >
+          <Icon name="error" className="mt-px text-[14px] text-warm-accent" />
+          <span>
+            This project needs {publishBlockers.join(" and ")} before it can be published.
+          </span>
+        </p>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Project title" htmlFor={`${ids}-title`}>
           <TextInput
@@ -178,11 +206,97 @@ export function DossierEditor({
         />
       </Field>
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field
+          label="Category"
+          htmlFor={`${ids}-category`}
+          hint="The kicker beside the ordinal on the card."
+        >
+          <TextInput
+            id={`${ids}-category`}
+            value={draft.category}
+            disabled={locked}
+            maxLength={60}
+            placeholder="VECTOR CORE"
+            onChange={(event) => onChange({ category: event.target.value })}
+            className="font-mono text-xs"
+          />
+        </Field>
+
+        <Field label="Domain" htmlFor={`${ids}-domain`} hint="The line in the card footer.">
+          <TextInput
+            id={`${ids}-domain`}
+            value={draft.domain}
+            disabled={locked}
+            maxLength={60}
+            placeholder="Vector Storage"
+            onChange={(event) => onChange({ domain: event.target.value })}
+            className="font-mono text-xs"
+          />
+        </Field>
+      </div>
+
+      {/* The two files the project leads with, and the gate on publishing it. */}
+      <div className="flex flex-col gap-4 border-t border-warm-border pt-5">
+        <PanelHeader
+          icon="image"
+          title="Thumbnail & trailer"
+          description="Both are required before this project can be published. Uploading replaces what is there."
+        />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ArtworkSlot
+            role={MediaRole.Thumbnail}
+            media={thumbnail}
+            isLive={!post.isDraft}
+            disabled={locked}
+            onUpload={onUpload}
+          />
+          <ArtworkSlot
+            role={MediaRole.Trailer}
+            media={trailer}
+            isLive={!post.isDraft}
+            disabled={locked}
+            onUpload={onUpload}
+          />
+        </div>
+      </div>
+
       <MarkdownEditor
         value={draft.body}
         disabled={locked}
         onChange={(body) => onChange({ body })}
       />
+
+      {/* Where a reader is sent from the preview banner. All optional. */}
+      <div className="flex flex-col gap-4 border-t border-warm-border pt-5">
+        <PanelHeader
+          icon="link"
+          title="Project links"
+          description="Each one drawn as a button on the preview banner. Left blank, the button is not drawn."
+        />
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {([
+            ["repoUrl", "Repository", "https://github.com/you/project"],
+            ["demoUrl", "Live demo", "https://project.example.com"],
+            ["specUrl", "Write-up / RFC", "https://example.com/rfc"],
+          ] as const).map(([key, label, placeholder]) => (
+            <Field key={key} label={label} htmlFor={`${ids}-${key}`}>
+              <TextInput
+                id={`${ids}-${key}`}
+                type="url"
+                value={draft[key]}
+                disabled={locked}
+                maxLength={500}
+                placeholder={placeholder}
+                onChange={(event) => onChange({ [key]: event.target.value })}
+                className="font-mono text-[11px]"
+              />
+            </Field>
+          ))}
+        </div>
+      </div>
 
       {post.id !== undefined ? (
         <AssetManager

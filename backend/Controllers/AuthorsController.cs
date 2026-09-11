@@ -36,6 +36,19 @@ public class AuthorsController : ControllerBase
     public async Task<ActionResult<AuthorDto>> GetById(int id, CancellationToken cancellationToken) =>
         Ok(await _authorService.GetByIdAsync(id, cancellationToken));
 
+    /// <summary>
+    /// The account at a public handle — how <c>/{handle}</c> on the site resolves to a
+    /// portfolio. Public, like the profile it returns.
+    /// </summary>
+    [HttpGet("by-handle/{handle}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AuthorDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AuthorDto>> GetByHandle(
+        string handle,
+        CancellationToken cancellationToken) =>
+        Ok(await _authorService.GetByHandleAsync(handle, cancellationToken));
+
     // NOTE: creating an author is POST /api/auth/register. There is no unauthenticated
     // way to mint an account here — that would let anyone squat an address, and any
     // account created without credentials could never be signed in to anyway.

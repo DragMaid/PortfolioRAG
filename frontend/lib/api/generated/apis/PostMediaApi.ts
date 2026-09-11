@@ -20,6 +20,11 @@ import {
     MediaDtoToJSON,
 } from '../models/MediaDto';
 import {
+    type MediaRole,
+    MediaRoleFromJSON,
+    MediaRoleToJSON,
+} from '../models/MediaRole';
+import {
     type ProblemDetails,
     ProblemDetailsFromJSON,
     ProblemDetailsToJSON,
@@ -68,6 +73,10 @@ export interface PostMediaUploadRequest {
      * 
      */
     postId: number;
+    /**
+     * 
+     */
+    role?: MediaRole;
     /**
      * 
      */
@@ -269,6 +278,10 @@ export class PostMediaApi extends runtime.BaseAPI {
         }
 
         const queryParameters: any = {};
+
+        if (requestParameters['role'] != null) {
+            queryParameters['role'] = requestParameters['role'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 

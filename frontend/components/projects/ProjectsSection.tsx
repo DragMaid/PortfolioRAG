@@ -156,7 +156,7 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
         >
           {projects.map((project, index) => (
             <ProjectCard
-              key={project.index}
+              key={project.slug}
               ref={registerRef(index)}
               project={project}
               isActive={index === activeIndex}

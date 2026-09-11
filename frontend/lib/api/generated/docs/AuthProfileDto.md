@@ -9,6 +9,7 @@ Name | Type
 `id` | number
 `name` | string
 `email` | string
+`handle` | string
 `avatarUrl` | string
 `biography` | string
 `createdAt` | Date
@@ -26,6 +27,7 @@ const example = {
   "id": null,
   "name": null,
   "email": null,
+  "handle": null,
   "avatarUrl": null,
   "biography": null,
   "createdAt": null,

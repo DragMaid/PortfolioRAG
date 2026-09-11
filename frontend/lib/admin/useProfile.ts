@@ -21,6 +21,8 @@ import { useToast } from "./useToast";
 export type ProfileDraft = {
   name: string;
   email: string;
+  /** The account's public address: this portfolio is served at `/{handle}`. */
+  handle: string;
   title: string;
   headline: string;
   biography: string;
@@ -139,6 +141,7 @@ export function useProfile() {
         updateAuthorDto: {
           name: draft.name.trim(),
           email: draft.email.trim(),
+          handle: draft.handle.trim().toLowerCase(),
           title: blankToUndefined(draft.title),
           headline: blankToUndefined(draft.headline),
           biography: blankToUndefined(draft.biography),
@@ -433,6 +436,7 @@ function toDraft(author: AuthorDto): ProfileDraft {
   return {
     name: author.name ?? "",
     email: author.email ?? "",
+    handle: author.handle ?? "",
     title: author.title ?? "",
     headline: author.headline ?? "",
     biography: author.biography ?? "",

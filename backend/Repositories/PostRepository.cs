@@ -97,6 +97,7 @@ public class PostRepository : IPostRepository
     {
         var query = _context.Posts
             .Include(p => p.Author)
+            .Include(p => p.Medias)
             .AsQueryable();
 
         return tracked ? query : query.AsNoTracking();

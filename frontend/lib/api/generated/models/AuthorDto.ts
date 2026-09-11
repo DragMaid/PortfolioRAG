@@ -50,6 +50,10 @@ export interface AuthorDto {
     /**
      * 
      */
+    handle?: string;
+    /**
+     * 
+     */
     avatarUrl?: string | null;
     /**
      * 
@@ -125,6 +129,7 @@ export function AuthorDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'id': json['id'] == null ? undefined : json['id'],
         'name': json['name'] == null ? undefined : json['name'],
         'email': json['email'] == null ? undefined : json['email'],
+        'handle': json['handle'] == null ? undefined : json['handle'],
         'avatarUrl': json['avatarUrl'] === undefined ? undefined : json['avatarUrl'] === null ? null : json['avatarUrl'],
         'title': json['title'] === undefined ? undefined : json['title'] === null ? null : json['title'],
         'headline': json['headline'] === undefined ? undefined : json['headline'] === null ? null : json['headline'],
@@ -156,6 +161,7 @@ export function AuthorDtoToJSONTyped(value?: AuthorDto | null, ignoreDiscriminat
         'id': value['id'],
         'name': value['name'],
         'email': value['email'],
+        'handle': value['handle'],
         'avatarUrl': value['avatarUrl'],
         'title': value['title'],
         'headline': value['headline'],

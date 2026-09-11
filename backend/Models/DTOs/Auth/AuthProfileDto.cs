@@ -14,6 +14,9 @@ public class AuthProfileDto
 
     public string Email { get; init; } = string.Empty;
 
+    /// <summary>Where this account's portfolio is served: <c>/{handle}</c>.</summary>
+    public string Handle { get; init; } = string.Empty;
+
     public string? AvatarUrl { get; init; }
 
     public string? Biography { get; init; }

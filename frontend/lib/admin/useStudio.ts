@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MediaDto, PostDto, PostSummaryDto } from "@/lib/api/generated";
-import { PostSortOrder } from "@/lib/api/generated";
+import { MediaRole, PostSortOrder } from "@/lib/api/generated";
 import { adminPostsApi, describeError, postMediaApi } from "./client";
 import { useToast } from "./useToast";
 
@@ -16,6 +16,13 @@ export type Draft = {
   summary: string;
   body: string;
   isFeatured: boolean;
+  /** The kicker beside the ordinal on the card — "VECTOR CORE". */
+  category: string;
+  /** The line in the card footer — "Vector Storage". */
+  domain: string;
+  repoUrl: string;
+  demoUrl: string;
+  specUrl: string;
 };
 
 /** How many posts the registry loads. Well past what one portfolio holds. */
@@ -157,6 +164,11 @@ export function useStudio() {
             summary: draft.summary.trim() || undefined,
             body: draft.body,
             isFeatured: draft.isFeatured,
+            category: draft.category.trim() || undefined,
+            domain: draft.domain.trim() || undefined,
+            repoUrl: draft.repoUrl.trim() || undefined,
+            demoUrl: draft.demoUrl.trim() || undefined,
+            specUrl: draft.specUrl.trim() || undefined,
           },
         });
 
@@ -275,19 +287,24 @@ export function useStudio() {
   }, [baseline, loadPosts, openPost, showToast, fail]);
 
   const uploadMedia = useCallback(
-    async (files: FileList | File[]) => {
+    async (files: FileList | File[], role: MediaRole = MediaRole.Attachment) => {
       if (!baseline?.id) return;
 
       const list = Array.from(files);
       if (list.length === 0) return;
 
+      // A post holds one thumbnail and one trailer, so only the first file counts for
+      // those — uploading three in turn would just be two wasted round trips, each one
+      // replacing the last.
+      const selected = role === MediaRole.Attachment ? list : list.slice(0, 1);
+
       // NOTE: one at a time. The endpoint takes a single file, and firing ten parallel
       // multipart uploads at a re-encoding backend is how a browser tab stops responding.
       let uploaded = 0;
 
-      for (const file of list) {
+      for (const file of selected) {
         try {
-          await postMediaApi.postMediaUpload({ postId: baseline.id, file });
+          await postMediaApi.postMediaUpload({ postId: baseline.id, file, role });
           uploaded++;
         } catch (error) {
           await fail(error, `Could not upload ${file.name}.`);
@@ -301,7 +318,11 @@ export function useStudio() {
       }
 
       if (uploaded > 0) {
-        showToast(`Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"}`);
+        showToast(
+          role === MediaRole.Attachment
+            ? `Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"}`
+            : `${role === MediaRole.Thumbnail ? "Thumbnail" : "Trailer"} set`,
+        );
       }
     },
     [baseline, fail, showToast],
@@ -343,6 +364,37 @@ export function useStudio() {
     [baseline, fail, showToast],
   );
 
+  const thumbnail = useMemo(
+    () => media.find((item) => item.role === MediaRole.Thumbnail) ?? null,
+    [media],
+  );
+
+  const trailer = useMemo(
+    () => media.find((item) => item.role === MediaRole.Trailer) ?? null,
+    [media],
+  );
+
+  /** Ordinary files the body embeds — the two leading slots are shown on their own. */
+  const attachments = useMemo(
+    () => media.filter((item) => item.role === MediaRole.Attachment),
+    [media],
+  );
+
+  /**
+   * Why Publish is unavailable, in the order the author should fix them.
+   *
+   * The API refuses to publish a project with no thumbnail or no trailer, so the button is
+   * disabled with the reason spelled out rather than left to be clicked for an error toast.
+   * The check is duplicated here on purpose: the server's copy is the one that decides, and
+   * this one exists only so the studio does not have to ask in order to know.
+   */
+  const publishBlockers = useMemo(() => {
+    const blockers: string[] = [];
+    if (!thumbnail) blockers.push("a thumbnail");
+    if (!trailer) blockers.push("a trailer");
+    return blockers;
+  }, [thumbnail, trailer]);
+
   const counts = useMemo(
     () => ({
       all: posts.length,
@@ -371,6 +423,10 @@ export function useStudio() {
     updateDraft,
     isDirty,
     media,
+    thumbnail,
+    trailer,
+    attachments,
+    publishBlockers,
     listState,
     editorState,
     busy,
@@ -394,15 +450,16 @@ function toDraft(post: PostDto): Draft {
     summary: post.summary ?? "",
     body: post.body ?? "",
     isFeatured: post.isFeatured ?? false,
+    category: post.category ?? "",
+    domain: post.domain ?? "",
+    repoUrl: post.repoUrl ?? "",
+    demoUrl: post.demoUrl ?? "",
+    specUrl: post.specUrl ?? "",
   };
 }
 
 function sameDraft(a: Draft, b: Draft): boolean {
-  return (
-    a.title === b.title &&
-    a.slug === b.slug &&
-    a.summary === b.summary &&
-    a.body === b.body &&
-    a.isFeatured === b.isFeatured
-  );
+  // Compares every field rather than a hand-written list, so a field added to Draft is
+  // covered here without anyone remembering to come back and add it.
+  return (Object.keys(a) as (keyof Draft)[]).every((key) => a[key] === b[key]);
 }

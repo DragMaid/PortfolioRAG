@@ -25,34 +25,43 @@ export function ProjectPreview({
       tabIndex={-1}
       className="mb-10 p-6 sm:p-8"
     >
-      {/* Keyed so the copy re-animates when the selection changes. */}
-      <div
-        key={project.index}
-        className="grid animate-fade-rise grid-cols-1 items-center gap-8 lg:grid-cols-12"
-      >
-        <div className="space-y-4 lg:col-span-5">
+      <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12">
+        {/*
+         * Keyed so the copy re-animates when the selection changes — and keyed *here*,
+         * around the copy alone, rather than around the whole row. A key on the row tore
+         * down the preview window too, and with the carousel advancing every few seconds
+         * the trailer was remounted before it had finished loading, so it never appeared.
+         */}
+        <div key={project.slug} className="animate-fade-rise space-y-4 lg:col-span-5">
           <div className="flex flex-wrap items-center gap-3 font-mono text-xs">
             <span className="font-semibold text-warm-accent">
-              {project.index} / {project.category}
+              {project.category ? `${project.index} / ${project.category}` : project.index}
             </span>
-            <span className="text-warm-slate">{project.year}</span>
+            {project.year ? <span className="text-warm-slate">{project.year}</span> : null}
           </div>
 
           <h3 className="font-serif text-2xl text-warm-black sm:text-3xl">
             {project.title}
           </h3>
-          <p className="text-sm leading-relaxed text-warm-slate sm:text-base">
-            {project.description}
-          </p>
+          {project.summary ? (
+            <p className="text-sm leading-relaxed text-warm-slate sm:text-base">
+              {project.summary}
+            </p>
+          ) : null}
 
-          <dl className="flex flex-wrap gap-x-4 gap-y-2 border-y border-warm-border/60 py-2 font-mono text-xs text-warm-black">
-            {project.metrics.map((metric) => (
-              <div key={metric.label} className="flex gap-1.5">
-                <dt className="text-warm-slate">{metric.label}:</dt>
-                <dd className="font-semibold">{metric.value}</dd>
+          {/*
+           * The banner used to print a row of headline figures here. They were placeholder
+           * copy with nothing behind them on the API, so the domain — which the author does
+           * write — takes the slot rather than inventing numbers to fill it.
+           */}
+          {project.domain ? (
+            <dl className="flex flex-wrap gap-x-4 gap-y-2 border-y border-warm-border/60 py-2 font-mono text-xs text-warm-black">
+              <div className="flex gap-1.5">
+                <dt className="text-warm-slate">Domain:</dt>
+                <dd className="font-semibold">{project.domain}</dd>
               </div>
-            ))}
-          </dl>
+            </dl>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2.5 pt-2">
             {links.repo ? (
@@ -86,6 +95,8 @@ export function ProjectPreview({
           </div>
         </div>
 
+        {/* Deliberately not keyed: React updates the existing <img>/<video> in place
+            instead of replacing it, so switching projects does not restart the load. */}
         <div className="lg:col-span-7">
           <PreviewWindow project={project} />
         </div>

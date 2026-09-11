@@ -9,6 +9,7 @@ Name | Type
 `id` | number
 `name` | string
 `email` | string
+`handle` | string
 `avatarUrl` | string
 `title` | string
 `headline` | string
@@ -34,6 +35,7 @@ const example = {
   "id": null,
   "name": null,
   "email": null,
+  "handle": null,
   "avatarUrl": null,
   "title": null,
   "headline": null,

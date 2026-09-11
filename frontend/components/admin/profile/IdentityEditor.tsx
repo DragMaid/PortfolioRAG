@@ -52,6 +52,23 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
       </div>
 
       <Field
+        label="Public handle"
+        htmlFor={`${ids}-handle`}
+        hint={`Your portfolio is published at /${draft.handle || "…"}. Changing it breaks the old link.`}
+      >
+        <TextInput
+          id={`${ids}-handle`}
+          value={draft.handle}
+          disabled={disabled}
+          maxLength={60}
+          pattern="[a-z0-9]+(-[a-z0-9]+)*"
+          placeholder="ada-lovelace"
+          onChange={(event) => onChange({ handle: event.target.value })}
+          className="font-mono text-xs"
+        />
+      </Field>
+
+      <Field
         label="Email"
         htmlFor={`${ids}-email`}
         hint="Your sign-in address, and the one the contact call-out writes to. Changing it means confirming it again."

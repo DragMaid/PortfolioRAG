@@ -21,6 +21,13 @@ import {
     MediaExtensionToJSON,
     MediaExtensionToJSONTyped,
 } from './MediaExtension';
+import type { MediaRole } from './MediaRole';
+import {
+    MediaRoleFromJSON,
+    MediaRoleFromJSONTyped,
+    MediaRoleToJSON,
+    MediaRoleToJSONTyped,
+} from './MediaRole';
 
 /**
  * 
@@ -44,6 +51,10 @@ export interface MediaDto {
      * 
      */
     extension?: MediaExtension;
+    /**
+     * 
+     */
+    role?: MediaRole;
     /**
      * 
      */
@@ -85,6 +96,7 @@ export function MediaDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
         'filename': json['filename'] == null ? undefined : json['filename'],
         'url': json['url'] == null ? undefined : json['url'],
         'extension': json['extension'] == null ? undefined : MediaExtensionFromJSON(json['extension']),
+        'role': json['role'] == null ? undefined : MediaRoleFromJSON(json['role']),
         'caption': json['caption'] === undefined ? undefined : json['caption'] === null ? null : json['caption'],
         'byteSize': json['byteSize'] == null ? undefined : json['byteSize'],
         'postId': json['postId'] == null ? undefined : json['postId'],
@@ -107,6 +119,7 @@ export function MediaDtoToJSONTyped(value?: MediaDto | null, ignoreDiscriminator
         'filename': value['filename'],
         'url': value['url'],
         'extension': MediaExtensionToJSON(value['extension']),
+        'role': MediaRoleToJSON(value['role']),
         'caption': value['caption'],
         'byteSize': value['byteSize'],
         'postId': value['postId'],

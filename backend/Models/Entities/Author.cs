@@ -8,6 +8,9 @@ public class Author
 
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>Public identifier of a user, derived from the name.</summary>
+    public string Handle { get; set; } = string.Empty;
+
     /// <summary>
     /// Where the account's avatar lives in the bucket, or null when it never uploaded one.
     /// The only source of an avatar: the bucket is private, so this is a key rather than an

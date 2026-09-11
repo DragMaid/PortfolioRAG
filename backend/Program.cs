@@ -1,6 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using Amazon;
+using Amazon.Runtime;
+using Amazon.S3;
 using Backend.Common;
 using Backend.Common.OpenApi;
 using Backend.Common.Options;
@@ -80,12 +83,32 @@ builder.Services.Configure<AnalyticsOptions>(builder.Configuration.GetSection(An
 // Media storage
 // ---------------------------------------------------------------------------
 
-// NOTE: If backblaze service not configured then fail the program
+// Which bucket the media endpoints talk to. Backblaze in a real deployment, an S3
+// endpoint — a MinIO container — for local work; the credentials for the one that is not
+// selected are never looked at, so only one of the two sections has to be filled in.
+var storageOptions = builder.Configuration
+    .GetSection(StorageOptions.SectionName)
+    .Get<StorageOptions>() ?? new StorageOptions();
+
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+
 var backblazeOptions = builder.Configuration
     .GetSection(BackblazeOptions.SectionName)
     .Get<BackblazeOptions>() ?? new BackblazeOptions();
+
+var s3Options = builder.Configuration
+    .GetSection(S3Options.SectionName)
+    .Get<S3Options>() ?? new S3Options();
+
+// NOTE: if the selected provider is not configured then fail the program, as before —
+// only the selected one, because a deployment running on MinIO has no B2 key to give.
 if (!noCheck)
-    backblazeOptions.Validate();
+{
+    if (storageOptions.Provider == StorageProvider.S3)
+        s3Options.Validate();
+    else
+        backblazeOptions.Validate();
+}
 
 var mediaOptions = builder.Configuration
     .GetSection(MediaOptions.SectionName)
@@ -94,10 +117,12 @@ if (!noCheck)
     mediaOptions.Validate();
 
 builder.Services.Configure<BackblazeOptions>(builder.Configuration.GetSection(BackblazeOptions.SectionName));
+builder.Services.Configure<S3Options>(builder.Configuration.GetSection(S3Options.SectionName));
 builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
 
 // The Backblaze client caches authorization and upload URLs here; the download tokens
-// BackblazeService hands out share the same cache.
+// BackblazeStorage hands out share the same cache. S3Storage signs its links locally and
+// needs none of it.
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<IImageOptimizer, ImageOptimizer>();
 
@@ -105,22 +130,55 @@ builder.Services.AddSingleton<IImageOptimizer, ImageOptimizer>();
 builder.Services.AddSingleton<IFileFormatInspector>(_ => new FileFormatInspector());
 builder.Services.AddSingleton<IMediaTypeDetector, FileSignatureMediaTypeDetector>();
 
-// Only reachable under --noCheck, which Validate() above would otherwise have stopped. The
-// storage client cannot be constructed without credentials, so the media surface is served
-// by a stand-in that answers 503 rather than by nothing at all.
-if (backblazeOptions.IsConfigured)
+// NOTE: choosing what provider to build for the run
+switch (storageOptions.Provider)
 {
-    builder.Services.AddBackblazeAgent(options =>
-    {
-        options.KeyId = backblazeOptions.KeyId;
-        options.ApplicationKey = backblazeOptions.ApplicationKey;
-    });
+    // Configure S3 MinIO storage
+    case StorageProvider.S3 when s3Options.IsConfigured:
+        builder.Services.AddSingleton<IAmazonS3>(_ =>
+        {
+            var config = new AmazonS3Config
+            {
+                // MinIO is reached by path unless it has wildcard DNS, and localhost never
+                // has: without this the SDK would send bucket.localhost and resolve nothing.
+                ForcePathStyle = s3Options.ForcePathStyle,
+                AuthenticationRegion = s3Options.Region
+            };
 
-    builder.Services.AddSingleton<IBackblazeService, BackblazeService>();
-}
-else
-{
-    builder.Services.AddSingleton<IBackblazeService, UnconfiguredBackblazeService>();
+            if (!string.IsNullOrWhiteSpace(s3Options.ServiceUrl))
+            {
+                config.ServiceURL = s3Options.ServiceUrl;
+                config.UseHttp = s3Options.ServiceUrl
+                    .StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                config.RegionEndpoint = RegionEndpoint.GetBySystemName(s3Options.Region);
+            }
+
+            return new AmazonS3Client(
+                new BasicAWSCredentials(s3Options.AccessKeyId, s3Options.SecretAccessKey),
+                config);
+        });
+
+        builder.Services.AddSingleton<IObjectStorage, S3Storage>();
+        break;
+
+    // Configure Backblaze storage
+    case StorageProvider.Backblaze when backblazeOptions.IsConfigured:
+        builder.Services.AddBackblazeAgent(options =>
+        {
+            options.KeyId = backblazeOptions.KeyId;
+            options.ApplicationKey = backblazeOptions.ApplicationKey;
+        });
+
+        builder.Services.AddSingleton<IObjectStorage, BackblazeStorage>();
+        break;
+
+    // Fuck all the above, just run it
+    default:
+        builder.Services.AddSingleton<IObjectStorage, UnconfiguredStorage>();
+        break;
 }
 
 builder.Services.Configure<FormOptions>(options =>
@@ -245,12 +303,21 @@ if (!app.Environment.IsDevelopment() &&
 }
 
 // NOTE: Said once at boot rather than from the stand-in service, which is not constructed until the first media request
-if (!backblazeOptions.IsConfigured)
+var storageConfigured = storageOptions.Provider == StorageProvider.S3
+    ? s3Options.IsConfigured
+    : backblazeOptions.IsConfigured;
+
+if (!storageConfigured)
 {
     app.Logger.LogWarning(
-        "Backblaze is not configured: media storage is disabled and every media request will answer " +
-        "503. Supply KeyId, ApplicationKey and BucketName under the '{SectionName}' section to enable it.",
-        BackblazeOptions.SectionName);
+        "Storage provider {Provider} is not configured: media storage is disabled and every media " +
+        "request will answer 503. Fill in the '{SectionName}' section to enable it.",
+        storageOptions.Provider,
+        storageOptions.Provider == StorageProvider.S3 ? S3Options.SectionName : BackblazeOptions.SectionName);
+}
+else
+{
+    app.Logger.LogInformation("Media storage provider: {Provider}.", storageOptions.Provider);
 }
 
 // Configure the HTTP request pipeline.
@@ -263,9 +330,10 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
     var timeProvider = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+    var storage = scope.ServiceProvider.GetRequiredService<IObjectStorage>();
 
     await context.Database.MigrateAsync();
-    await BlogDbSeeder.SeedAsync(context, timeProvider);
+    await BlogDbSeeder.SeedAsync(context, timeProvider, storage, app.Logger);
 }
 
 app.UseHttpsRedirection();

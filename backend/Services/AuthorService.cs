@@ -39,6 +39,13 @@ public class AuthorService : IAuthorService
         return author.ToDto();
     }
 
+    public async Task<AuthorDto> GetByHandleAsync(string handle, CancellationToken cancellationToken = default)
+    {
+        var author = await _authors.GetByHandleAsync(handle, tracked: false, cancellationToken)
+            ?? throw NotFoundException.For("Author", handle);
+        return author.ToDto();
+    }
+
     public async Task<AuthorDto> UpdateAsync(
         int id,
         UpdateAuthorDto dto,
@@ -54,6 +61,12 @@ public class AuthorService : IAuthorService
         if (await _authors.EmailExistsAsync(email, id, cancellationToken))
             throw new ConflictException($"An author with the email '{email}' already exists.");
 
+        var handle = dto.Handle.Trim().ToLowerInvariant();
+
+        // NOTE: we do not automatically generate a new handle if the one requested is taken
+        if (await _authors.HandleExistsAsync(handle, id, cancellationToken))
+            throw new ConflictException($"The handle '{handle}' is already taken.");
+
         // NOTE: making sure that the new linked email is not the current one being used
         if (!string.Equals(author.Email, email, StringComparison.OrdinalIgnoreCase))
         {
@@ -62,6 +75,7 @@ public class AuthorService : IAuthorService
 
         author.Name = dto.Name.Trim();
         author.Email = email;
+        author.Handle = handle;
         author.Title = Clean(dto.Title);
         author.Headline = Clean(dto.Headline);
         author.Biography = Clean(dto.Biography);

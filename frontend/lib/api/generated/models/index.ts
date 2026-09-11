@@ -17,6 +17,7 @@ export * from './GoogleSignInDto';
 export * from './LoginDto';
 export * from './MediaDto';
 export * from './MediaExtension';
+export * from './MediaRole';
 export * from './MetricDto';
 export * from './PagedResultOfPostSummaryDto';
 export * from './PostDto';

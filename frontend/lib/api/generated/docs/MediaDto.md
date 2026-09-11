@@ -10,6 +10,7 @@ Name | Type
 `filename` | string
 `url` | string
 `extension` | [MediaExtension](MediaExtension.md)
+`role` | [MediaRole](MediaRole.md)
 `caption` | string
 `byteSize` | number
 `postId` | number
@@ -26,6 +27,7 @@ const example = {
   "filename": null,
   "url": null,
   "extension": null,
+  "role": null,
   "caption": null,
   "byteSize": null,
   "postId": null,

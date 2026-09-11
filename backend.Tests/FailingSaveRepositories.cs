@@ -70,11 +70,17 @@ public sealed class FailingSaveAuthorRepository : IAuthorRepository
     public Task<Author?> GetByEmailAsync(string email, bool tracked = false, CancellationToken cancellationToken = default) =>
         _inner.GetByEmailAsync(email, tracked, cancellationToken);
 
+    public Task<Author?> GetByHandleAsync(string handle, bool tracked = false, CancellationToken cancellationToken = default) =>
+        _inner.GetByHandleAsync(handle, tracked, cancellationToken);
+
     public Task<IReadOnlyList<Author>> GetAllAsync(CancellationToken cancellationToken = default) =>
         _inner.GetAllAsync(cancellationToken);
 
     public Task<bool> EmailExistsAsync(string email, int? excludingAuthorId = null, CancellationToken cancellationToken = default) =>
         _inner.EmailExistsAsync(email, excludingAuthorId, cancellationToken);
+
+    public Task<bool> HandleExistsAsync(string handle, int? excludingAuthorId = null, CancellationToken cancellationToken = default) =>
+        _inner.HandleExistsAsync(handle, excludingAuthorId, cancellationToken);
 
     public Task<ExternalLogin?> GetExternalLoginAsync(
         ExternalLoginProvider provider,
