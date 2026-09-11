@@ -14,6 +14,16 @@ public class UpdateAuthorDto
     [StringLength(256)]
     public string Email { get; init; } = string.Empty;
 
+    /// <summary>
+    /// The account's public address. Changing it moves the portfolio and breaks the old
+    /// link, which is why it is spelled out rather than re-derived from the name on save.
+    /// </summary>
+    [Required]
+    [StringLength(60, MinimumLength = 2)]
+    [RegularExpression("^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        ErrorMessage = "Handle must be lowercase alphanumeric words separated by single hyphens.")]
+    public string Handle { get; init; } = string.Empty;
+
     [StringLength(150)]
     public string? Title { get; init; }
 

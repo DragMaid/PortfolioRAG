@@ -16,6 +16,9 @@ public class AuthorDto
 
     public string Email { get; init; } = string.Empty;
 
+    /// <summary>The account's public address: this portfolio is served at <c>/{handle}</c>.</summary>
+    public string Handle { get; init; } = string.Empty;
+
     public string? AvatarUrl { get; init; }
 
     public string? Title { get; init; }
