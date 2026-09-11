@@ -64,10 +64,6 @@ export type Profile = {
   biography: string;
   email: string;
   location: string;
-  /** Compact badge on the avatar, e.g. "SF / PST". */
-  timezoneLabel: string;
-  /** Long-form timezone for the footer colophon, e.g. "UTC -8 (PST)". */
-  timezone: string;
   /** Availability line beside the pulsing status dot, in the card and the footer. */
   availability: string;
   /** Bottom-left note on the profile card, e.g. "Primary focus: Systems / C++ / Rust". */
