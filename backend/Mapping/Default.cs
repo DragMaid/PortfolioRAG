@@ -13,6 +13,7 @@ public static class MappingExtensions
         Id = author.Id,
         Name = author.Name,
         Email = author.Email,
+        Handle = author.Handle,
         AvatarUrl = author.ResolveAvatarUrl(),
         Title = author.Title,
         Headline = author.Headline,
@@ -80,6 +81,7 @@ public static class MappingExtensions
         Id = author.Id,
         Name = author.Name,
         Email = author.Email,
+        Handle = author.Handle,
         AvatarUrl = author.ResolveAvatarUrl(),
         Biography = author.Biography,
         CreatedAt = author.CreatedAt,
@@ -102,6 +104,7 @@ public static class MappingExtensions
         Filename = media.Filename,
         Url = $"/api/media/{media.Id}/content",
         Extension = media.Extension,
+        Role = media.Role,
         Caption = media.Caption,
         ByteSize = media.ByteSize,
         PostId = media.PostId,
@@ -123,12 +126,29 @@ public static class MappingExtensions
         Body = post.Body,
         IsDraft = post.IsDraft,
         IsFeatured = post.IsFeatured,
+        Category = post.Category,
+        Domain = post.Domain,
+        RepoUrl = post.RepoUrl,
+        DemoUrl = post.DemoUrl,
+        SpecUrl = post.SpecUrl,
+        Thumbnail = post.FindMedia(MediaRole.Thumbnail)?.ToDto(),
+        Trailer = post.FindMedia(MediaRole.Trailer)?.ToDto(),
         Author = post.Author.ToSummaryDto(),
         ViewCount = post.ViewCount,
         CreatedAt = post.CreatedAt,
         UpdatedAt = post.UpdatedAt,
         PublishedAt = post.PublishedAt
     };
+
+    /// <summary>
+    /// The post's thumbnail or trailer, or null when it has not been given one yet.
+    ///
+    /// Reads the loaded collection rather than querying, so a caller that did not include
+    /// the media sees null instead of paying for a lazy load per post in a listing. Every
+    /// path that maps a post to a DTO includes it — see <c>PostRepository.BaseQuery</c>.
+    /// </summary>
+    private static Media? FindMedia(this Post post, MediaRole role) =>
+        post.Medias.FirstOrDefault(media => media.Role == role);
 
     public static PostSummaryDto ToSummaryDto(this Post post) => new()
     {
@@ -138,6 +158,13 @@ public static class MappingExtensions
         Summary = post.Summary,
         IsDraft = post.IsDraft,
         IsFeatured = post.IsFeatured,
+        Category = post.Category,
+        Domain = post.Domain,
+        RepoUrl = post.RepoUrl,
+        DemoUrl = post.DemoUrl,
+        SpecUrl = post.SpecUrl,
+        Thumbnail = post.FindMedia(MediaRole.Thumbnail)?.ToDto(),
+        Trailer = post.FindMedia(MediaRole.Trailer)?.ToDto(),
         Author = post.Author.ToSummaryDto(),
         ViewCount = post.ViewCount,
         CreatedAt = post.CreatedAt,
