@@ -15,7 +15,7 @@ public class MediaService : IMediaService
     private readonly IMediaRepository _medias;
     private readonly IPostRepository _posts;
     private readonly IAuthorRepository _authors;
-    private readonly IBackblazeService _storage;
+    private readonly IObjectStorage _storage;
     private readonly IImageOptimizer _optimizer;
     private readonly IMediaTypeDetector _detector;
     private readonly ICurrentUser _currentUser;
@@ -30,7 +30,7 @@ public class MediaService : IMediaService
         IMediaRepository medias,
         IPostRepository posts,
         IAuthorRepository authors,
-        IBackblazeService storage,
+        IObjectStorage storage,
         IImageOptimizer optimizer,
         IMediaTypeDetector detector,
         ICurrentUser currentUser,
@@ -53,6 +53,7 @@ public class MediaService : IMediaService
     public async Task<MediaDto> AddToPostAsync(
         int postId,
         IFormFile file,
+        MediaRole role = MediaRole.Attachment,
         CancellationToken cancellationToken = default)
     {
         var authorId = _currentUser.RequireAuthorId();
@@ -63,10 +64,13 @@ public class MediaService : IMediaService
         if (post.AuthorId != authorId)
             throw ForbiddenException.For("post", postId);
 
+        // NOTE: a thumbnail is drawn as a still in a card and nothing ever plays it, so a
+        // video in that slot would render as a dead frame. A trailer takes either — a
+        // project with no footage is better served by a second picture than an empty player.
         using var upload = await ReadUploadAsync(
             file,
             _options.MaxImageDimension,
-            allowVideo: true,
+            allowVideo: role != MediaRole.Thumbnail,
             cancellationToken);
 
         var objectKey = BuildObjectKey(
@@ -86,12 +90,24 @@ public class MediaService : IMediaService
             ObjectKey = stored.ObjectKey,
             ByteSize = stored.ByteSize,
             Extension = upload.Extension,
+            Role = role,
             PostId = postId,
             CreatedAt = _timeProvider.GetUtcNow()
         };
 
+        // A post leads with one thumbnail and one trailer, so uploading either replaces
+        // what was there. Removed in the same transaction as the insert: a unique index
+        // holds the rule, and leaving both rows in place for even a moment would trip it.
+        var replaced = role == MediaRole.Attachment
+            ? null
+            : (await _medias.GetByPostIdAsync(postId, cancellationToken))
+                .FirstOrDefault(item => item.Role == role);
+
         try
         {
+            if (replaced is not null)
+                _medias.Remove(await _medias.GetByIdAsync(replaced.Id, tracked: true, cancellationToken) ?? replaced);
+
             await _medias.AddAsync(media, cancellationToken);
             await _medias.SaveChangesAsync(cancellationToken);
         }
@@ -104,10 +120,16 @@ public class MediaService : IMediaService
             throw;
         }
 
+        // Best effort, as with an avatar: the post already points at the new file, so a
+        // bucket that will not let go of the old one leaves a stray object, not a failure.
+        if (replaced is not null)
+            await TryDeleteObjectAsync(replaced.ObjectKey, cancellationToken);
+
         _logger.LogDebug(
-            "Attached {ObjectKey} to post {PostId} for author {AuthorId}.",
+            "Attached {ObjectKey} to post {PostId} as {Role} for author {AuthorId}.",
             stored.ObjectKey,
             postId,
+            role,
             authorId);
 
         return media.ToDto();
@@ -142,19 +164,33 @@ public class MediaService : IMediaService
         return medias.Select(m => m.ToDto()).ToList();
     }
 
+    public async Task<MediaDto> UpdateAsync(
+        int postId,
+        int mediaId,
+        UpdateMediaDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var media = await LoadOwnedAsync(postId, mediaId, cancellationToken);
+
+        media.Caption = string.IsNullOrWhiteSpace(dto.Caption) ? null : dto.Caption.Trim();
+
+        await _medias.SaveChangesAsync(cancellationToken);
+        return media.ToDto();
+    }
+
     public async Task DeleteAsync(int postId, int mediaId, CancellationToken cancellationToken = default)
     {
-        var media = await _medias.GetByIdAsync(mediaId, tracked: true, cancellationToken)
-            ?? throw NotFoundException.For("Media", mediaId);
+        var media = await LoadOwnedAsync(postId, mediaId, cancellationToken);
 
-        // The route says this item belongs to that post. If it does not, the address is
-        // wrong and there is nothing at it — answering on the item anyway would let one
-        // post's URL act on another's file.
-        if (media.PostId != postId)
-            throw NotFoundException.For("Media", mediaId);
-
-        if (media.Post.AuthorId != _currentUser.RequireAuthorId())
-            throw ForbiddenException.For("media", mediaId);
+        // NOTE: the same rule that gates publishing, held from the other side. Publishing
+        // requires a thumbnail and a trailer; letting one be deleted afterwards would leave
+        // a live project with a hole in it that nothing would ever flag. Unpublish first.
+        if (media.Role != MediaRole.Attachment && !media.Post.IsDraft)
+        {
+            throw new ValidationException(
+                $"A published project must keep its {media.Role.ToString().ToLowerInvariant()}. " +
+                "Upload a replacement to swap it, or unpublish the project first.");
+        }
 
         // NOTE: bucket first. If it fails the row survives and the delete can be retried;
         // the other order would leave an object nothing remembers the key of.
@@ -251,6 +287,88 @@ public class MediaService : IMediaService
         return await _storage.GetDownloadUrlAsync(author.AvatarObjectKey, cancellationToken);
     }
 
+    public async Task<ExperienceDto> SetExperienceLogoAsync(
+        int experienceId,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        var experience = await LoadOwnExperienceAsync(experienceId, cancellationToken);
+
+        using var upload = await ReadUploadAsync(
+            file,
+            _options.MaxAvatarDimension,
+            allowVideo: false,
+            cancellationToken);
+
+        var objectKey = BuildObjectKey(
+            $"authors/{experience.AuthorId}/experiences/{experienceId}",
+            file.FileName,
+            upload.Extension);
+
+        var stored = await _storage.UploadAsync(
+            upload.Content,
+            objectKey,
+            upload.Extension.ToContentType(),
+            cancellationToken);
+
+        var replaced = experience.LogoObjectKey;
+        experience.LogoObjectKey = stored.ObjectKey;
+
+        try
+        {
+            await _authors.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await TryDeleteObjectAsync(stored.ObjectKey, cancellationToken);
+            throw;
+        }
+
+        // Best effort, as with an avatar: the row already points at the new mark, so a
+        // bucket that will not let go of the old one leaves a stray object, not a failure.
+        if (replaced is not null)
+            await TryDeleteObjectAsync(replaced, cancellationToken);
+
+        return experience.ToDto();
+    }
+
+    public async Task<ExperienceDto> RemoveExperienceLogoAsync(
+        int experienceId,
+        CancellationToken cancellationToken = default)
+    {
+        var experience = await LoadOwnExperienceAsync(experienceId, cancellationToken);
+        var objectKey = experience.LogoObjectKey;
+
+        if (objectKey is null)
+            return experience.ToDto();
+
+        await _storage.DeleteAsync(objectKey, cancellationToken);
+
+        experience.LogoObjectKey = null;
+        await _authors.SaveChangesAsync(cancellationToken);
+
+        return experience.ToDto();
+    }
+
+    public async Task<Uri> GetExperienceLogoUrlAsync(
+        int experienceId,
+        CancellationToken cancellationToken = default)
+    {
+        var experience = await _authors.GetExperienceAsync(experienceId, tracked: false, cancellationToken)
+            ?? throw NotFoundException.For("Experience", experienceId);
+
+        if (experience.LogoObjectKey is null)
+            throw NotFoundException.For("Logo", experienceId);
+
+        return await _storage.GetDownloadUrlAsync(experience.LogoObjectKey, cancellationToken);
+    }
+
+    public Task PurgeExperienceObjectsAsync(
+        int experienceId,
+        int authorId,
+        CancellationToken cancellationToken = default) =>
+        PurgePrefixAsync($"authors/{authorId}/experiences/{experienceId}/", cancellationToken);
+
     public Task PurgePostObjectsAsync(
         int postId,
         int authorId,
@@ -265,6 +383,34 @@ public class MediaService : IMediaService
     /// account is being deleted, and a storage outage must not be able to keep somebody's
     /// account open. What survives is a logged, addressable prefix rather than silence.
     /// </summary>
+    private async Task<Experience> LoadOwnExperienceAsync(int experienceId, CancellationToken cancellationToken)
+    {
+        var experience = await _authors.GetExperienceAsync(experienceId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("Experience", experienceId);
+
+        if (experience.AuthorId != _currentUser.RequireAuthorId())
+            throw ForbiddenException.For("experience", experienceId);
+
+        return experience;
+    }
+
+    private async Task<Media> LoadOwnedAsync(
+        int postId,
+        int mediaId,
+        CancellationToken cancellationToken)
+    {
+        var media = await _medias.GetByIdAsync(mediaId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("Media", mediaId);
+
+        if (media.PostId != postId)
+            throw NotFoundException.For("Media", mediaId);
+
+        if (media.Post.AuthorId != _currentUser.RequireAuthorId())
+            throw ForbiddenException.For("media", mediaId);
+
+        return media;
+    }
+
     private async Task PurgePrefixAsync(string prefix, CancellationToken cancellationToken)
     {
         try
@@ -345,7 +491,7 @@ public class MediaService : IMediaService
             var extension = DetectExtension(content);
 
             if (extension.IsVideo() && !allowVideo)
-                throw new UnsupportedMediaTypeException("An avatar has to be a picture, not a video.");
+                throw new UnsupportedMediaTypeException("This slot has to be a picture, not a video.");
 
             var limit = extension.IsVideo() ? _options.MaxVideoBytes : _options.MaxImageBytes;
 

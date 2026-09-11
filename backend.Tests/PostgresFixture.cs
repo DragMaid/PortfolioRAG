@@ -13,6 +13,18 @@ public static class PostgresFixture
 {
     private const string TemplateDatabase = "portfolio_template";
 
+    /// <summary>
+    /// Connections the test server will accept at once. Sized for the whole suite running in
+    /// parallel <see cref="PoolSizePerDatabase"/>.
+    /// </summary>
+    private const int MaxConnections = 500;
+
+    /// <summary>
+    /// Per-database pool cap. One harness holds one DbContext, so this only needs to cover
+    /// the connection it uses plus the odd overlap while one is being returned.
+    /// </summary>
+    private const int PoolSizePerDatabase = 3;
+
     // NOTE: semaphore to limit concurrency, making sure only one process create db and other use it
     private static readonly SemaphoreSlim Gate = new(1, 1);
     private static readonly string Suffix = Guid.NewGuid().ToString("N")[..8];
@@ -61,6 +73,7 @@ public static class PostgresFixture
                 .WithUsername("portfolio")
                 .WithPassword("portfolio")
                 .WithTmpfsMount("/var/lib/postgresql/data")
+                .WithCommand("-c", $"max_connections={MaxConnections}")
                 .Build();
 
             await container.StartAsync(cancellationToken);
@@ -106,8 +119,8 @@ public static class PostgresFixture
         new NpgsqlConnectionStringBuilder(container.GetConnectionString())
         {
             Database = database,
-            // NOTE: one database per harness means dozens of pools; a small cap each keeps
-            // the run well under the server's connection limit.
-            MaxPoolSize = 5
+            // NOTE: one database per harness means dozens of pools at once, which is why the
+            // server is started with a raised connection limit to match.
+            MaxPoolSize = PoolSizePerDatabase
         }.ConnectionString;
 }

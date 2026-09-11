@@ -97,7 +97,7 @@ public class AuthorizationTests
 
         // Act
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
-        var draft = await harness.AddPostAsync(mine, isDraft: true);
+        var draft = await harness.AddPostAsync(mine, isDraft: true, withArtwork: true);
         harness.SignIn(mine);
         var published = await harness.PostService.PublishAsync(draft.Id);
 
@@ -115,7 +115,7 @@ public class AuthorizationTests
 
         // Act
         var mine = await harness.AddAuthorAsync("mine@example.com", "a long enough password");
-        var draft = await harness.AddPostAsync(mine, isDraft: true);
+        var draft = await harness.AddPostAsync(mine, isDraft: true, withArtwork: true);
         harness.SignIn(mine);
         var firstPublish = await harness.PostService.PublishAsync(draft.Id);
         harness.TimeProvider.Advance(TimeSpan.FromDays(3));

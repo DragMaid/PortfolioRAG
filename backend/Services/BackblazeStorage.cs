@@ -11,11 +11,11 @@ using Polly.Retry;
 
 namespace Backend.Services;
 
-public class BackblazeService : IBackblazeService
+public class BackblazeStorage : IObjectStorage
 {
     private readonly IStorageClient _client;
     private readonly IMemoryCache _cache;
-    private readonly ILogger<BackblazeService> _logger;
+    private readonly ILogger<BackblazeStorage> _logger;
     private readonly BackblazeOptions _options;
     private readonly ResiliencePipeline _retryPipeline;
 
@@ -26,11 +26,11 @@ public class BackblazeService : IBackblazeService
     private static readonly TimeSpan ListingCacheTtl = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DeleteListingCacheTtl = TimeSpan.FromSeconds(1);
 
-    public BackblazeService(
+    public BackblazeStorage(
         IStorageClient client,
         IMemoryCache cache,
         IOptions<BackblazeOptions> options,
-        ILogger<BackblazeService> logger)
+        ILogger<BackblazeStorage> logger)
     {
         _client = client;
         _cache = cache;

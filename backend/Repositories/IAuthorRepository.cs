@@ -8,9 +8,14 @@ public interface IAuthorRepository
 
     Task<Author?> GetByEmailAsync(string email, bool tracked = false, CancellationToken cancellationToken = default);
 
+    /// <summary>The account at a public handle, or null. How <c>/{handle}</c> resolves.</summary>
+    Task<Author?> GetByHandleAsync(string handle, bool tracked = false, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Author>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task<bool> EmailExistsAsync(string email, int? excludingAuthorId = null, CancellationToken cancellationToken = default);
+
+    Task<bool> HandleExistsAsync(string handle, int? excludingAuthorId = null, CancellationToken cancellationToken = default);
 
     Task<ExternalLogin?> GetExternalLoginAsync(
         ExternalLoginProvider provider,
@@ -24,6 +29,32 @@ public interface IAuthorRepository
     Task AddExternalLoginAsync(ExternalLogin login, CancellationToken cancellationToken = default);
 
     Task AddAsync(Author author, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Experience>> GetExperiencesAsync(
+        int authorId,
+        CancellationToken cancellationToken = default);
+
+    Task<Experience?> GetExperienceAsync(
+        int id,
+        bool tracked = false,
+        CancellationToken cancellationToken = default);
+
+    Task AddExperienceAsync(Experience experience, CancellationToken cancellationToken = default);
+
+    void RemoveExperience(Experience experience);
+
+    Task<IReadOnlyList<ContactChannel>> GetContactChannelsAsync(
+        int authorId,
+        CancellationToken cancellationToken = default);
+
+    Task<ContactChannel?> GetContactChannelAsync(
+        int id,
+        bool tracked = false,
+        CancellationToken cancellationToken = default);
+
+    Task AddContactChannelAsync(ContactChannel channel, CancellationToken cancellationToken = default);
+
+    void RemoveContactChannel(ContactChannel channel);
 
     void Remove(Author author);
 

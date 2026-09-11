@@ -3,7 +3,7 @@ namespace Backend.Common.Options;
 /// <summary>
 /// Backblaze B2 credentials and bucket. The bucket is private, so nothing stored against a
 /// media row is a public address — every read is handed out as a short-lived signed link
-/// minted by <c>IBackblazeService</c>.
+/// minted by <c>IObjectStorage</c>.
 /// </summary>
 public class BackblazeOptions
 {

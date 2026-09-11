@@ -9,11 +9,11 @@ namespace Backend.Tests;
 /// </summary>
 /// <remarks>
 /// The fidelity that matters is in the edges, and each one mirrors something the real
-/// <see cref="BackblazeService"/> does: a non-seekable stream is refused, deleting a key
+/// <see cref="BackblazeStorage"/> does: a non-seekable stream is refused, deleting a key
 /// that is not there is a no-op, and a download URL is minted without checking that
 /// anything is behind it.
 /// </remarks>
-public sealed class FakeBackblazeService : IBackblazeService
+public sealed class FakeObjectStorage : IObjectStorage
 {
     public sealed record StoredObject(
         byte[] Content,

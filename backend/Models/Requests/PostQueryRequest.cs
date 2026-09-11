@@ -8,6 +8,9 @@ public class PostQueryRequest : PagedRequest
 
     public bool? IsDraft { get; set; }
 
+    /// <summary>Narrows to showcase posts, or to everything but them. Null leaves both in.</summary>
+    public bool? IsFeatured { get; set; }
+
     public PostSortOrder Sort { get; set; } = PostSortOrder.Newest;
 }
 

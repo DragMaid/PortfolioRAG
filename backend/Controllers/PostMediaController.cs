@@ -1,4 +1,5 @@
 using Backend.Models.DTOs;
+using Backend.Models.Entities;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +39,12 @@ public class PostMediaController : ControllerBase
     /// are, not by the name or the declared content type; pictures are scaled down and
     /// re-encoded, and the file is stored under a generated name.
     /// </summary>
+    /// <param name="role">
+    /// What the file is for.
+    /// <c>Attachment</c> is an ordinary file, can be anything
+    /// <c>Thumbnail</c> is a supported image file
+    /// <c>Trailer</c> is either a image or video format file
+    /// </param>
     [HttpPost]
     [Consumes("multipart/form-data")]
     // NOTE: disable body limit as new limiter is bounded by FormOptions.MultipartBodyLengthLimit
@@ -52,9 +59,10 @@ public class PostMediaController : ControllerBase
     public async Task<ActionResult<MediaDto>> Upload(
         int postId,
         IFormFile file,
+        [FromQuery] MediaRole role,
         CancellationToken cancellationToken)
     {
-        var media = await _mediaService.AddToPostAsync(postId, file, cancellationToken);
+        var media = await _mediaService.AddToPostAsync(postId, file, role, cancellationToken);
 
         return CreatedAtAction(
             nameof(MediaController.GetContent),
@@ -62,6 +70,20 @@ public class PostMediaController : ControllerBase
             new { id = media.Id },
             media);
     }
+
+    // Update the file metadata, not the actual file itself
+    [HttpPut("{mediaId:int}")]
+    [ProducesResponseType(typeof(MediaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MediaDto>> Update(
+        int postId,
+        int mediaId,
+        [FromBody] UpdateMediaDto dto,
+        CancellationToken cancellationToken) =>
+        Ok(await _mediaService.UpdateAsync(postId, mediaId, dto, cancellationToken));
 
     [HttpDelete("{mediaId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

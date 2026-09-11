@@ -92,6 +92,11 @@ public class PostService : IPostService
             Slug = slug,
             Summary = string.IsNullOrWhiteSpace(dto.Summary) ? null : dto.Summary.Trim(),
             Body = dto.Body,
+            Category = Clean(dto.Category),
+            Domain = Clean(dto.Domain),
+            RepoUrl = Clean(dto.RepoUrl),
+            DemoUrl = Clean(dto.DemoUrl),
+            SpecUrl = Clean(dto.SpecUrl),
             Author = author,
             IsDraft = true,
             CreatedAt = now,
@@ -120,6 +125,12 @@ public class PostService : IPostService
         post.Title = dto.Title.Trim();
         post.Summary = string.IsNullOrWhiteSpace(dto.Summary) ? null : dto.Summary.Trim();
         post.Body = dto.Body;
+        post.IsFeatured = dto.IsFeatured;
+        post.Category = Clean(dto.Category);
+        post.Domain = Clean(dto.Domain);
+        post.RepoUrl = Clean(dto.RepoUrl);
+        post.DemoUrl = Clean(dto.DemoUrl);
+        post.SpecUrl = Clean(dto.SpecUrl);
         post.UpdatedAt = _timeProvider.GetUtcNow();
 
         await _posts.SaveChangesAsync(cancellationToken);
@@ -193,6 +204,9 @@ public class PostService : IPostService
 
         EnsureOwnedByCaller(post);
 
+        if (!isDraft)
+            EnsurePublishable(post);
+
         var now = _timeProvider.GetUtcNow();
         post.IsDraft = isDraft;
         post.UpdatedAt = now;
@@ -205,6 +219,41 @@ public class PostService : IPostService
         await _posts.SaveChangesAsync(cancellationToken);
         return post.ToDto();
     }
+
+    /// <summary>
+    /// Refuses to publish a project that is missing its thumbnail or its trailer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Checked at publication rather than at creation because media can only be attached to
+    /// a post that already exists — the upload route is keyed by post id. A draft is
+    /// therefore allowed to be incomplete, and this is the gate it has to pass to go live.
+    /// </para>
+    /// <para>
+    /// Both are reported at once. Telling an author about the missing thumbnail, then about
+    /// the missing trailer only after they have gone and fixed the first, is two trips for
+    /// one answer the server had all along.
+    /// </para>
+    /// </remarks>
+    private static void EnsurePublishable(Post post)
+    {
+        var missing = new[]
+        {
+            post.Medias.Any(m => m.Role == MediaRole.Thumbnail) ? null : "a thumbnail",
+            post.Medias.Any(m => m.Role == MediaRole.Trailer) ? null : "a trailer"
+        }.Where(item => item is not null).ToArray();
+
+        if (missing.Length == 0)
+            return;
+
+        throw new ValidationException(
+            $"This project cannot be published until it has {string.Join(" and ", missing)}. " +
+            "Attach the missing file from the editor, then publish again.");
+    }
+
+    /// <summary>Trimmed, or null when the author left the field empty.</summary>
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>
     /// The single ownership rule: an author may only ever act on their own posts. Nobody —

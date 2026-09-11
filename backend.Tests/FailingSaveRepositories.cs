@@ -70,11 +70,17 @@ public sealed class FailingSaveAuthorRepository : IAuthorRepository
     public Task<Author?> GetByEmailAsync(string email, bool tracked = false, CancellationToken cancellationToken = default) =>
         _inner.GetByEmailAsync(email, tracked, cancellationToken);
 
+    public Task<Author?> GetByHandleAsync(string handle, bool tracked = false, CancellationToken cancellationToken = default) =>
+        _inner.GetByHandleAsync(handle, tracked, cancellationToken);
+
     public Task<IReadOnlyList<Author>> GetAllAsync(CancellationToken cancellationToken = default) =>
         _inner.GetAllAsync(cancellationToken);
 
     public Task<bool> EmailExistsAsync(string email, int? excludingAuthorId = null, CancellationToken cancellationToken = default) =>
         _inner.EmailExistsAsync(email, excludingAuthorId, cancellationToken);
+
+    public Task<bool> HandleExistsAsync(string handle, int? excludingAuthorId = null, CancellationToken cancellationToken = default) =>
+        _inner.HandleExistsAsync(handle, excludingAuthorId, cancellationToken);
 
     public Task<ExternalLogin?> GetExternalLoginAsync(
         ExternalLoginProvider provider,
@@ -92,6 +98,38 @@ public sealed class FailingSaveAuthorRepository : IAuthorRepository
 
     public Task AddAsync(Author author, CancellationToken cancellationToken = default) =>
         _inner.AddAsync(author, cancellationToken);
+
+    public Task<IReadOnlyList<Experience>> GetExperiencesAsync(
+        int authorId,
+        CancellationToken cancellationToken = default) =>
+        _inner.GetExperiencesAsync(authorId, cancellationToken);
+
+    public Task<Experience?> GetExperienceAsync(
+        int id,
+        bool tracked = false,
+        CancellationToken cancellationToken = default) =>
+        _inner.GetExperienceAsync(id, tracked, cancellationToken);
+
+    public Task AddExperienceAsync(Experience experience, CancellationToken cancellationToken = default) =>
+        _inner.AddExperienceAsync(experience, cancellationToken);
+
+    public void RemoveExperience(Experience experience) => _inner.RemoveExperience(experience);
+
+    public Task<IReadOnlyList<ContactChannel>> GetContactChannelsAsync(
+        int authorId,
+        CancellationToken cancellationToken = default) =>
+        _inner.GetContactChannelsAsync(authorId, cancellationToken);
+
+    public Task<ContactChannel?> GetContactChannelAsync(
+        int id,
+        bool tracked = false,
+        CancellationToken cancellationToken = default) =>
+        _inner.GetContactChannelAsync(id, tracked, cancellationToken);
+
+    public Task AddContactChannelAsync(ContactChannel channel, CancellationToken cancellationToken = default) =>
+        _inner.AddContactChannelAsync(channel, cancellationToken);
+
+    public void RemoveContactChannel(ContactChannel channel) => _inner.RemoveContactChannel(channel);
 
     public void Remove(Author author) => _inner.Remove(author);
 

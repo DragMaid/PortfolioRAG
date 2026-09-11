@@ -13,9 +13,15 @@ public class BlogDbContext : DbContext
 
     public DbSet<Media> Medias => Set<Media>();
 
+    public DbSet<Experience> Experiences => Set<Experience>();
+
+    public DbSet<ContactChannel> ContactChannels => Set<ContactChannel>();
+
     public DbSet<ExternalLogin> ExternalLogins => Set<ExternalLogin>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<PageView> PageViews => Set<PageView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,10 +30,18 @@ public class BlogDbContext : DbContext
             entity.HasKey(a => a.Id);
             entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
             entity.Property(a => a.Email).IsRequired().HasMaxLength(256);
+            entity.Property(a => a.Handle).IsRequired().HasMaxLength(60);
             entity.Property(a => a.AvatarObjectKey).HasMaxLength(512);
-            entity.Property(a => a.Biography).HasMaxLength(1000);
-            // NOTE: stored lowercase so the unique index doubles as case-insensitive lookup.
+            entity.Property(a => a.Title).HasMaxLength(150);
+            entity.Property(a => a.Headline).HasMaxLength(400);
+            entity.Property(a => a.Biography).HasMaxLength(3000);
+            entity.Property(a => a.FooterBio).HasMaxLength(500);
+            entity.Property(a => a.Location).HasMaxLength(120);
+            entity.Property(a => a.Availability).HasMaxLength(160);
+            entity.Property(a => a.Focus).HasMaxLength(160);
+            entity.Property(a => a.ContactPitch).HasMaxLength(500);
             entity.HasIndex(a => a.Email).IsUnique();
+            entity.HasIndex(a => a.Handle).IsUnique();
             entity.Property(a => a.PasswordHash).HasMaxLength(512);
         });
 
@@ -65,10 +79,13 @@ public class BlogDbContext : DbContext
             entity.Property(p => p.Slug).IsRequired().HasMaxLength(200);
             entity.Property(p => p.Summary).HasMaxLength(500);
             entity.Property(p => p.Body).IsRequired();
+            entity.Property(p => p.Category).HasMaxLength(60);
+            entity.Property(p => p.Domain).HasMaxLength(60);
+            entity.Property(p => p.RepoUrl).HasMaxLength(500);
+            entity.Property(p => p.DemoUrl).HasMaxLength(500);
+            entity.Property(p => p.SpecUrl).HasMaxLength(500);
             entity.HasIndex(p => p.Slug).IsUnique();
 
-            // NOTE: deleting an account takes its posts — and, through them, their media —
-            // with it. Nothing of a closed account survives. See AuthorService.DeleteAsync.
             entity.HasOne(p => p.Author)
                 .WithMany(a => a.Posts)
                 .HasForeignKey(p => p.AuthorId)
@@ -81,7 +98,16 @@ public class BlogDbContext : DbContext
             entity.Property(m => m.Filename).IsRequired().HasMaxLength(100);
             entity.Property(m => m.ObjectKey).IsRequired().HasMaxLength(512);
             entity.Property(m => m.Extension).IsRequired();
+            entity.Property(m => m.Role).IsRequired();
+            entity.Property(m => m.Caption).HasMaxLength(200);
             entity.HasIndex(m => m.ObjectKey).IsUnique();
+
+            // One post must only have one thumbnail or trailer
+            // Enforced using the below rule which create a unique index
+            // on the post the media only if the media role is thumbnail or trailer
+            entity.HasIndex(m => new { m.PostId, m.Role })
+                .IsUnique()
+                .HasFilter($"\"{nameof(Media.Role)}\" IN ({(int)MediaRole.Thumbnail}, {(int)MediaRole.Trailer})");
 
             // NOTE: a media row is meaningless without the post it belongs to, so the
             // database drops it with the post rather than the repository doing it by hand.
@@ -89,6 +115,62 @@ public class BlogDbContext : DbContext
                 .WithMany(p => p.Medias)
                 .HasForeignKey(m => m.PostId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Experience>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Company).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(160);
+            entity.Property(e => e.Team).HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(4000);
+            entity.Property(e => e.LogoObjectKey).HasMaxLength(512);
+
+            // The timeline is always read in date order for one author.
+            entity.HasIndex(e => new { e.AuthorId, e.StartedOn });
+
+            entity.HasOne(e => e.Author)
+                .WithMany(a => a.Experiences)
+                .HasForeignKey(e => e.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContactChannel>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Label).IsRequired().HasMaxLength(120);
+            entity.Property(c => c.Url).IsRequired().HasMaxLength(500);
+            entity.Property(c => c.Handle).HasMaxLength(150);
+
+            entity.HasIndex(c => new { c.AuthorId, c.SortOrder });
+
+            entity.HasOne(c => c.Author)
+                .WithMany(a => a.ContactChannels)
+                .HasForeignKey(c => c.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PageView>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+            entity.Property(v => v.Path).IsRequired().HasMaxLength(400);
+            entity.Property(v => v.VisitorHash).IsRequired().HasMaxLength(64);
+            entity.Property(v => v.ReferrerHost).HasMaxLength(255);
+
+            // NOTE: index chosen because analytics is also time sensitive
+            entity.HasIndex(v => new { v.AuthorId, v.OccurredAt });
+            entity.HasIndex(v => new { v.PostId, v.OccurredAt });
+
+            // NOTE: deleting a post keeps its analytics, just referenced to null
+            entity.HasOne(v => v.Post)
+                .WithMany()
+                .HasForeignKey(v => v.PostId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(v => v.Author)
+                .WithMany()
+                .HasForeignKey(v => v.AuthorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

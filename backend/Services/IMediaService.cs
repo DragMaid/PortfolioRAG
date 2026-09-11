@@ -1,4 +1,5 @@
 using Backend.Models.DTOs;
+using Backend.Models.Entities;
 
 namespace Backend.Services;
 
@@ -14,13 +15,27 @@ public interface IMediaService
     /// rather than by name, pictures are re-encoded, and the object is stored under a
     /// generated key — the uploaded filename is kept for display only.
     /// </summary>
-    Task<MediaDto> AddToPostAsync(int postId, IFormFile file, CancellationToken cancellationToken = default);
+    Task<MediaDto> AddToPostAsync(
+        int postId,
+        IFormFile file,
+        MediaRole role = MediaRole.Attachment,
+        CancellationToken cancellationToken = default);
 
     /// <summary>The media on one of the caller's own posts, draft or not.</summary>
     Task<IReadOnlyList<MediaDto>> GetForPostAsync(int postId, CancellationToken cancellationToken = default);
 
     /// <summary>The media on a published post. A draft is a 404 here, as everywhere public.</summary>
     Task<IReadOnlyList<MediaDto>> GetForPublicPostAsync(string slug, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Rewrites the caption on one item of the caller's own post. The only editable part of
+    /// an upload — everything else about it is fixed by the bytes that arrived.
+    /// </summary>
+    Task<MediaDto> UpdateAsync(
+        int postId,
+        int mediaId,
+        UpdateMediaDto dto,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Removes one item from the caller's own post, bucket object included.</summary>
     Task DeleteAsync(int postId, int mediaId, CancellationToken cancellationToken = default);
@@ -41,11 +56,35 @@ public interface IMediaService
     Task<Uri> GetAvatarUrlAsync(int authorId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Replaces the company mark on one of the caller's own experiences. Scaled and
+    /// re-encoded like an avatar, and a picture for the same reason: it is drawn at 24px
+    /// inside a timeline node.
+    /// </summary>
+    Task<ExperienceDto> SetExperienceLogoAsync(
+        int experienceId,
+        IFormFile file,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Drops the mark from one of the caller's own experiences.</summary>
+    Task<ExperienceDto> RemoveExperienceLogoAsync(
+        int experienceId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>A signed link to an experience's company mark. Public, like the timeline it is on.</summary>
+    Task<Uri> GetExperienceLogoUrlAsync(int experienceId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes every object belonging to a post from the bucket. Called as a post is deleted:
     /// the database drops the rows by cascade, and nothing else would ever go looking for
     /// the files they pointed at.
     /// </summary>
     Task PurgePostObjectsAsync(int postId, int authorId, CancellationToken cancellationToken = default);
+
+    /// <summary>The same, as an experience is deleted.</summary>
+    Task PurgeExperienceObjectsAsync(
+        int experienceId,
+        int authorId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>The same, for everything an account ever uploaded — its posts and its avatar.</summary>
     Task PurgeAuthorObjectsAsync(int authorId, CancellationToken cancellationToken = default);

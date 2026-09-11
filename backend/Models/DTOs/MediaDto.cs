@@ -13,6 +13,12 @@ public class MediaDto
 
     public MediaExtension Extension { get; init; }
 
+    /// <summary>Whether this is the post's thumbnail, its trailer, or a plain attachment.</summary>
+    public MediaRole Role { get; init; }
+
+    /// <summary>What the file is for, in the author's words. Null until one is written.</summary>
+    public string? Caption { get; init; }
+
     /// <summary>Size of the stored file, after optimization.</summary>
     public long ByteSize { get; init; }
 
