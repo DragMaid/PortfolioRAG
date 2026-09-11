@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `name` | string
 `email` | string
+`handle` | string
 `title` | string
 `headline` | string
 `biography` | string
@@ -28,6 +29,7 @@ import type { UpdateAuthorDto } from ''
 const example = {
   "name": null,
   "email": null,
+  "handle": null,
   "title": null,
   "headline": null,
   "biography": null,

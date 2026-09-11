@@ -1,6 +1,6 @@
 # PostsApi
 
-All URIs are relative to *http://localhost:5099*
+All URIs are relative to *http://localhost:5009*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|

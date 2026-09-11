@@ -31,6 +31,10 @@ export interface UpdateAuthorDto {
     /**
      * 
      */
+    handle: string;
+    /**
+     * 
+     */
     title?: string | null;
     /**
      * 
@@ -76,6 +80,7 @@ export interface UpdateAuthorDto {
 export function instanceOfUpdateAuthorDto(value: object): value is UpdateAuthorDto {
     if (!('name' in value) || value['name'] === undefined) return false;
     if (!('email' in value) || value['email'] === undefined) return false;
+    if (!('handle' in value) || value['handle'] === undefined) return false;
     return true;
 }
 
@@ -91,6 +96,7 @@ export function UpdateAuthorDtoFromJSONTyped(json: any, ignoreDiscriminator: boo
         
         'name': json['name'],
         'email': json['email'],
+        'handle': json['handle'],
         'title': json['title'] === undefined ? undefined : json['title'] === null ? null : json['title'],
         'headline': json['headline'] === undefined ? undefined : json['headline'] === null ? null : json['headline'],
         'biography': json['biography'] === undefined ? undefined : json['biography'] === null ? null : json['biography'],
@@ -117,6 +123,7 @@ export function UpdateAuthorDtoToJSONTyped(value?: UpdateAuthorDto | null, ignor
         
         'name': value['name'],
         'email': value['email'],
+        'handle': value['handle'],
         'title': value['title'],
         'headline': value['headline'],
         'biography': value['biography'],

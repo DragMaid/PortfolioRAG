@@ -1,6 +1,6 @@
 # PostMediaApi
 
-All URIs are relative to *http://localhost:5099*
+All URIs are relative to *http://localhost:5009*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
@@ -239,7 +239,7 @@ example().catch(console.error);
 
 ## postMediaUpload
 
-> MediaDto postMediaUpload(postId, file)
+> MediaDto postMediaUpload(postId, role, file)
 
 
 
@@ -263,6 +263,8 @@ async function example() {
   const body = {
     // number
     postId: 56,
+    // MediaRole (optional)
+    role: ...,
     // Blob (optional)
     file: BINARY_DATA_HERE,
   } satisfies PostMediaUploadRequest;
@@ -285,6 +287,7 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **postId** | `number` |  | [Defaults to `undefined`] |
+| **role** | `MediaRole` |  | [Optional] [Defaults to `undefined`] [Enum: Attachment, Thumbnail, Trailer] |
 | **file** | `Blob` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type

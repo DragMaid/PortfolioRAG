@@ -1,38 +1,21 @@
 
-# MediaDto
+# MediaRole
+
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`id` | number
-`filename` | string
-`url` | string
-`extension` | [MediaExtension](MediaExtension.md)
-`role` | [MediaRole](MediaRole.md)
-`caption` | string
-`byteSize` | number
-`postId` | number
-`createdAt` | Date
 
 ## Example
 
 ```typescript
-import type { MediaDto } from ''
+import type { MediaRole } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
-  "filename": null,
-  "url": null,
-  "extension": null,
-  "role": null,
-  "caption": null,
-  "byteSize": null,
-  "postId": null,
-  "createdAt": null,
-} satisfies MediaDto
+} satisfies MediaRole
 
 console.log(example)
 
@@ -41,7 +24,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as MediaDto
+const exampleParsed = JSON.parse(exampleJSON) as MediaRole
 console.log(exampleParsed)
 ```
 
