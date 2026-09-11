@@ -8,9 +8,14 @@ public interface IAuthorRepository
 
     Task<Author?> GetByEmailAsync(string email, bool tracked = false, CancellationToken cancellationToken = default);
 
+    /// <summary>The account at a public handle, or null. How <c>/{handle}</c> resolves.</summary>
+    Task<Author?> GetByHandleAsync(string handle, bool tracked = false, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Author>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task<bool> EmailExistsAsync(string email, int? excludingAuthorId = null, CancellationToken cancellationToken = default);
+
+    Task<bool> HandleExistsAsync(string handle, int? excludingAuthorId = null, CancellationToken cancellationToken = default);
 
     Task<ExternalLogin?> GetExternalLoginAsync(
         ExternalLoginProvider provider,

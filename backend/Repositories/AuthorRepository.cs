@@ -25,6 +25,15 @@ public class AuthorRepository : IAuthorRepository
         return WithProfile(tracked).FirstOrDefaultAsync(a => a.Email.ToLower() == normalized, cancellationToken);
     }
 
+    public Task<Author?> GetByHandleAsync(
+        string handle,
+        bool tracked = false,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = handle.Trim().ToLowerInvariant();
+        return WithProfile(tracked).FirstOrDefaultAsync(a => a.Handle == normalized, cancellationToken);
+    }
+
     /// <summary>Handful function to include both lists in author in response.</summary>
     private IQueryable<Author> WithProfile(bool tracked)
     {
@@ -117,6 +126,17 @@ public class AuthorRepository : IAuthorRepository
         var normalized = email.Trim().ToLowerInvariant();
         return _context.Authors.AnyAsync(
             a => a.Email.ToLower() == normalized && (excludingAuthorId == null || excludingAuthorId != a.Id),
+            cancellationToken);
+    }
+
+    public Task<bool> HandleExistsAsync(
+        string handle,
+        int? excludingAuthorId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = handle.Trim().ToLowerInvariant();
+        return _context.Authors.AnyAsync(
+            a => a.Handle == normalized && (excludingAuthorId == null || excludingAuthorId != a.Id),
             cancellationToken);
     }
 
