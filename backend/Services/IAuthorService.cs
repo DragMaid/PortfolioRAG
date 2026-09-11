@@ -8,6 +8,9 @@ public interface IAuthorService
 
     Task<AuthorDto> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
+    /// <summary>The account at a public handle. How <c>/{handle}</c> resolves to a portfolio.</summary>
+    Task<AuthorDto> GetByHandleAsync(string handle, CancellationToken cancellationToken = default);
+
     // NOTE: accounts are created by POST /api/auth/register, which is the only path that
     // can attach credentials to one.
 

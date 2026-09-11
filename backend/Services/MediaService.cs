@@ -15,7 +15,7 @@ public class MediaService : IMediaService
     private readonly IMediaRepository _medias;
     private readonly IPostRepository _posts;
     private readonly IAuthorRepository _authors;
-    private readonly IBackblazeService _storage;
+    private readonly IObjectStorage _storage;
     private readonly IImageOptimizer _optimizer;
     private readonly IMediaTypeDetector _detector;
     private readonly ICurrentUser _currentUser;
@@ -30,7 +30,7 @@ public class MediaService : IMediaService
         IMediaRepository medias,
         IPostRepository posts,
         IAuthorRepository authors,
-        IBackblazeService storage,
+        IObjectStorage storage,
         IImageOptimizer optimizer,
         IMediaTypeDetector detector,
         ICurrentUser currentUser,
@@ -53,6 +53,7 @@ public class MediaService : IMediaService
     public async Task<MediaDto> AddToPostAsync(
         int postId,
         IFormFile file,
+        MediaRole role = MediaRole.Attachment,
         CancellationToken cancellationToken = default)
     {
         var authorId = _currentUser.RequireAuthorId();
@@ -63,10 +64,13 @@ public class MediaService : IMediaService
         if (post.AuthorId != authorId)
             throw ForbiddenException.For("post", postId);
 
+        // NOTE: a thumbnail is drawn as a still in a card and nothing ever plays it, so a
+        // video in that slot would render as a dead frame. A trailer takes either — a
+        // project with no footage is better served by a second picture than an empty player.
         using var upload = await ReadUploadAsync(
             file,
             _options.MaxImageDimension,
-            allowVideo: true,
+            allowVideo: role != MediaRole.Thumbnail,
             cancellationToken);
 
         var objectKey = BuildObjectKey(
@@ -86,12 +90,24 @@ public class MediaService : IMediaService
             ObjectKey = stored.ObjectKey,
             ByteSize = stored.ByteSize,
             Extension = upload.Extension,
+            Role = role,
             PostId = postId,
             CreatedAt = _timeProvider.GetUtcNow()
         };
 
+        // A post leads with one thumbnail and one trailer, so uploading either replaces
+        // what was there. Removed in the same transaction as the insert: a unique index
+        // holds the rule, and leaving both rows in place for even a moment would trip it.
+        var replaced = role == MediaRole.Attachment
+            ? null
+            : (await _medias.GetByPostIdAsync(postId, cancellationToken))
+                .FirstOrDefault(item => item.Role == role);
+
         try
         {
+            if (replaced is not null)
+                _medias.Remove(await _medias.GetByIdAsync(replaced.Id, tracked: true, cancellationToken) ?? replaced);
+
             await _medias.AddAsync(media, cancellationToken);
             await _medias.SaveChangesAsync(cancellationToken);
         }
@@ -104,10 +120,16 @@ public class MediaService : IMediaService
             throw;
         }
 
+        // Best effort, as with an avatar: the post already points at the new file, so a
+        // bucket that will not let go of the old one leaves a stray object, not a failure.
+        if (replaced is not null)
+            await TryDeleteObjectAsync(replaced.ObjectKey, cancellationToken);
+
         _logger.LogDebug(
-            "Attached {ObjectKey} to post {PostId} for author {AuthorId}.",
+            "Attached {ObjectKey} to post {PostId} as {Role} for author {AuthorId}.",
             stored.ObjectKey,
             postId,
+            role,
             authorId);
 
         return media.ToDto();
@@ -159,6 +181,16 @@ public class MediaService : IMediaService
     public async Task DeleteAsync(int postId, int mediaId, CancellationToken cancellationToken = default)
     {
         var media = await LoadOwnedAsync(postId, mediaId, cancellationToken);
+
+        // NOTE: the same rule that gates publishing, held from the other side. Publishing
+        // requires a thumbnail and a trailer; letting one be deleted afterwards would leave
+        // a live project with a hole in it that nothing would ever flag. Unpublish first.
+        if (media.Role != MediaRole.Attachment && !media.Post.IsDraft)
+        {
+            throw new ValidationException(
+                $"A published project must keep its {media.Role.ToString().ToLowerInvariant()}. " +
+                "Upload a replacement to swap it, or unpublish the project first.");
+        }
 
         // NOTE: bucket first. If it fails the row survives and the delete can be retried;
         // the other order would leave an object nothing remembers the key of.
@@ -459,7 +491,7 @@ public class MediaService : IMediaService
             var extension = DetectExtension(content);
 
             if (extension.IsVideo() && !allowVideo)
-                throw new UnsupportedMediaTypeException("An avatar has to be a picture, not a video.");
+                throw new UnsupportedMediaTypeException("This slot has to be a picture, not a video.");
 
             var limit = extension.IsVideo() ? _options.MaxVideoBytes : _options.MaxImageBytes;
 

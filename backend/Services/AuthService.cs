@@ -1,3 +1,4 @@
+using Backend.Common;
 using Backend.Common.Exceptions;
 using Backend.Common.Security;
 using Backend.Mapping;
@@ -47,10 +48,13 @@ public class AuthService : IAuthService
         if (await _authors.EmailExistsAsync(email, null, cancellationToken))
             throw new ConflictException($"An author with the email '{email}' already exists.");
 
+        var name = dto.Name.Trim();
+
         var author = new Author
         {
-            Name = dto.Name.Trim(),
+            Name = name,
             Email = email,
+            Handle = await ResolveHandleAsync(name, email, excludingAuthorId: null, cancellationToken),
             Biography = string.IsNullOrWhiteSpace(dto.Biography) ? null : dto.Biography.Trim(),
             PasswordHash = PasswordHasher.Hash(dto.Password),
             // NOTE: nothing has vouched for this address yet, which is exactly what keeps a
@@ -114,10 +118,13 @@ public class AuthService : IAuthService
         // 2. First time here: Google has verified the address, so create the account.
         if (byEmail is null)
         {
+            var googleName = ResolveName(info);
+
             var created = new Author
             {
-                Name = ResolveName(info),
+                Name = googleName,
                 Email = info.Email,
+                Handle = await ResolveHandleAsync(googleName, info.Email, excludingAuthorId: null, cancellationToken),
                 // NOTE: no password assigned if signed in externally
                 PasswordHash = null,
                 EmailConfirmedAt = now,
@@ -264,6 +271,28 @@ public class AuthService : IAuthService
     {
         var logins = await _authors.GetExternalLoginsAsync(author.Id, cancellationToken);
         return author.ToProfileDto(logins.Select(l => l.Provider).Distinct().ToList());
+    }
+
+    /// <summary>A free public handle for a new account, derived from the display name.</summary>
+    private async Task<string> ResolveHandleAsync(
+        string name,
+        string email,
+        int? excludingAuthorId,
+        CancellationToken cancellationToken)
+    {
+        // Re-using the slug generator as they are quite similar
+        var seed = SlugGenerator.Generate(name);
+
+        if (string.IsNullOrEmpty(seed))
+            seed = SlugGenerator.Generate(email.Split('@')[0]);
+
+        if (string.IsNullOrEmpty(seed))
+            seed = "author";
+
+        return await SlugGenerator.GenerateUniqueAsync(
+            seed,
+            candidate => _authors.HandleExistsAsync(candidate, excludingAuthorId, cancellationToken),
+            cancellationToken);
     }
 
     private static string ResolveName(ExternalUserInfo info)

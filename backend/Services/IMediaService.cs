@@ -1,4 +1,5 @@
 using Backend.Models.DTOs;
+using Backend.Models.Entities;
 
 namespace Backend.Services;
 
@@ -14,7 +15,11 @@ public interface IMediaService
     /// rather than by name, pictures are re-encoded, and the object is stored under a
     /// generated key — the uploaded filename is kept for display only.
     /// </summary>
-    Task<MediaDto> AddToPostAsync(int postId, IFormFile file, CancellationToken cancellationToken = default);
+    Task<MediaDto> AddToPostAsync(
+        int postId,
+        IFormFile file,
+        MediaRole role = MediaRole.Attachment,
+        CancellationToken cancellationToken = default);
 
     /// <summary>The media on one of the caller's own posts, draft or not.</summary>
     Task<IReadOnlyList<MediaDto>> GetForPostAsync(int postId, CancellationToken cancellationToken = default);
