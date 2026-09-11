@@ -255,6 +255,88 @@ public class MediaService : IMediaService
         return await _storage.GetDownloadUrlAsync(author.AvatarObjectKey, cancellationToken);
     }
 
+    public async Task<ExperienceDto> SetExperienceLogoAsync(
+        int experienceId,
+        IFormFile file,
+        CancellationToken cancellationToken = default)
+    {
+        var experience = await LoadOwnExperienceAsync(experienceId, cancellationToken);
+
+        using var upload = await ReadUploadAsync(
+            file,
+            _options.MaxAvatarDimension,
+            allowVideo: false,
+            cancellationToken);
+
+        var objectKey = BuildObjectKey(
+            $"authors/{experience.AuthorId}/experiences/{experienceId}",
+            file.FileName,
+            upload.Extension);
+
+        var stored = await _storage.UploadAsync(
+            upload.Content,
+            objectKey,
+            upload.Extension.ToContentType(),
+            cancellationToken);
+
+        var replaced = experience.LogoObjectKey;
+        experience.LogoObjectKey = stored.ObjectKey;
+
+        try
+        {
+            await _authors.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await TryDeleteObjectAsync(stored.ObjectKey, cancellationToken);
+            throw;
+        }
+
+        // Best effort, as with an avatar: the row already points at the new mark, so a
+        // bucket that will not let go of the old one leaves a stray object, not a failure.
+        if (replaced is not null)
+            await TryDeleteObjectAsync(replaced, cancellationToken);
+
+        return experience.ToDto();
+    }
+
+    public async Task<ExperienceDto> RemoveExperienceLogoAsync(
+        int experienceId,
+        CancellationToken cancellationToken = default)
+    {
+        var experience = await LoadOwnExperienceAsync(experienceId, cancellationToken);
+        var objectKey = experience.LogoObjectKey;
+
+        if (objectKey is null)
+            return experience.ToDto();
+
+        await _storage.DeleteAsync(objectKey, cancellationToken);
+
+        experience.LogoObjectKey = null;
+        await _authors.SaveChangesAsync(cancellationToken);
+
+        return experience.ToDto();
+    }
+
+    public async Task<Uri> GetExperienceLogoUrlAsync(
+        int experienceId,
+        CancellationToken cancellationToken = default)
+    {
+        var experience = await _authors.GetExperienceAsync(experienceId, tracked: false, cancellationToken)
+            ?? throw NotFoundException.For("Experience", experienceId);
+
+        if (experience.LogoObjectKey is null)
+            throw NotFoundException.For("Logo", experienceId);
+
+        return await _storage.GetDownloadUrlAsync(experience.LogoObjectKey, cancellationToken);
+    }
+
+    public Task PurgeExperienceObjectsAsync(
+        int experienceId,
+        int authorId,
+        CancellationToken cancellationToken = default) =>
+        PurgePrefixAsync($"authors/{authorId}/experiences/{experienceId}/", cancellationToken);
+
     public Task PurgePostObjectsAsync(
         int postId,
         int authorId,
@@ -269,6 +351,17 @@ public class MediaService : IMediaService
     /// account is being deleted, and a storage outage must not be able to keep somebody's
     /// account open. What survives is a logged, addressable prefix rather than silence.
     /// </summary>
+    private async Task<Experience> LoadOwnExperienceAsync(int experienceId, CancellationToken cancellationToken)
+    {
+        var experience = await _authors.GetExperienceAsync(experienceId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("Experience", experienceId);
+
+        if (experience.AuthorId != _currentUser.RequireAuthorId())
+            throw ForbiddenException.For("experience", experienceId);
+
+        return experience;
+    }
+
     private async Task<Media> LoadOwnedAsync(
         int postId,
         int mediaId,

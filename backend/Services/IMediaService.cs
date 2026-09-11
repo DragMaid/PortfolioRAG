@@ -51,11 +51,35 @@ public interface IMediaService
     Task<Uri> GetAvatarUrlAsync(int authorId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Replaces the company mark on one of the caller's own experiences. Scaled and
+    /// re-encoded like an avatar, and a picture for the same reason: it is drawn at 24px
+    /// inside a timeline node.
+    /// </summary>
+    Task<ExperienceDto> SetExperienceLogoAsync(
+        int experienceId,
+        IFormFile file,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Drops the mark from one of the caller's own experiences.</summary>
+    Task<ExperienceDto> RemoveExperienceLogoAsync(
+        int experienceId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>A signed link to an experience's company mark. Public, like the timeline it is on.</summary>
+    Task<Uri> GetExperienceLogoUrlAsync(int experienceId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes every object belonging to a post from the bucket. Called as a post is deleted:
     /// the database drops the rows by cascade, and nothing else would ever go looking for
     /// the files they pointed at.
     /// </summary>
     Task PurgePostObjectsAsync(int postId, int authorId, CancellationToken cancellationToken = default);
+
+    /// <summary>The same, as an experience is deleted.</summary>
+    Task PurgeExperienceObjectsAsync(
+        int experienceId,
+        int authorId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>The same, for everything an account ever uploaded — its posts and its avatar.</summary>
     Task PurgeAuthorObjectsAsync(int authorId, CancellationToken cancellationToken = default);
