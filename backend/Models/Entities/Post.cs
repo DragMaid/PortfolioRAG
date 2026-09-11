@@ -20,6 +20,24 @@ public class Post
     /// <summary>Marks the post as the showcase piece the portfolio leads with</summary>
     public bool IsFeatured { get; set; }
 
+    /// <summary>
+    /// The kicker printed beside the ordinal on the card — "VECTOR CORE". Free text: it is
+    /// a label the author writes, not a taxonomy anything queries on.
+    /// </summary>
+    public string? Category { get; set; }
+
+    /// <summary>The line in the card footer — "Vector Storage".</summary>
+    public string? Domain { get; set; }
+
+    /// <summary>Source repository, or null when there is nothing public to link.</summary>
+    public string? RepoUrl { get; set; }
+
+    /// <summary>A running deployment the reader can try.</summary>
+    public string? DemoUrl { get; set; }
+
+    /// <summary>Design document, RFC or write-up.</summary>
+    public string? SpecUrl { get; set; }
+
     public int AuthorId { get; set; }
 
     public Author Author { get; set; } = null!;

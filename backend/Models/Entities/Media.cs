@@ -15,6 +15,22 @@ public enum MediaExtension
     Webm = 6
 }
 
+/// <summary>
+/// What a file is doing on its post.
+///
+/// A post leads with exactly one thumbnail and one trailer — both required before it can
+/// be published — and carries any number of plain attachments its body embeds. Keeping
+/// this on the media row rather than as two foreign keys on <see cref="Post"/> avoids a
+/// cycle between the two tables, and means replacing a thumbnail is one row changing role
+/// rather than two tables edited in step.
+/// </summary>
+public enum MediaRole
+{
+    Attachment = 0,
+    Thumbnail = 1,
+    Trailer = 2
+}
+
 public class Media
 {
     public int Id { get; set; }
@@ -31,6 +47,9 @@ public class Media
     public long ByteSize { get; set; }
 
     public MediaExtension Extension { get; set; }
+
+    /// <summary>What this file is for. See <see cref="MediaRole"/>.</summary>
+    public MediaRole Role { get; set; } = MediaRole.Attachment;
 
     /// <summary>
     /// What the file is for, in the author's words — "Hero architecture figure". Shown

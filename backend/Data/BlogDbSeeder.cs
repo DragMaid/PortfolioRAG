@@ -1,6 +1,7 @@
 using Backend.Common;
 using Backend.Common.Security;
 using Backend.Models.Entities;
+using Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
@@ -17,7 +18,17 @@ public static class BlogDbSeeder
     public const string DemoEmail = "author@example.com";
     public const string DemoPassword = "ChangeMe!Dev123";
 
-    public static async Task SeedAsync(BlogDbContext context, TimeProvider timeProvider)
+    /// <param name="storage">
+    /// Where the seeded thumbnails and trailers are put. Publishing requires both files, so
+    /// a seeded project that is live has to have real objects behind it — see
+    /// <see cref="SeedArtwork"/>. When the bucket cannot be reached the projects are seeded
+    /// as drafts instead, which is the honest state for a project with no media.
+    /// </param>
+    public static async Task SeedAsync(
+        BlogDbContext context,
+        TimeProvider timeProvider,
+        IObjectStorage storage,
+        ILogger logger)
     {
         if (await context.Authors.AnyAsync())
             return;
@@ -28,6 +39,7 @@ public static class BlogDbSeeder
         {
             Name = "Demo Author",
             Email = DemoEmail,
+            Handle = "demo-author",
             Title = "Staff Systems & Distributed Infrastructure",
             Headline = "Designing high-throughput computing engines, fault-tolerant protocols, "
                 + "and quiet, tactile digital interfaces.",
@@ -78,6 +90,7 @@ public static class BlogDbSeeder
         {
             Name = "Second Author",
             Email = "second@example.com",
+            Handle = "second-author",
             Biography = "A second account, so the ownership rules are visible locally.",
             PasswordHash = PasswordHasher.Hash(DemoPassword),
             EmailConfirmedAt = null,
@@ -88,32 +101,150 @@ public static class BlogDbSeeder
 
         var posts = new[]
         {
-            NewPost(author, "Building a blog API in ASP.NET Core",
-                "How the repository, service and controller layers fit together.",
+            NewPost(author, "Aether Engine",
+                "Sub-millisecond distributed vector database for real-time semantic retrieval "
+                + "at billion-embedding scale.",
                 isDraft: false, now.AddDays(-10),
+                category: "VECTOR CORE", domain: "Vector Storage",
+                repoUrl: "https://github.com/demo/aether-engine",
+                demoUrl: "https://demo.invalid/aether",
+                specUrl: "https://demo.invalid/aether/rfc",
                 isFeatured: true),
-            NewPost(author, "Slugs, sorting and paging",
-                "Notes on turning titles into URL-friendly identifiers.",
+            NewPost(author, "Chronos Studio",
+                "Collaborative GLSL shader workbench running in WebAssembly with real-time "
+                + "state synchronization via CRDTs.",
+                isDraft: false, now.AddDays(-6),
+                category: "CREATIVE TOOL", domain: "Shader Tooling",
+                repoUrl: "https://github.com/demo/chronos-studio",
+                demoUrl: "https://demo.invalid/chronos"),
+            NewPost(author, "Helios Mesh",
+                "Ultra-light edge proxy and network policy supervisor using kernel-level eBPF "
+                + "packet inspection.",
                 isDraft: false, now.AddDays(-4),
-                isFeatured: false),
-            NewPost(author, "Draft: what I want to write next",
-                "Only visible to its own author through /api/admin/posts.",
+                category: "KERNEL NETWORKING", domain: "Network Mesh",
+                repoUrl: "https://github.com/demo/helios-mesh",
+                specUrl: "https://demo.invalid/helios/rfc"),
+            NewPost(author, "Draft: what I want to build next",
+                "Only visible to its own author through /api/admin/posts, and missing the "
+                + "thumbnail and trailer that publishing requires.",
                 isDraft: true, now.AddDays(-1),
-                isFeatured: false),
+                category: "SCRATCH", domain: "Unfiled"),
             NewPost(otherAuthor, "Draft: someone else's notes",
                 "Proves that one author cannot read another's drafts.",
                 isDraft: true, now.AddDays(-2),
-                isFeatured: false)
+                category: "SCRATCH", domain: "Unfiled")
         };
 
         context.Posts.AddRange(posts);
 
-        // NOTE: saved before the readings so the posts have ids to attach them to.
+        // NOTE: saved before the media and the readings so the posts have ids to attach them to.
         await context.SaveChangesAsync();
 
-        context.PageViews.AddRange(BuildPageViews(posts.Where(p => !p.IsDraft).ToArray(), now));
+        // Every published project needs both files — that is the rule PublishAsync enforces,
+        // and seeded data has no business contradicting it. If the bucket cannot be reached
+        // the projects go back to being drafts rather than going live with broken images.
+        var published = posts.Where(p => !p.IsDraft).ToArray();
+
+        if (await TryAttachArtworkAsync(context, storage, published, now, logger))
+        {
+            context.PageViews.AddRange(BuildPageViews(published, now));
+        }
+        else
+        {
+            foreach (var post in published)
+            {
+                post.IsDraft = true;
+                post.PublishedAt = null;
+            }
+
+            logger.LogWarning(
+                "Seeded projects were left as drafts: their artwork could not be stored, and a "
+                + "published project must have a thumbnail and a trailer. Configure a storage "
+                + "provider and reseed against an empty database to see the landing page populated.");
+        }
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Puts a generated thumbnail and trailer in the bucket for each seeded project and
+    /// records them. Returns false if the bucket refused any of it, having first put back
+    /// whatever it did manage to store.
+    /// </summary>
+    private static async Task<bool> TryAttachArtworkAsync(
+        BlogDbContext context,
+        IObjectStorage storage,
+        IReadOnlyList<Post> posts,
+        DateTimeOffset now,
+        ILogger logger)
+    {
+        var stored = new List<string>();
+
+        try
+        {
+            for (var index = 0; index < posts.Count; index++)
+            {
+                var post = posts[index];
+
+                foreach (var (role, content) in new[]
+                {
+                    (MediaRole.Thumbnail, SeedArtwork.Thumbnail(index)),
+                    (MediaRole.Trailer, SeedArtwork.Trailer(index))
+                })
+                {
+                    using (content)
+                    {
+                        var name = role.ToString().ToLowerInvariant();
+
+                        // The same shape MediaService writes, so the purge-by-prefix sweep
+                        // that runs when a post or an account is deleted finds these too.
+                        var objectKey =
+                            $"authors/{post.AuthorId}/posts/{post.Id}/{Guid.NewGuid():N}-{name}.webp";
+
+                        var blob = await storage.UploadAsync(content, objectKey, "image/webp");
+                        stored.Add(blob.ObjectKey);
+
+                        context.Medias.Add(new Media
+                        {
+                            Filename = $"{name}.webp",
+                            ObjectKey = blob.ObjectKey,
+                            ByteSize = blob.ByteSize,
+                            Extension = MediaExtension.Webp,
+                            Role = role,
+                            Caption = $"Seeded {name} for {post.Title}.",
+                            PostId = post.Id,
+                            CreatedAt = now
+                        });
+                    }
+                }
+            }
+
+            logger.LogInformation("Seeded {ObjectCount} placeholder object(s) into the bucket.", stored.Count);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not store the seeded project artwork.");
+
+            // Half a set of artwork is worse than none: the rows are about to be abandoned,
+            // so the objects they would have named have to go with them.
+            foreach (var objectKey in stored)
+            {
+                try
+                {
+                    await storage.DeleteAsync(objectKey);
+                }
+                catch (Exception cleanup)
+                {
+                    logger.LogWarning(cleanup, "Could not remove the orphaned seed object {ObjectKey}.", objectKey);
+                }
+            }
+
+            foreach (var media in context.ChangeTracker.Entries<Media>().ToList())
+                media.State = EntityState.Detached;
+
+            return false;
+        }
     }
 
     private static IEnumerable<PageView> BuildPageViews(IReadOnlyList<Post> posts, DateTimeOffset now)
@@ -212,8 +343,12 @@ public static class BlogDbSeeder
         string summary,
         bool isDraft,
         DateTimeOffset created,
-        bool isFeatured = false,
-        params string[] tags) =>
+        string? category = null,
+        string? domain = null,
+        string? repoUrl = null,
+        string? demoUrl = null,
+        string? specUrl = null,
+        bool isFeatured = false) =>
         new()
         {
             Title = title,
@@ -222,6 +357,11 @@ public static class BlogDbSeeder
             Body = $"# {title}\n\n{summary}\n\nSeeded body text.",
             IsDraft = isDraft,
             IsFeatured = isFeatured,
+            Category = category,
+            Domain = domain,
+            RepoUrl = repoUrl,
+            DemoUrl = demoUrl,
+            SpecUrl = specUrl,
             Author = author,
             CreatedAt = created,
             UpdatedAt = created,
