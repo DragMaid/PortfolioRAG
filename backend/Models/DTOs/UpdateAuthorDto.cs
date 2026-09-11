@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Models.DTOs;
 
+// NOTE: the avatar and experience logo are saved in another module
 public class UpdateAuthorDto
 {
     [Required]
@@ -13,9 +14,28 @@ public class UpdateAuthorDto
     [StringLength(256)]
     public string Email { get; init; } = string.Empty;
 
-    [StringLength(1000)]
+    [StringLength(150)]
+    public string? Title { get; init; }
+
+    [StringLength(400)]
+    public string? Headline { get; init; }
+
+    [StringLength(3000)]
     public string? Biography { get; init; }
 
-    // NOTE: the avatar is not part of this. It is a file, not a field — see
-    // PUT /api/authors/me/avatar.
+    [StringLength(500)]
+    public string? FooterBio { get; init; }
+
+    [StringLength(120)]
+    public string? Location { get; init; }
+
+    [StringLength(160)]
+    public string? Availability { get; init; }
+
+    [StringLength(160)]
+    public string? Focus { get; init; }
+
+    [StringLength(500)]
+    public string? ContactPitch { get; init; }
+
 }
