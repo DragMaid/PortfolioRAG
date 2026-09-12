@@ -21,6 +21,8 @@ public class BlogDbContext : DbContext
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
+
     public DbSet<PageView> PageViews => Set<PageView>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -68,6 +70,26 @@ public class BlogDbContext : DbContext
 
             entity.HasOne(t => t.Author)
                 .WithMany(a => a.RefreshTokens)
+                .HasForeignKey(t => t.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ApiToken>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(60);
+            entity.Property(t => t.TokenHash).IsRequired().HasMaxLength(128);
+            entity.Property(t => t.Prefix).IsRequired().HasMaxLength(16);
+
+            // Every authenticated request on a token is this lookup, and it is the only
+            // thing standing between the caller and a table scan.
+            entity.HasIndex(t => t.TokenHash).IsUnique();
+
+            // The studio's list: one author's tokens, newest first.
+            entity.HasIndex(t => new { t.AuthorId, t.CreatedAt });
+
+            entity.HasOne(t => t.Author)
+                .WithMany(a => a.ApiTokens)
                 .HasForeignKey(t => t.AuthorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

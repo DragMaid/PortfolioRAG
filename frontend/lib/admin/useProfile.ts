@@ -28,8 +28,6 @@ export type ProfileDraft = {
   biography: string;
   footerBio: string;
   location: string;
-  timeZoneLabel: string;
-  timeZone: string;
   availability: string;
   focus: string;
   contactPitch: string;
@@ -147,8 +145,6 @@ export function useProfile() {
           biography: blankToUndefined(draft.biography),
           footerBio: blankToUndefined(draft.footerBio),
           location: blankToUndefined(draft.location),
-          timeZoneLabel: blankToUndefined(draft.timeZoneLabel),
-          timeZone: blankToUndefined(draft.timeZone),
           availability: blankToUndefined(draft.availability),
           focus: blankToUndefined(draft.focus),
           contactPitch: blankToUndefined(draft.contactPitch),
@@ -442,8 +438,6 @@ function toDraft(author: AuthorDto): ProfileDraft {
     biography: author.biography ?? "",
     footerBio: author.footerBio ?? "",
     location: author.location ?? "",
-    timeZoneLabel: author.timeZoneLabel ?? "",
-    timeZone: author.timeZone ?? "",
     availability: author.availability ?? "",
     focus: author.focus ?? "",
     contactPitch: author.contactPitch ?? "",
