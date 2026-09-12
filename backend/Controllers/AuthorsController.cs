@@ -1,3 +1,4 @@
+using Backend.Common.Security;
 using Backend.Models.DTOs;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -109,6 +110,7 @@ public class AuthorsController : ControllerBase
 
     /// <summary>Deletes your own account. Refused while it still has posts.</summary>
     [HttpDelete("{id:int}")]
+    [SessionOnly]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

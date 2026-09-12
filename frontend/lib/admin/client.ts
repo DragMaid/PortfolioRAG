@@ -39,6 +39,13 @@ export const experiencesApi = new ExperiencesApi(configuration);
 export const contactChannelsApi = new ContactChannelsApi(configuration);
 export const authApi = new AuthApi(new Configuration({ basePath: API_BASE_URL }));
 
+/*
+ * The same endpoints, signed. Sign-in, registration and refresh must not carry a bearer
+ * token — a session is what they produce — but everything under /api/auth/tokens acts on
+ * the signed-in account, and the API refuses all of it without one.
+ */
+export const authAccountApi = new AuthApi(configuration);
+
 // Format the erorr into something more user-friendly
 export async function describeError(error: unknown, fallback: string): Promise<string> {
   if (error instanceof ResponseError) {

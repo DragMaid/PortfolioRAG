@@ -95,7 +95,6 @@ export function Footer({ profile }: { profile: Profile }) {
           <span aria-hidden>•</span>
           <span>{profile.location}</span>
           <span aria-hidden>•</span>
-          <span className="text-warm-accent">{profile.timezone}</span>
         </div>
         <div className="text-center sm:text-right">
           <span>

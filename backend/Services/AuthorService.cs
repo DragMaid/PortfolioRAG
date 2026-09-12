@@ -57,11 +57,13 @@ public class AuthorService : IAuthorService
             ?? throw NotFoundException.For("Author", id);
 
         var email = dto.Email.Trim().ToLowerInvariant();
+        var handle = dto.Handle.Trim().ToLowerInvariant();
+
+        // NOTE: this check is here so SessionOnly doesn't just block the whole update route
+        EnsureIdentityChangeAllowed(author, email, handle);
 
         if (await _authors.EmailExistsAsync(email, id, cancellationToken))
             throw new ConflictException($"An author with the email '{email}' already exists.");
-
-        var handle = dto.Handle.Trim().ToLowerInvariant();
 
         // NOTE: we do not automatically generate a new handle if the one requested is taken
         if (await _authors.HandleExistsAsync(handle, id, cancellationToken))
@@ -104,6 +106,25 @@ public class AuthorService : IAuthorService
         // The cascade clears the rows; the bucket has never heard of them. Everything this
         // account ever uploaded lives under one prefix precisely so this is one sweep.
         await _media.PurgeAuthorObjectsAsync(id, cancellationToken);
+    }
+
+    /// <summary>Refuses the two fields on this form that an API token may not touch.</summary>
+    private void EnsureIdentityChangeAllowed(Author author, string email, string handle)
+    {
+        if (!_currentUser.IsApiToken)
+            return;
+
+        var changing =
+            !string.Equals(author.Email, email, StringComparison.OrdinalIgnoreCase) ? "email address" :
+            !string.Equals(author.Handle, handle, StringComparison.OrdinalIgnoreCase) ? "handle" :
+            null;
+
+        if (changing is null)
+            return;
+
+        throw new ForbiddenException(
+            $"An API token cannot change your {changing}. Sign in to the studio to do that, " +
+            "or send the values the account already has.");
     }
 
     // -----------------------------------------------------------------------
