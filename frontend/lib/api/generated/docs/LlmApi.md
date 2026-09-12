@@ -1,33 +1,36 @@
-# AdminPostsApi
+# LlmApi
 
 All URIs are relative to *http://localhost:5019*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**adminPostsCreate**](AdminPostsApi.md#adminpostscreate) | **POST** /api/admin/posts |  |
-| [**adminPostsDelete**](AdminPostsApi.md#adminpostsdelete) | **DELETE** /api/admin/posts/{id} |  |
-| [**adminPostsGetAll**](AdminPostsApi.md#adminpostsgetall) | **GET** /api/admin/posts |  |
-| [**adminPostsGetById**](AdminPostsApi.md#adminpostsgetbyid) | **GET** /api/admin/posts/{id} |  |
-| [**adminPostsPublish**](AdminPostsApi.md#adminpostspublish) | **POST** /api/admin/posts/{id}/publish |  |
-| [**adminPostsUnpublish**](AdminPostsApi.md#adminpostsunpublish) | **POST** /api/admin/posts/{id}/unpublish |  |
-| [**adminPostsUpdate**](AdminPostsApi.md#adminpostsupdate) | **PUT** /api/admin/posts/{id} |  |
+| [**llmDeleteCredential**](LlmApi.md#llmdeletecredential) | **DELETE** /api/llm/credential |  |
+| [**llmGetCredential**](LlmApi.md#llmgetcredential) | **GET** /api/llm/credential |  |
+| [**llmGetJob**](LlmApi.md#llmgetjob) | **GET** /api/llm/jobs/{id} |  |
+| [**llmRebuildIndex**](LlmApi.md#llmrebuildindex) | **POST** /api/llm/index/rebuild |  |
+| [**llmRevalidate**](LlmApi.md#llmrevalidate) | **POST** /api/llm/credential/validate |  |
+| [**llmSaveCredential**](LlmApi.md#llmsavecredential) | **PUT** /api/llm/credential |  |
+| [**llmTryJobFit**](LlmApi.md#llmtryjobfit) | **POST** /api/llm/job-fit |  |
+| [**llmUpdateSettings**](LlmApi.md#llmupdatesettings) | **PATCH** /api/llm/credential |  |
 
 
 
-## adminPostsCreate
+## llmDeleteCredential
 
-> PostDto adminPostsCreate(createPostDto)
+> llmDeleteCredential()
 
 
+
+Requires a signed-in session: an API token is refused here.
 
 ### Example
 
 ```ts
 import {
   Configuration,
-  AdminPostsApi,
+  LlmApi,
 } from '';
-import type { AdminPostsCreateRequest } from '';
+import type { LlmDeleteCredentialRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -35,15 +38,10 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AdminPostsApi(config);
-
-  const body = {
-    // CreatePostDto
-    createPostDto: ...,
-  } satisfies AdminPostsCreateRequest;
+  const api = new LlmApi(config);
 
   try {
-    const data = await api.adminPostsCreate(body);
+    const data = await api.llmDeleteCredential();
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -56,84 +54,7 @@ example().catch(console.error);
 
 ### Parameters
 
-
-| Name | Type | Description  | Notes |
-|------------- | ------------- | ------------- | -------------|
-| **createPostDto** | [CreatePostDto](CreatePostDto.md) |  | |
-
-### Return type
-
-[**PostDto**](PostDto.md)
-
-### Authorization
-
-[Bearer](../README.md#Bearer)
-
-### HTTP request headers
-
-- **Content-Type**: `application/json`
-- **Accept**: `application/json`
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-| **201** |  |  -  |
-| **400** |  |  -  |
-| **401** |  |  -  |
-| **403** |  |  -  |
-| **404** |  |  -  |
-| **409** |  |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
-
-
-## adminPostsDelete
-
-> adminPostsDelete(id)
-
-
-
-### Example
-
-```ts
-import {
-  Configuration,
-  AdminPostsApi,
-} from '';
-import type { AdminPostsDeleteRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // Configure HTTP bearer authorization: Bearer
-    accessToken: "YOUR BEARER TOKEN",
-  });
-  const api = new AdminPostsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-  } satisfies AdminPostsDeleteRequest;
-
-  try {
-    const data = await api.adminPostsDelete(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
-
-### Parameters
-
-
-| Name | Type | Description  | Notes |
-|------------- | ------------- | ------------- | -------------|
-| **id** | `number` |  | [Defaults to `undefined`] |
+This endpoint does not need any parameter.
 
 ### Return type
 
@@ -155,25 +76,26 @@ example().catch(console.error);
 | **204** |  |  -  |
 | **401** |  |  -  |
 | **403** |  |  -  |
-| **404** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## adminPostsGetAll
+## llmGetCredential
 
-> PagedResultOfPostSummaryDto adminPostsGetAll(search, authorId, isDraft, isFeatured, sort, page, pageSize, skip)
+> LlmCredentialDto llmGetCredential()
 
 
+
+Requires a signed-in session: an API token is refused here.
 
 ### Example
 
 ```ts
 import {
   Configuration,
-  AdminPostsApi,
+  LlmApi,
 } from '';
-import type { AdminPostsGetAllRequest } from '';
+import type { LlmGetCredentialRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -181,29 +103,81 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AdminPostsApi(config);
-
-  const body = {
-    // string (optional)
-    search: search_example,
-    // number (optional)
-    authorId: 56,
-    // boolean (optional)
-    isDraft: true,
-    // boolean (optional)
-    isFeatured: true,
-    // PostSortOrder (optional)
-    sort: ...,
-    // number (optional)
-    page: 56,
-    // number (optional)
-    pageSize: 56,
-    // number (optional)
-    skip: 56,
-  } satisfies AdminPostsGetAllRequest;
+  const api = new LlmApi(config);
 
   try {
-    const data = await api.adminPostsGetAll(body);
+    const data = await api.llmGetCredential();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**LlmCredentialDto**](LlmCredentialDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **204** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmGetJob
+
+> RagJobDto llmGetJob(id)
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmGetJobRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  const body = {
+    // string
+    id: id_example,
+  } satisfies LlmGetJobRequest;
+
+  try {
+    const data = await api.llmGetJob(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -219,18 +193,11 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **search** | `string` |  | [Optional] [Defaults to `undefined`] |
-| **authorId** | `number` |  | [Optional] [Defaults to `undefined`] |
-| **isDraft** | `boolean` |  | [Optional] [Defaults to `undefined`] |
-| **isFeatured** | `boolean` |  | [Optional] [Defaults to `undefined`] |
-| **sort** | `PostSortOrder` |  | [Optional] [Defaults to `undefined`] [Enum: Newest, Oldest, MostViewed, Title] |
-| **page** | `number` |  | [Optional] [Defaults to `undefined`] |
-| **pageSize** | `number` |  | [Optional] [Defaults to `undefined`] |
-| **skip** | `number` |  | [Optional] [Defaults to `undefined`] |
+| **id** | `string` |  | [Defaults to `undefined`] |
 
 ### Return type
 
-[**PagedResultOfPostSummaryDto**](PagedResultOfPostSummaryDto.md)
+[**RagJobDto**](RagJobDto.md)
 
 ### Authorization
 
@@ -239,6 +206,213 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmRebuildIndex
+
+> RagJobDto llmRebuildIndex()
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmRebuildIndexRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  try {
+    const data = await api.llmRebuildIndex();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**RagJobDto**](RagJobDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **202** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmRevalidate
+
+> LlmCredentialDto llmRevalidate()
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmRevalidateRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  try {
+    const data = await api.llmRevalidate();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**LlmCredentialDto**](LlmCredentialDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
+| **503** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmSaveCredential
+
+> LlmCredentialDto llmSaveCredential(saveLlmCredentialDto)
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmSaveCredentialRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  const body = {
+    // SaveLlmCredentialDto
+    saveLlmCredentialDto: ...,
+  } satisfies LlmSaveCredentialRequest;
+
+  try {
+    const data = await api.llmSaveCredential(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **saveLlmCredentialDto** | [SaveLlmCredentialDto](SaveLlmCredentialDto.md) |  | |
+
+### Return type
+
+[**LlmCredentialDto**](LlmCredentialDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
 - **Accept**: `application/json`
 
 
@@ -248,24 +422,28 @@ example().catch(console.error);
 | **200** |  |  -  |
 | **400** |  |  -  |
 | **401** |  |  -  |
+| **403** |  |  -  |
+| **503** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## adminPostsGetById
+## llmTryJobFit
 
-> PostDto adminPostsGetById(id)
+> RagJobDto llmTryJobFit(jobFitRequestDto)
 
 
+
+Requires a signed-in session: an API token is refused here.
 
 ### Example
 
 ```ts
 import {
   Configuration,
-  AdminPostsApi,
+  LlmApi,
 } from '';
-import type { AdminPostsGetByIdRequest } from '';
+import type { LlmTryJobFitRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -273,15 +451,15 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AdminPostsApi(config);
+  const api = new LlmApi(config);
 
   const body = {
-    // number
-    id: 56,
-  } satisfies AdminPostsGetByIdRequest;
+    // JobFitRequestDto
+    jobFitRequestDto: ...,
+  } satisfies LlmTryJobFitRequest;
 
   try {
-    const data = await api.adminPostsGetById(body);
+    const data = await api.llmTryJobFit(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -297,11 +475,11 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **id** | `number` |  | [Defaults to `undefined`] |
+| **jobFitRequestDto** | [JobFitRequestDto](JobFitRequestDto.md) |  | |
 
 ### Return type
 
-[**PostDto**](PostDto.md)
+[**RagJobDto**](RagJobDto.md)
 
 ### Authorization
 
@@ -309,35 +487,40 @@ example().catch(console.error);
 
 ### HTTP request headers
 
-- **Content-Type**: Not defined
+- **Content-Type**: `application/json`
 - **Accept**: `application/json`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** |  |  -  |
+| **202** |  |  -  |
+| **400** |  |  -  |
 | **401** |  |  -  |
 | **403** |  |  -  |
 | **404** |  |  -  |
+| **409** |  |  -  |
+| **413** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## adminPostsPublish
+## llmUpdateSettings
 
-> PostDto adminPostsPublish(id)
+> LlmCredentialDto llmUpdateSettings(updateLlmSettingsDto)
 
 
+
+Requires a signed-in session: an API token is refused here.
 
 ### Example
 
 ```ts
 import {
   Configuration,
-  AdminPostsApi,
+  LlmApi,
 } from '';
-import type { AdminPostsPublishRequest } from '';
+import type { LlmUpdateSettingsRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -345,15 +528,15 @@ async function example() {
     // Configure HTTP bearer authorization: Bearer
     accessToken: "YOUR BEARER TOKEN",
   });
-  const api = new AdminPostsApi(config);
+  const api = new LlmApi(config);
 
   const body = {
-    // number
-    id: 56,
-  } satisfies AdminPostsPublishRequest;
+    // UpdateLlmSettingsDto
+    updateLlmSettingsDto: ...,
+  } satisfies LlmUpdateSettingsRequest;
 
   try {
-    const data = await api.adminPostsPublish(body);
+    const data = await api.llmUpdateSettings(body);
     console.log(data);
   } catch (error) {
     console.error(error);
@@ -369,158 +552,11 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **id** | `number` |  | [Defaults to `undefined`] |
+| **updateLlmSettingsDto** | [UpdateLlmSettingsDto](UpdateLlmSettingsDto.md) |  | |
 
 ### Return type
 
-[**PostDto**](PostDto.md)
-
-### Authorization
-
-[Bearer](../README.md#Bearer)
-
-### HTTP request headers
-
-- **Content-Type**: Not defined
-- **Accept**: `application/json`
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-| **200** |  |  -  |
-| **401** |  |  -  |
-| **403** |  |  -  |
-| **404** |  |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
-
-
-## adminPostsUnpublish
-
-> PostDto adminPostsUnpublish(id)
-
-
-
-### Example
-
-```ts
-import {
-  Configuration,
-  AdminPostsApi,
-} from '';
-import type { AdminPostsUnpublishRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // Configure HTTP bearer authorization: Bearer
-    accessToken: "YOUR BEARER TOKEN",
-  });
-  const api = new AdminPostsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-  } satisfies AdminPostsUnpublishRequest;
-
-  try {
-    const data = await api.adminPostsUnpublish(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
-
-### Parameters
-
-
-| Name | Type | Description  | Notes |
-|------------- | ------------- | ------------- | -------------|
-| **id** | `number` |  | [Defaults to `undefined`] |
-
-### Return type
-
-[**PostDto**](PostDto.md)
-
-### Authorization
-
-[Bearer](../README.md#Bearer)
-
-### HTTP request headers
-
-- **Content-Type**: Not defined
-- **Accept**: `application/json`
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-| **200** |  |  -  |
-| **401** |  |  -  |
-| **403** |  |  -  |
-| **404** |  |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
-
-
-## adminPostsUpdate
-
-> PostDto adminPostsUpdate(id, updatePostDto)
-
-
-
-### Example
-
-```ts
-import {
-  Configuration,
-  AdminPostsApi,
-} from '';
-import type { AdminPostsUpdateRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // Configure HTTP bearer authorization: Bearer
-    accessToken: "YOUR BEARER TOKEN",
-  });
-  const api = new AdminPostsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // UpdatePostDto
-    updatePostDto: ...,
-  } satisfies AdminPostsUpdateRequest;
-
-  try {
-    const data = await api.adminPostsUpdate(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
-
-### Parameters
-
-
-| Name | Type | Description  | Notes |
-|------------- | ------------- | ------------- | -------------|
-| **id** | `number` |  | [Defaults to `undefined`] |
-| **updatePostDto** | [UpdatePostDto](UpdatePostDto.md) |  | |
-
-### Return type
-
-[**PostDto**](PostDto.md)
+[**LlmCredentialDto**](LlmCredentialDto.md)
 
 ### Authorization
 
@@ -540,7 +576,6 @@ example().catch(console.error);
 | **401** |  |  -  |
 | **403** |  |  -  |
 | **404** |  |  -  |
-| **409** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

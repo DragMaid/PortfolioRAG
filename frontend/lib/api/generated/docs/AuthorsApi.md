@@ -1,6 +1,6 @@
 # AuthorsApi
 
-All URIs are relative to *http://localhost:5009*
+All URIs are relative to *http://localhost:5019*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
@@ -20,6 +20,8 @@ All URIs are relative to *http://localhost:5009*
 > authorsDelete(id)
 
 
+
+Requires a signed-in session: an API token is refused here.
 
 ### Example
 

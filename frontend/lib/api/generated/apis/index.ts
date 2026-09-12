@@ -8,6 +8,8 @@ export * from './AuthApi';
 export * from './AuthorsApi';
 export * from './ContactChannelsApi';
 export * from './ExperiencesApi';
+export * from './JobFitApi';
+export * from './LlmApi';
 export * from './MediaApi';
 export * from './PostMediaApi';
 export * from './PostsApi';

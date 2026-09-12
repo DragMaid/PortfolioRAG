@@ -117,6 +117,7 @@ export class AuthorsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Requires a signed-in session: an API token is refused here.
      */
     async authorsDeleteRaw(requestParameters: AuthorsDeleteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
         const requestOptions = await this.authorsDeleteRequestOpts(requestParameters);
@@ -126,6 +127,7 @@ export class AuthorsApi extends runtime.BaseAPI {
     }
 
     /**
+     * Requires a signed-in session: an API token is refused here.
      */
     async authorsDelete(requestParameters: AuthorsDeleteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.authorsDeleteRaw(requestParameters, initOverrides);
