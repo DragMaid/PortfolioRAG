@@ -23,6 +23,14 @@ public sealed class StubCurrentUser : ICurrentUser
 
     public bool IsAuthenticated => AuthorId is not null;
 
+    /// <summary>
+    /// Defaults to false — a session, which is what most tests mean by "signed in". A test
+    /// about what a token may not do sets this and <see cref="ApiTokenScope"/> together.
+    /// </summary>
+    public bool IsApiToken { get; set; }
+
+    public ApiTokenScope? ApiTokenScope { get; set; }
+
     public int RequireAuthorId() =>
         AuthorId ?? throw new Backend.Common.Exceptions.UnauthorizedException("Not signed in.");
 }
@@ -94,6 +102,7 @@ public sealed class TestHarness : IAsyncDisposable
         Authors = new FailingSaveAuthorRepository(new AuthorRepository(Context));
         Posts = new PostRepository(Context);
         RefreshTokens = new RefreshTokenRepository(Context);
+        ApiTokens = new ApiTokenRepository(Context);
         Medias = new FailingSaveMediaRepository(new MediaRepository(Context));
         PageViews = new AnalyticsRepository(Context);
 
@@ -144,7 +153,7 @@ public sealed class TestHarness : IAsyncDisposable
             TimeProvider,
             Options.Create(new AnalyticsOptions { VisitorSalt = "test-salt", SelfHosts = ["example.com"] }));
 
-        Auth = new AuthService(Authors, Tokens, Google, CurrentUser, TimeProvider);
+        Auth = new AuthService(Authors, ApiTokens, Tokens, Google, CurrentUser, TimeProvider);
         PostService = new PostService(Posts, Authors, MediaService, CurrentUser, TimeProvider);
         AuthorService = new AuthorService(Authors, MediaService, CurrentUser, TimeProvider);
     }
@@ -162,6 +171,8 @@ public sealed class TestHarness : IAsyncDisposable
     public IPostRepository Posts { get; }
 
     public IRefreshTokenRepository RefreshTokens { get; }
+
+    public IApiTokenRepository ApiTokens { get; }
 
     public FailingSaveMediaRepository Medias { get; }
 
