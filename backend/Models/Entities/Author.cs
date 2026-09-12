@@ -71,4 +71,13 @@ public class Author
 
     /// <summary>The long-lived tokens this account has issued for scripts and CI jobs.</summary>
     public ICollection<ApiToken> ApiTokens { get; set; } = new List<ApiToken>();
+
+    /// <summary>
+    /// The provider key this account answers questions with, or null while it has supplied
+    /// none. One per account, which is why this is a reference and not a collection.
+    /// </summary>
+    public LlmCredential? LlmCredential { get; set; }
+
+    /// <summary>What the last index run over this account's portfolio produced.</summary>
+    public RagIndexState? RagIndex { get; set; }
 }
