@@ -13,6 +13,8 @@ type TopBarProps = {
   busy: null | "saving" | "publishing" | "creating";
   /** False on a tab whose screen saves itself, where the three post actions do nothing. */
   showPostActions: boolean;
+  /** What the status pill reads on such a tab, which names the section rather than a post. */
+  selfSavingLabel: string;
   /** What the open project still needs before it can go live, if anything. */
   publishBlockers: string[];
   onSave: () => void;
@@ -29,6 +31,7 @@ export function TopBar({
   isDirty,
   busy,
   showPostActions,
+  selfSavingLabel,
   publishBlockers,
   onSave,
   onPublish,
@@ -78,7 +81,7 @@ export function TopBar({
               {isDirty
                 ? "Unsaved changes"
                 : !showPostActions
-                  ? "Profile • saved"
+                  ? selfSavingLabel
                   : post?.isDraft
                     ? "Draft • saved"
                     : "Live • synced"}
