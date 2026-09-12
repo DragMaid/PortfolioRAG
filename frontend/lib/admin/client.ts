@@ -9,6 +9,7 @@ import {
   ContactChannelsApi,
   ExperiencesApi,
   FetchError,
+  LlmApi,
   PostMediaApi,
   ResponseError,
 } from "@/lib/api/generated";
@@ -37,6 +38,10 @@ export const adminAnalyticsApi = new AdminAnalyticsApi(configuration);
 export const authorsApi = new AuthorsApi(configuration);
 export const experiencesApi = new ExperiencesApi(configuration);
 export const contactChannelsApi = new ContactChannelsApi(configuration);
+
+// The provider key and everything around it. Signed, and refused to an API token however
+// wide its scope — see SessionOnlyAttribute on the API.
+export const llmApi = new LlmApi(configuration);
 export const authApi = new AuthApi(new Configuration({ basePath: API_BASE_URL }));
 
 /*
