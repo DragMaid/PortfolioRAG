@@ -91,6 +91,23 @@ public static class MappingExtensions
     };
 
     /// <summary>
+    /// One issued API token. Carries no part of the secret beyond the stored prefix — see
+    /// <see cref="ApiTokenDto"/>.
+    /// </summary>
+    public static ApiTokenDto ToDto(this ApiToken token, DateTimeOffset now) => new()
+    {
+        Id = token.Id,
+        Name = token.Name,
+        Prefix = token.Prefix,
+        Scope = token.Scope,
+        CreatedAt = token.CreatedAt,
+        ExpiresAt = token.ExpiresAt,
+        LastUsedAt = token.LastUsedAt,
+        RevokedAt = token.RevokedAt,
+        IsActive = token.IsActive(now)
+    };
+
+    /// <summary>
     /// Where a reader fetches this author's picture, or null when they never uploaded one.
     /// A path on this API rather than an address: the bucket is private, so that route mints
     /// a link that expires, and this one does not.
