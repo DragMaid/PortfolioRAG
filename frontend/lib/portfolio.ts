@@ -1,10 +1,11 @@
 import { cache } from "react";
-import { apiUrl, authorsApi, postsApi } from "@/lib/api/generated/client";
+import { apiUrl, authorsApi, jobFitApi, postsApi } from "@/lib/api/generated/client";
 import { contactHref, detectContactIcon } from "@/lib/contactChannels";
 import { profilePlaceholder } from "@/lib/data/profile";
 import type { ContactLink, ExperienceEntry, Profile, Project } from "@/lib/types";
 import type {
   AuthorDto,
+  JobFitAvailabilityDto,
   ContactChannelDto,
   ExperienceDto,
   MediaDto,
@@ -204,6 +205,32 @@ function formatShortLabel(company: string, started: Date | null): string {
   if (!started) return company;
   return `${company} ('${String(started.getFullYear()).slice(-2)})`;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Job fit                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whether this portfolio offers the job-fit check, and how many runs the reader has left.
+ *
+ * Its own request rather than a field on the author, because it is the one thing on the
+ * page that depends on who is asking: the remaining allowance is counted against the
+ * caller. Folding it into `getAuthorByHandle` would make that request uncacheable for a
+ * fact most callers of it do not want.
+ *
+ * A failure is "not offered". The section simply does not render, which is also what an
+ * account that never set a key gets — and the API deliberately answers those two the same
+ * way, so that this endpoint cannot be used to find out who holds a provider key.
+ */
+export const getJobFitAvailability = cache(
+  async (handle: string): Promise<JobFitAvailabilityDto | null> => {
+    try {
+      return await jobFitApi.jobFitGetAvailability({ handle });
+    } catch {
+      return null;
+    }
+  },
+);
 
 /* -------------------------------------------------------------------------- */
 /* Posts                                                                      */

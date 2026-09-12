@@ -15,6 +15,16 @@
 
 import * as runtime from '../runtime';
 import {
+    type ApiTokenDto,
+    ApiTokenDtoFromJSON,
+    ApiTokenDtoToJSON,
+} from '../models/ApiTokenDto';
+import {
+    type ApiTokenSecretDto,
+    ApiTokenSecretDtoFromJSON,
+    ApiTokenSecretDtoToJSON,
+} from '../models/ApiTokenSecretDto';
+import {
     type AuthProfileDto,
     AuthProfileDtoFromJSON,
     AuthProfileDtoToJSON,
@@ -24,6 +34,11 @@ import {
     AuthResultDtoFromJSON,
     AuthResultDtoToJSON,
 } from '../models/AuthResultDto';
+import {
+    type CreateApiTokenDto,
+    CreateApiTokenDtoFromJSON,
+    CreateApiTokenDtoToJSON,
+} from '../models/CreateApiTokenDto';
 import {
     type GoogleSignInDto,
     GoogleSignInDtoFromJSON,
@@ -54,6 +69,20 @@ import {
     SetPasswordDtoFromJSON,
     SetPasswordDtoToJSON,
 } from '../models/SetPasswordDto';
+
+export interface AuthCreateApiTokenRequest {
+    /**
+     * 
+     */
+    createApiTokenDto: CreateApiTokenDto;
+}
+
+export interface AuthDeleteApiTokenRequest {
+    /**
+     * 
+     */
+    id: number;
+}
 
 export interface AuthGoogleSignInRequest {
     /**
@@ -97,6 +126,20 @@ export interface AuthRegisterRequest {
     registerDto: RegisterDto;
 }
 
+export interface AuthRevokeApiTokenRequest {
+    /**
+     * 
+     */
+    id: number;
+}
+
+export interface AuthRotateApiTokenRequest {
+    /**
+     * 
+     */
+    id: number;
+}
+
 export interface AuthSetPasswordRequest {
     /**
      * 
@@ -108,6 +151,113 @@ export interface AuthSetPasswordRequest {
  * 
  */
 export class AuthApi extends runtime.BaseAPI {
+
+    /**
+     * Creates request options for authCreateApiToken without sending the request
+     */
+    async authCreateApiTokenRequestOpts(requestParameters: AuthCreateApiTokenRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['createApiTokenDto'] == null) {
+            throw new runtime.RequiredError(
+                'createApiTokenDto',
+                'Required parameter "createApiTokenDto" was null or undefined when calling authCreateApiToken().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/tokens`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateApiTokenDtoToJSON(requestParameters['createApiTokenDto']),
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authCreateApiTokenRaw(requestParameters: AuthCreateApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ApiTokenSecretDto>> {
+        const requestOptions = await this.authCreateApiTokenRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApiTokenSecretDtoFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authCreateApiToken(requestParameters: AuthCreateApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ApiTokenSecretDto> {
+        const response = await this.authCreateApiTokenRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for authDeleteApiToken without sending the request
+     */
+    async authDeleteApiTokenRequestOpts(requestParameters: AuthDeleteApiTokenRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling authDeleteApiToken().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/tokens/{id}`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authDeleteApiTokenRaw(requestParameters: AuthDeleteApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        const requestOptions = await this.authDeleteApiTokenRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authDeleteApiToken(requestParameters: AuthDeleteApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.authDeleteApiTokenRaw(requestParameters, initOverrides);
+    }
 
     /**
      * Creates request options for authGoogleSignIn without sending the request
@@ -192,6 +342,7 @@ export class AuthApi extends runtime.BaseAPI {
     }
 
     /**
+     * Requires a signed-in session: an API token is refused here.
      */
     async authLinkGoogleRaw(requestParameters: AuthLinkGoogleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AuthProfileDto>> {
         const requestOptions = await this.authLinkGoogleRequestOpts(requestParameters);
@@ -201,9 +352,55 @@ export class AuthApi extends runtime.BaseAPI {
     }
 
     /**
+     * Requires a signed-in session: an API token is refused here.
      */
     async authLinkGoogle(requestParameters: AuthLinkGoogleRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AuthProfileDto> {
         const response = await this.authLinkGoogleRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for authListApiTokens without sending the request
+     */
+    async authListApiTokensRequestOpts(): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/tokens`;
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authListApiTokensRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<ApiTokenDto>>> {
+        const requestOptions = await this.authListApiTokensRequestOpts();
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(ApiTokenDtoFromJSON));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authListApiTokens(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<ApiTokenDto>> {
+        const response = await this.authListApiTokensRaw(initOverrides);
         return await response.value();
     }
 
@@ -430,6 +627,112 @@ export class AuthApi extends runtime.BaseAPI {
     }
 
     /**
+     * Creates request options for authRevokeApiToken without sending the request
+     */
+    async authRevokeApiTokenRequestOpts(requestParameters: AuthRevokeApiTokenRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling authRevokeApiToken().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/tokens/{id}/revoke`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authRevokeApiTokenRaw(requestParameters: AuthRevokeApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ApiTokenDto>> {
+        const requestOptions = await this.authRevokeApiTokenRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApiTokenDtoFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authRevokeApiToken(requestParameters: AuthRevokeApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ApiTokenDto> {
+        const response = await this.authRevokeApiTokenRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for authRotateApiToken without sending the request
+     */
+    async authRotateApiTokenRequestOpts(requestParameters: AuthRotateApiTokenRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling authRotateApiToken().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/tokens/{id}/rotate`;
+        urlPath = urlPath.replace('{id}', encodeURIComponent(String(requestParameters['id'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authRotateApiTokenRaw(requestParameters: AuthRotateApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ApiTokenSecretDto>> {
+        const requestOptions = await this.authRotateApiTokenRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApiTokenSecretDtoFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authRotateApiToken(requestParameters: AuthRotateApiTokenRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ApiTokenSecretDto> {
+        const response = await this.authRotateApiTokenRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Creates request options for authSetPassword without sending the request
      */
     async authSetPasswordRequestOpts(requestParameters: AuthSetPasswordRequest): Promise<runtime.RequestOpts> {
@@ -467,6 +770,7 @@ export class AuthApi extends runtime.BaseAPI {
     }
 
     /**
+     * Requires a signed-in session: an API token is refused here.
      */
     async authSetPasswordRaw(requestParameters: AuthSetPasswordRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AuthResultDto>> {
         const requestOptions = await this.authSetPasswordRequestOpts(requestParameters);
@@ -476,6 +780,7 @@ export class AuthApi extends runtime.BaseAPI {
     }
 
     /**
+     * Requires a signed-in session: an API token is refused here.
      */
     async authSetPassword(requestParameters: AuthSetPasswordRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AuthResultDto> {
         const response = await this.authSetPasswordRaw(requestParameters, initOverrides);
