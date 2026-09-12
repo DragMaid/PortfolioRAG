@@ -68,7 +68,7 @@ public static class PostgresFixture
             if (_container is not null)
                 return _container;
 
-            var container = new PostgreSqlBuilder("postgres:16-alpine")
+            var container = new PostgreSqlBuilder("pgvector/pgvector:pg16")
                 .WithDatabase("portfolio")
                 .WithUsername("portfolio")
                 .WithPassword("portfolio")

@@ -35,6 +35,17 @@ public sealed class StubCurrentUser : ICurrentUser
         AuthorId ?? throw new Backend.Common.Exceptions.UnauthorizedException("Not signed in.");
 }
 
+/// <summary>
+/// A fixed visitor hash, so a test can say "the same reader again" or "somebody else"
+/// without constructing two HttpContexts with different addresses.
+/// </summary>
+public sealed class StubVisitorFingerprint : IVisitorFingerprint
+{
+    public string Value { get; set; } = "visitor-one";
+
+    public string Compute(DateTimeOffset now) => Value;
+}
+
 public sealed class StubHttpContextAccessor : IHttpContextAccessor
 {
     public HttpContext? HttpContext { get; set; }
@@ -145,17 +156,66 @@ public sealed class TestHarness : IAsyncDisposable
         HttpContextAccessor = new StubHttpContextAccessor { HttpContext = new DefaultHttpContext() };
         AsVisitor("203.0.113.1", "test-agent");
 
+        // NOTE: the real fingerprint, not the stub, because the analytics tests are about
+        // counting distinct readers and a constant hash would make every one of them one
+        // reader. The stub exists for the job-fit tests, which need the opposite.
+        var analyticsOptions = Options.Create(
+            new AnalyticsOptions { VisitorSalt = "test-salt", SelfHosts = ["example.com"] });
+
         Analytics = new AnalyticsService(
             PageViews,
             Posts,
             CurrentUser,
             HttpContextAccessor,
+            new VisitorFingerprint(HttpContextAccessor, analyticsOptions),
             TimeProvider,
-            Options.Create(new AnalyticsOptions { VisitorSalt = "test-salt", SelfHosts = ["example.com"] }));
+            analyticsOptions);
 
         Auth = new AuthService(Authors, ApiTokens, Tokens, Google, CurrentUser, TimeProvider);
         PostService = new PostService(Posts, Authors, MediaService, CurrentUser, TimeProvider);
         AuthorService = new AuthorService(Authors, MediaService, CurrentUser, TimeProvider);
+
+        // ------------------------------------------------------------------
+        // Retrieval
+        // ------------------------------------------------------------------
+
+        Rag = new RagRepository(Context);
+
+        // A fixed 32-byte key. Its value is the one thing that has to agree with the
+        // interop fixture in rag/tests/test_crypto_interop.py — see the note there.
+        LlmOptions = new LlmOptions
+        {
+            EncryptionKey = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes("test-only-fixed-key-32-bytes!!!!")),
+            MaxJobDescriptionChars = 20000
+        };
+
+        var llmOptions = Options.Create(LlmOptions);
+
+        Protector = new SecretProtector(llmOptions);
+
+        // NOTE: no HTTP. The provider is a stub a test can make accept, reject or be
+        // unreachable, because those three answers lead to three different behaviours and
+        // only one of them can be produced by a real key.
+        Provider = new StubLlmProviderValidator();
+        Visitors = new StubVisitorFingerprint();
+
+        LlmCredentials = new LlmCredentialService(
+            Rag,
+            CurrentUser,
+            Protector,
+            new LlmProviderRegistry([Provider]),
+            TimeProvider,
+            llmOptions,
+            NullLogger<LlmCredentialService>.Instance);
+
+        JobFit = new JobFitService(
+            Rag,
+            Authors,
+            Visitors,
+            TimeProvider,
+            llmOptions,
+            NullLogger<JobFitService>.Instance);
     }
 
     public BlogDbContext Context { get; }
@@ -195,6 +255,20 @@ public sealed class TestHarness : IAsyncDisposable
     public IPostService PostService { get; }
 
     public IAuthorService AuthorService { get; }
+
+    public IRagRepository Rag { get; }
+
+    public LlmOptions LlmOptions { get; }
+
+    public ISecretProtector Protector { get; }
+
+    public StubLlmProviderValidator Provider { get; }
+
+    public StubVisitorFingerprint Visitors { get; }
+
+    public ILlmCredentialService LlmCredentials { get; }
+
+    public IJobFitService JobFit { get; }
 
     /// <summary>Adds an author directly, bypassing registration.</summary>
     public async Task<Author> AddAuthorAsync(
