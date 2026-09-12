@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Backend.Common.Exceptions;
+using Backend.Models.Entities;
 
 namespace Backend.Common.Security;
 
@@ -46,6 +47,19 @@ public class CurrentUser : ICurrentUser
 
     public string? Email =>
         Principal?.FindFirstValue(JwtRegisteredClaimNames.Email) ?? Principal?.FindFirstValue(ClaimTypes.Email);
+
+    // NOTE: the absence of the claim means a session. Only ApiTokenAuthenticationHandler
+    // mints it, and a JWT that arrived carrying one would have had to be signed by us.
+    public bool IsApiToken =>
+        string.Equals(
+            Principal?.FindFirstValue(AuthClaims.AuthMethod),
+            AuthMethods.ApiToken,
+            StringComparison.Ordinal);
+
+    public ApiTokenScope? ApiTokenScope =>
+        Enum.TryParse<ApiTokenScope>(Principal?.FindFirstValue(AuthClaims.ApiTokenScope), out var scope)
+            ? scope
+            : null;
 
     public int RequireAuthorId() =>
         AuthorId ?? throw new UnauthorizedException("The request is not associated with a signed-in author.");

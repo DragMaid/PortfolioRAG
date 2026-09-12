@@ -19,6 +19,7 @@ public class AuthService : IAuthService
     private const int MaxNameLength = 100;
 
     private readonly IAuthorRepository _authors;
+    private readonly IApiTokenRepository _apiTokens;
     private readonly ITokenService _tokens;
     // TODO: this really just hard coded the google handler instead of a generic external provider but good for now
     private readonly IGoogleTokenValidator _google;
@@ -27,12 +28,14 @@ public class AuthService : IAuthService
 
     public AuthService(
         IAuthorRepository authors,
+        IApiTokenRepository apiTokens,
         ITokenService tokens,
         IGoogleTokenValidator google,
         ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _authors = authors;
+        _apiTokens = apiTokens;
         _tokens = tokens;
         _google = google;
         _currentUser = currentUser;
@@ -234,6 +237,127 @@ public class AuthService : IAuthService
         await _tokens.RevokeAllAsync(authorId, cancellationToken);
 
         return await _tokens.IssueAsync(author, cancellationToken);
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* API tokens                                                             */
+    /* ---------------------------------------------------------------------- */
+
+    public async Task<IReadOnlyList<ApiTokenDto>> GetApiTokensAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+        var now = _timeProvider.GetUtcNow();
+
+        var tokens = await _apiTokens.GetByAuthorAsync(authorId, cancellationToken);
+
+        return tokens.Select(token => token.ToDto(now)).ToList();
+    }
+
+    public async Task<ApiTokenSecretDto> CreateApiTokenAsync(
+        CreateApiTokenDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+        var now = _timeProvider.GetUtcNow();
+        var name = dto.Name.Trim();
+
+        // NOTE: unique among the caller's live tokens only. A name is how somebody decides
+        // which token to revoke, and two live "ci-deploy"s would make that a coin toss —
+        // but a revoked one is history, and refusing to reuse its name would mean the
+        // replacement for a leaked token could never be called what it replaced.
+        if (await _apiTokens.NameExistsAsync(authorId, name, excludingTokenId: null, cancellationToken))
+            throw new ConflictException($"You already have an active API token called '{name}'.");
+
+        var (rawToken, hash, preview) = ApiTokenGenerator.Create();
+
+        var token = new ApiToken
+        {
+            AuthorId = authorId,
+            Name = name,
+            TokenHash = hash,
+            Prefix = preview,
+            Scope = dto.Scope,
+            CreatedAt = now,
+            ExpiresAt = dto.ExpiresInDays is { } days ? now.AddDays(days) : null
+        };
+
+        await _apiTokens.AddAsync(token, cancellationToken);
+        await _apiTokens.SaveChangesAsync(cancellationToken);
+
+        return new ApiTokenSecretDto { Token = token.ToDto(now), Secret = rawToken };
+    }
+
+    public async Task<ApiTokenSecretDto> RotateApiTokenAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+        var now = _timeProvider.GetUtcNow();
+
+        var token = await _apiTokens.GetAsync(id, authorId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("API token", id);
+
+        // NOTE: rotating a revoked token would quietly bring it back, which is the opposite
+        // of what revoking it meant. Issue a new one instead.
+        if (token.RevokedAt is not null)
+        {
+            throw new ConflictException(
+                $"The API token '{token.Name}' has been revoked, so it cannot be rotated. " +
+                "Create a new token instead.");
+        }
+
+        var (rawToken, hash, preview) = ApiTokenGenerator.Create();
+
+        token.TokenHash = hash;
+        token.Prefix = preview;
+
+        // The replacement is a different secret with the same name, so what the last-used
+        // stamp reported is no longer true of it.
+        token.LastUsedAt = null;
+
+        await _apiTokens.SaveChangesAsync(cancellationToken);
+
+        return new ApiTokenSecretDto { Token = token.ToDto(now), Secret = rawToken };
+    }
+
+    public async Task<ApiTokenDto> RevokeApiTokenAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+        var now = _timeProvider.GetUtcNow();
+
+        var token = await _apiTokens.GetAsync(id, authorId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("API token", id);
+
+        // NOTE: revoking twice is not an error. The caller wanted it dead and it is dead;
+        // the first stamp is kept because it is the one that says when it stopped working.
+        if (token.RevokedAt is null)
+        {
+            token.RevokedAt = now;
+            await _apiTokens.SaveChangesAsync(cancellationToken);
+        }
+
+        return token.ToDto(now);
+    }
+
+    public async Task DeleteApiTokenAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+
+        var token = await _apiTokens.GetAsync(id, authorId, tracked: true, cancellationToken)
+            ?? throw NotFoundException.For("API token", id);
+
+        // NOTE: only a dead token may be forgotten. Deleting a live row would revoke it as a
+        // side effect and leave no trace that it ever existed, which is the one thing the
+        // list is for.
+        if (token.RevokedAt is null && token.IsActive(_timeProvider.GetUtcNow()))
+        {
+            throw new ConflictException(
+                $"The API token '{token.Name}' is still active. Revoke it before removing it.");
+        }
+
+        _apiTokens.Remove(token);
+        await _apiTokens.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<ExternalUserInfo> ValidateGoogleAsync(

@@ -14,8 +14,6 @@ Name | Type
 `biography` | string
 `footerBio` | string
 `location` | string
-`timeZoneLabel` | string
-`timeZone` | string
 `availability` | string
 `focus` | string
 `contactPitch` | string
@@ -35,8 +33,6 @@ const example = {
   "biography": null,
   "footerBio": null,
   "location": null,
-  "timeZoneLabel": null,
-  "timeZone": null,
   "availability": null,
   "focus": null,
   "contactPitch": null,

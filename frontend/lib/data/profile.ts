@@ -23,8 +23,6 @@ export const profilePlaceholder: Profile = {
   ].join("\n\n"),
   email: "alex.vance.dev@gmail.com",
   location: "San Francisco, CA (Hybrid)",
-  timezoneLabel: "SF / PST",
-  timezone: "UTC -8 (PST)",
   availability: "Open for Staff roles & select advisory",
   focus: "Primary focus: Systems / C++ / Rust",
   contacts: [],

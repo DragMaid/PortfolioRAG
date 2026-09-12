@@ -1,3 +1,4 @@
+using Backend.Common.Security;
 using Microsoft.AspNetCore.Authorization;
 using NSwag;
 using NSwag.Generation.AspNetCore;
@@ -50,6 +51,13 @@ public class BearerSecurityProcessor : IOperationProcessor
 
         if (!requiresToken)
             return true;
+
+        if (metadata.Any(item => item is SessionOnlyAttribute))
+        {
+            context.OperationDescription.Operation.Description =
+                (context.OperationDescription.Operation.Description + " ").TrimStart() +
+                "Requires a signed-in session: an API token is refused here.";
+        }
 
         // Initaliz it with an empty List if currently null
         context.OperationDescription.Operation.Security ??= [];

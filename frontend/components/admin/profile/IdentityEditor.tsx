@@ -117,33 +117,6 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
           />
         </Field>
 
-        <Field
-          label="Timezone badge"
-          htmlFor={`${ids}-tz-label`}
-          hint="The chip on your avatar. Keep it short."
-        >
-          <TextInput
-            id={`${ids}-tz-label`}
-            value={draft.timeZoneLabel}
-            disabled={disabled}
-            maxLength={40}
-            placeholder="SF / PST"
-            onChange={(event) => onChange({ timeZoneLabel: event.target.value })}
-            className="font-mono text-xs"
-          />
-        </Field>
-
-        <Field label="Timezone, in full" htmlFor={`${ids}-tz`} hint="Printed in the colophon.">
-          <TextInput
-            id={`${ids}-tz`}
-            value={draft.timeZone}
-            disabled={disabled}
-            maxLength={60}
-            placeholder="UTC -8 (PST)"
-            onChange={(event) => onChange({ timeZone: event.target.value })}
-            className="font-mono text-xs"
-          />
-        </Field>
       </div>
 
       <Field

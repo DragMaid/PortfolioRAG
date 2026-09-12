@@ -109,8 +109,6 @@ export function toProfile(author: AuthorDto | null): Profile {
     biography: orFallback(author.biography, profilePlaceholder.biography),
     footerBio: orFallback(author.footerBio, profilePlaceholder.footerBio),
     location: orFallback(author.location, profilePlaceholder.location),
-    timezoneLabel: orFallback(author.timeZoneLabel, profilePlaceholder.timezoneLabel),
-    timezone: orFallback(author.timeZone, profilePlaceholder.timezone),
     availability: orFallback(author.availability, profilePlaceholder.availability),
     focus: orFallback(author.focus, profilePlaceholder.focus),
     contactPitch: orFallback(author.contactPitch, profilePlaceholder.contactPitch),

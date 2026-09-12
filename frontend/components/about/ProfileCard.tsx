@@ -56,10 +56,6 @@ export function ProfileCard({ profile }: { profile: Profile }) {
               <AvatarPlaceholderIcon className="size-20 text-warm-slate/50 transition-transform duration-500 group-hover:scale-105" />
             )}
           </div>
-          <div className="absolute bottom-2 right-1 flex items-center gap-1 rounded-full border border-warm-border bg-warm-surface/95 px-2 py-0.5 font-mono text-[9px] text-warm-black shadow-sm">
-            <StatusDot className="size-1.5" />
-            {profile.timezoneLabel}
-          </div>
         </div>
 
         <h1 className="font-serif text-2xl font-normal tracking-tight text-warm-black sm:text-3xl">

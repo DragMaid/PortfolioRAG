@@ -1,3 +1,4 @@
+using Backend.Common.Security;
 using Backend.Models.DTOs.Auth;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -64,6 +65,7 @@ public class AuthController : ControllerBase
     /// <summary>Adds Google as a sign-in method for the account making the request.</summary>
     [HttpPost("oauth/google/link")]
     [Authorize]
+    [SessionOnly]
     [ProducesResponseType(typeof(AuthProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -111,6 +113,7 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("password")]
     [Authorize]
+    [SessionOnly]
     [ProducesResponseType(typeof(AuthResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -118,4 +121,81 @@ public class AuthController : ControllerBase
         [FromBody] SetPasswordDto dto,
         CancellationToken cancellationToken) =>
         Ok(await _authService.SetPasswordAsync(dto, cancellationToken));
+
+    /// API routes
+    /// <summary>Lists the API tokens on your account. Secrets are never included.</summary>
+    [HttpGet("tokens")]
+    [Authorize]
+    [SessionOnly]
+    [ProducesResponseType(typeof(IReadOnlyList<ApiTokenDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<ApiTokenDto>>> ListApiTokens(
+        CancellationToken cancellationToken) =>
+        Ok(await _authService.GetApiTokensAsync(cancellationToken));
+
+    /// <summary>
+    /// Issues an API token. The response carries the only copy of the secret there will
+    /// ever be — the API stores a hash of it and cannot show it again.
+    /// </summary>
+    [HttpPost("tokens")]
+    [Authorize]
+    [SessionOnly]
+    [ProducesResponseType(typeof(ApiTokenSecretDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiTokenSecretDto>> CreateApiToken(
+        [FromBody] CreateApiTokenDto dto,
+        CancellationToken cancellationToken)
+    {
+        var result = await _authService.CreateApiTokenAsync(dto, cancellationToken);
+        return Created($"/api/auth/tokens/{result.Token.Id}", result);
+    }
+
+    /// <summary>
+    /// Replaces a token's secret, keeping its name, scope and expiry. Whatever holds the
+    /// old secret stops working immediately.
+    /// </summary>
+    [HttpPost("tokens/{id:int}/rotate")]
+    [Authorize]
+    [SessionOnly]
+    [ProducesResponseType(typeof(ApiTokenSecretDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ApiTokenSecretDto>> RotateApiToken(
+        int id,
+        CancellationToken cancellationToken) =>
+        Ok(await _authService.RotateApiTokenAsync(id, cancellationToken));
+
+    /// <summary>Revokes a token. Idempotent, and the row stays on the list as revoked.</summary>
+    [HttpPost("tokens/{id:int}/revoke")]
+    [Authorize]
+    [SessionOnly]
+    [ProducesResponseType(typeof(ApiTokenDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiTokenDto>> RevokeApiToken(
+        int id,
+        CancellationToken cancellationToken) =>
+        Ok(await _authService.RevokeApiTokenAsync(id, cancellationToken));
+
+    /// <summary>Removes a revoked token from the list. Refused while it is still active.</summary>
+    [HttpDelete("tokens/{id:int}")]
+    [Authorize]
+    [SessionOnly]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteApiToken(int id, CancellationToken cancellationToken)
+    {
+        await _authService.DeleteApiTokenAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

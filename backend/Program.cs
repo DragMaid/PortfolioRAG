@@ -12,7 +12,7 @@ using Backend.Data;
 using Backend.Repositories;
 using Backend.Services;
 using FileSignatures;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -62,6 +62,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IApiTokenRepository, ApiTokenRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 
@@ -232,9 +233,36 @@ builder.Services.AddSingleton<IConfigurationManager<OpenIdConnectConfiguration>>
 
 builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 
+// Two kinds of credential arrive in the same Authorization header: a studio session's JWT,
+// and an API token an author issued for a script. The policy scheme below looks at the
+// header and forwards to whichever handler can read it, so [Authorize] keeps its plain
+// meaning — "any credential this API accepts" — and no controller has to name a scheme.
 builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddAuthentication(AuthSchemes.Default)
+    .AddPolicyScheme(AuthSchemes.Default, AuthSchemes.Default, options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            var header = context.Request.Headers.Authorization.ToString();
+            var separator = header.IndexOf(' ');
+
+            if (separator < 0)
+                return AuthSchemes.Session;
+
+            var scheme = header[..separator];
+            var value = header[(separator + 1)..].Trim();
+
+            // NOTE: the pfl_ marker is what makes "Bearer <something>" unambiguous. Without
+            // it an API token would have to travel under its own header name, and every
+            // client that only knows how to send a bearer token could not use one.
+            return scheme.Equals(AuthSchemes.ApiToken, StringComparison.OrdinalIgnoreCase) ||
+                   ApiTokenGenerator.LooksLikeApiToken(value)
+                ? AuthSchemes.ApiToken
+                : AuthSchemes.Session;
+        };
+    })
+    .AddScheme<AuthenticationSchemeOptions, ApiTokenAuthenticationHandler>(AuthSchemes.ApiToken, null)
+    .AddJwtBearer(AuthSchemes.Session, options =>
     {
         // NOTE: without this the handler renames "sub" to the long WS-Federation claim URI,
         // which is why CurrentUser can read JwtRegisteredClaimNames.Sub directly.
@@ -284,7 +312,10 @@ builder.Services.AddOpenApiDocument(settings =>
         Type = OpenApiSecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "The accessToken returned by POST /api/auth/login."
+        Description =
+            "The accessToken returned by POST /api/auth/login, or an API token from " +
+            "POST /api/auth/tokens (they share this header). A read-scoped token may only " +
+            "use GET; no token may manage tokens, credentials or the account."
     });
 
     settings.OperationProcessors.Add(new BearerSecurityProcessor("Bearer"));
@@ -337,12 +368,22 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// NOTE: spelled out rather than left to the implicit one, because
+// ApiTokenRestrictionMiddleware below reads [SessionOnly] off the matched endpoint and
+// that metadata only exists once routing has run.
+app.UseRouting();
+
 app.UseCors();
 
 // NOTE: authentication reads the bearer token into HttpContext.User, authorization then
 // enforces [Authorize]. Both have to sit after CORS and before MapControllers.
 app.UseAuthentication();
 app.UseAuthorization();
+
+// After authorization, so a caller with no credentials at all still gets a 401 rather than
+// being told which actions a token it does not have would be refused.
+app.UseMiddleware<ApiTokenRestrictionMiddleware>();
 
 app.MapControllers();
 

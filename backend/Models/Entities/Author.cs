@@ -68,4 +68,7 @@ public class Author
     public ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
 
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
+    /// <summary>The long-lived tokens this account has issued for scripts and CI jobs.</summary>
+    public ICollection<ApiToken> ApiTokens { get; set; } = new List<ApiToken>();
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useProfile } from "@/lib/admin/useProfile";
 import { useStudio } from "@/lib/admin/useStudio";
+import { AccessPanel } from "./access/AccessPanel";
 import { AnalyticsPanel } from "./analytics/AnalyticsPanel";
 import { ContentPanel } from "./content/ContentPanel";
 import { ProfilePanel } from "./profile/ProfilePanel";
@@ -10,7 +11,7 @@ import { TabNav, type StudioTab } from "./TabNav";
 import { TopBar } from "./TopBar";
 
 /**
- * The signed-in studio: the system bar, the three tabs, and whichever one is open.
+ * The signed-in studio: the system bar, the five tabs, and whichever one is open.
  *
  * Follows the prototype's structure and palette. Two things it does not follow: the
  * prototype set Manrope as the sans face, and this uses the Inter the rest of the site is
@@ -31,12 +32,13 @@ export function Studio() {
     <>
       <TopBar
         post={studio.baseline}
-        isDirty={tab === "profile" ? profile.isDirty : studio.isDirty}
+        isDirty={tab === "content" ? studio.isDirty : tab === "profile" ? profile.isDirty : false}
         busy={studio.busy}
         // NOTE: the bar's three actions all act on the open post, so they are hidden on the
-        // profile tab, which saves itself. Showing a greyed-out "Publish" over a screen
-        // that has nothing to publish would only ask to be clicked.
-        showPostActions={tab !== "profile"}
+        // tabs that save themselves. Showing a greyed-out "Publish" over a screen that has
+        // nothing to publish would only ask to be clicked.
+        showPostActions={tab === "content"}
+        selfSavingLabel={SELF_SAVING_LABELS[tab] ?? "Saved"}
         publishBlockers={studio.publishBlockers}
         onSave={() => void studio.save()}
         onPublish={() => void studio.publish()}
