@@ -1,5 +1,3 @@
-import React from "react";
-
 interface GearProps {
   cx: number;
   cy: number;
@@ -13,6 +11,8 @@ interface GearProps {
   fillColor?: string;
   accentTicks?: boolean;
 }
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
 
 function makeGearPath(
   cx: number,
@@ -123,10 +123,10 @@ export function GearUnit({
         return (
           <line
             key={deg}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
+            x1={round2(x1)}
+            y1={round2(y1)}
+            x2={round2(x2)}
+            y2={round2(y2)}
             stroke={strokeColor}
             strokeWidth="1"
             strokeOpacity="0.5"
@@ -143,10 +143,10 @@ export function GearUnit({
           return (
             <line
               key={`tick-${deg}`}
-              x1={cx + r1 * Math.cos(rad)}
-              y1={cy + r1 * Math.sin(rad)}
-              x2={cx + r2 * Math.cos(rad)}
-              y2={cy + r2 * Math.sin(rad)}
+              x1={round2(cx + r1 * Math.cos(rad))}
+              y1={round2(cy + r1 * Math.sin(rad))}
+              x2={round2(cx + r2 * Math.cos(rad))}
+              y2={round2(cy + r2 * Math.sin(rad))}
               stroke={strokeColor}
               strokeWidth="0.75"
               strokeOpacity="0.4"

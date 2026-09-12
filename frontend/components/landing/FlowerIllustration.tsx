@@ -2,6 +2,8 @@ interface FlowerIllustrationProps {
   className?: string;
 }
 
+const round2 = (value: number) => Math.round(value * 100) / 100;
+
 export function FlowerIllustration({ className = "" }: FlowerIllustrationProps) {
   return (
     <div
@@ -210,13 +212,13 @@ export function FlowerIllustration({ className = "" }: FlowerIllustrationProps) 
                 <line
                   x1="330"
                   y1="300"
-                  x2={x2}
-                  y2={y2}
+                  x2={round2(x2)}
+                  y2={round2(y2)}
                   stroke="#fbbf24"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
-                <circle cx={x2} cy={y2} r="2.8" fill="#d97706" />
+                <circle cx={round2(x2)} cy={round2(y2)} r="2.8" fill="#d97706" />
               </g>
             );
           })}
