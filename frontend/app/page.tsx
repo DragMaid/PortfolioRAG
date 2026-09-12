@@ -1,45 +1,26 @@
 import type { Metadata } from "next";
-import { AboutSection } from "@/components/about/AboutSection";
-import { ExperienceSection } from "@/components/experience/ExperienceSection";
-import { Footer } from "@/components/layout/Footer";
-import { NavBar } from "@/components/layout/NavBar";
-import { ProjectsSection } from "@/components/projects/ProjectsSection";
-import { getExperience, getOwner, getProfile, getProjects } from "@/lib/portfolio";
+import { LandingNav } from "@/components/landing/LandingNav";
+import { Hero } from "@/components/landing/Hero";
+import { Roadmap } from "@/components/landing/Roadmap";
+import { DeveloperCTA } from "@/components/landing/DeveloperCTA";
+import { LandingFooter } from "@/components/landing/LandingFooter";
 
-// Rendered per request rather than at build time, force the frontend to call the api everytime.
-export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Portfolio — The Developer & Creator Platform",
+  description:
+    "We handle the complex stuff so you can express yourself to the fullest. Automated OpenAPI generation, edge distribution, and RAG intelligence for modern builders.",
+};
 
-export async function generateMetadata(): Promise<Metadata> {
-  const profile = await getProfile();
-  return {
-    title: `${profile.name} — ${profile.title}`,
-    description: profile.headline,
-  };
-}
-
-// TODO: change this to the main site with CTA for users to sign up instead
-export default async function Home() {
-  // One request behind the first three: the profile carries its own timeline, and
-  // `getOwner()` is cached for the render pass.
-  const owner = await getOwner();
-
-  const [profile, experience, projects] = await Promise.all([
-    getProfile(),
-    getExperience(),
-    getProjects(owner?.id),
-  ]);
-
+export default function Home() {
   return (
-    <>
-      <NavBar monogram={profile.monogram} handle={profile.handle} />
-      <div className="mx-auto w-full max-w-6xl px-6 sm:px-8">
-        <main className="space-y-24 py-12 md:space-y-32 md:py-20">
-          <AboutSection profile={profile} />
-          <ExperienceSection entries={experience} />
-          <ProjectsSection projects={projects} />
-        </main>
-        <Footer profile={profile} />
-      </div>
-    </>
+    <div className="min-h-screen w-full bg-white text-gray-900 flex flex-col selection:bg-gray-200 selection:text-black">
+      <LandingNav />
+      <main className="flex-1 w-full flex flex-col">
+        <Hero />
+        <Roadmap />
+        <DeveloperCTA />
+      </main>
+      <LandingFooter />
+    </div>
   );
 }
