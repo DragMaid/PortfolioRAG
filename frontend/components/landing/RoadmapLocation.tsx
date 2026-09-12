@@ -1,12 +1,8 @@
-import React from "react";
-
 export interface RoadmapStepData {
   id: string;
   step: string;
   title: string;
-  concept: "Create" | "Connect" | "Build" | "Automate";
-  waypointCode: string;
-  coordinates: string;
+  concept: "Create & Connect" | "Build" | "Automate";
   elevation: string;
   description: string;
   details: string[];
@@ -24,7 +20,6 @@ export function RoadmapLocation({
   data,
   index,
   className = "",
-  isActive = false,
 }: RoadmapLocationProps) {
   const colorStyles = {
     amber: {
@@ -79,15 +74,6 @@ export function RoadmapLocation({
             >
               {index + 1}
             </div>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-1.5 font-mono text-[11px] text-warm-slate">
-              <span className="font-semibold text-warm-black">{data.waypointCode}</span>
-              <span>•</span>
-              <span>{data.elevation}</span>
-            </div>
-            <p className="font-mono text-[10px] text-warm-slate/80">{data.coordinates}</p>
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { GearIllustration } from "./GearIllustration";
 import { FlowerIllustration } from "./FlowerIllustration";
@@ -38,12 +38,6 @@ export function Hero() {
         {/* Right Half Content Container */}
         <div className="relative z-10 h-full w-full max-w-7xl mx-auto px-6 sm:px-12 flex flex-col justify-center items-end">
           <div className="w-full lg:w-[48%] flex flex-col items-start text-left lg:pl-10">
-            {/* Organic Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium tracking-wide uppercase shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-              Creative Freedom
-            </div>
-
             {/* Right Headline: originates near center, animates right */}
             <h1
               className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-serif font-normal tracking-tight text-[#1c1917] leading-[1.1] animate-hero-right"
@@ -58,28 +52,6 @@ export function Hero() {
               Your vision commands the front; zero cognitive drag from servers
               or migrations.
             </p>
-
-            {/* Creative Feature Sparks */}
-            <div className="mt-8 flex flex-wrap gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md bg-[#f2ede4] text-[#44403c]">
-                <svg className="w-3.5 h-3.5 text-rose-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Markdown & Rich Studio
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md bg-[#f2ede4] text-[#44403c]">
-                <svg className="w-3.5 h-3.5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Custom Editorial Layouts
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md bg-[#f2ede4] text-[#44403c]">
-                <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Instant Vector AI Search
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -114,12 +86,6 @@ export function Hero() {
         {/* Left Half Content Container */}
         <div className="relative z-10 h-full w-full max-w-7xl mx-auto px-6 sm:px-12 flex flex-col justify-center items-start">
           <div className="w-full lg:w-[46%] flex flex-col items-start text-left">
-            {/* Technical Status Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono text-xs tracking-wider uppercase backdrop-blur-md shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              INFRA_ENGINE :: ACTIVE
-            </div>
-
             {/* Left Headline: originates near center, animates left */}
             <h1
               className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-sans font-bold tracking-tight text-white leading-[1.1] animate-hero-left"
@@ -133,19 +99,6 @@ export function Hero() {
               OpenAPI generation, schema migrations, edge caching, and automated
               vector embedding pipelines. Built to absorb complexity silently.
             </p>
-
-            {/* Technical Node Telemetry Pills */}
-            <div className="mt-8 flex flex-wrap gap-2.5 font-mono text-xs">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-700/80 bg-slate-900/70 text-cyan-300">
-                <span className="text-slate-500">$</span> openapi: v3.0.3
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-700/80 bg-slate-900/70 text-indigo-300">
-                <span className="text-slate-500">λ</span> edge: 14ms
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-700/80 bg-slate-900/70 text-emerald-300">
-                <span className="text-slate-500">●</span> rag: 1536-dim
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -195,15 +148,6 @@ export function Hero() {
             filter="url(#seamGlowFilter)"
           />
         </svg>
-
-        {/* Meeting Point Emblem (Center of the Hero) */}
-        <div className="absolute top-1/2 left-[49%] -translate-x-1/2 -translate-y-1/2 z-40">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/90 border border-white/20 text-white shadow-2xl backdrop-blur-md">
-            <span className="text-[10px] font-mono tracking-widest text-cyan-400">INFRA</span>
-            <span className="text-xs text-amber-400">⇄</span>
-            <span className="text-[10px] font-mono tracking-widest text-rose-300">ART</span>
-          </div>
-        </div>
       </div>
 
       {/* ------------------------------------------------------------- */}

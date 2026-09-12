@@ -55,28 +55,6 @@ export function LandingNav() {
           </div>
         </Link>
 
-        {/* Desktop Nav Items */}
-        <nav className="hidden md:flex items-center gap-8 text-xs sm:text-sm font-medium text-slate-300">
-          <a
-            href="#roadmap"
-            className="hover:text-white transition-colors hover:underline underline-offset-4"
-          >
-            Roadmap
-          </a>
-          <a
-            href="#developer"
-            className="hover:text-white transition-colors hover:underline underline-offset-4"
-          >
-            API &amp; Terminal
-          </a>
-          <Link
-            href="/admin"
-            className="hover:text-white transition-colors hover:underline underline-offset-4"
-          >
-            Studio
-          </Link>
-        </nav>
-
         {/* Right CTA Actions */}
         <div className="hidden sm:flex items-center gap-3">
           <Link
@@ -111,41 +89,6 @@ export function LandingNav() {
           )}
         </button>
       </div>
-
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-[#0e1320] border-b border-slate-800 px-6 py-4 space-y-3 font-mono text-xs">
-          <a
-            href="#roadmap"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-2 text-slate-300 hover:text-cyan-400"
-          >
-            // Roadmap &amp; Cartography
-          </a>
-          <a
-            href="#developer"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-2 text-slate-300 hover:text-cyan-400"
-          >
-            // Developer Terminal
-          </a>
-          <Link
-            href="/admin"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block py-2 text-slate-300 hover:text-cyan-400"
-          >
-            // Content Studio
-          </Link>
-          <div className="pt-2 border-t border-slate-800 flex gap-2">
-            <Link
-              href="/admin"
-              className="w-full text-center py-2.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-indigo-600"
-            >
-              Start Free
-            </Link>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

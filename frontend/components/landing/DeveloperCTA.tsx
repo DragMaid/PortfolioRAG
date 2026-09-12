@@ -31,11 +31,6 @@ export function DeveloperCTA() {
       <div className="relative mx-auto max-w-7xl px-6 sm:px-12">
         {/* Section Header & Main CTA Statement */}
         <div className="mx-auto max-w-3xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/60 px-4 py-1.5 text-xs font-mono font-medium text-cyan-300 backdrop-blur-md shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span>DEVELOPER ENVIRONMENT // PRODUCTION READY</span>
-          </div>
-
           <h2 className="mt-6 text-4xl sm:text-5xl md:text-6xl font-sans font-bold tracking-tight text-white leading-tight">
             Start building now.
           </h2>
@@ -140,90 +135,9 @@ export function DeveloperCTA() {
             </svg>
           </div>
 
-          {/* Surrounding Floating Nodes / Infrastructure Chips */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* Node 1: OpenAPI */}
-            <div className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-3.5 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-0.5">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="flex items-center gap-1.5 text-cyan-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  REST & OpenAPI
-                </span>
-                <span className="text-slate-500">v3.0.3</span>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 font-sans">
-                Automatic schemas &amp; typegen
-              </p>
-            </div>
-
-            {/* Node 2: Vector Search / RAG */}
-            <div className="rounded-xl border border-indigo-500/20 bg-slate-900/70 p-3.5 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-0.5">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="flex items-center gap-1.5 text-indigo-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                  RAG Pipeline
-                </span>
-                <span className="text-slate-500">1536 dims</span>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 font-sans">
-                Semantic retrieval &amp; embeddings
-              </p>
-            </div>
-
-            {/* Node 3: Edge CDN */}
-            <div className="rounded-xl border border-emerald-500/20 bg-slate-900/70 p-3.5 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-0.5">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="flex items-center gap-1.5 text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Edge CDN
-                </span>
-                <span className="text-slate-500">14ms latency</span>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 font-sans">
-                Global multi-region edge cache
-              </p>
-            </div>
-
-            {/* Node 4: Content Studio */}
-            <div className="rounded-xl border border-amber-500/20 bg-slate-900/70 p-3.5 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-0.5">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="flex items-center gap-1.5 text-amber-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  Content Studio
-                </span>
-                <span className="text-slate-500">Live Sync</span>
-              </div>
-              <p className="mt-1 text-xs text-slate-300 font-sans">
-                Markdown editor &amp; asset pipeline
-              </p>
-            </div>
-          </div>
-
           {/* The Stylized Terminal Window */}
           <div className="relative mx-auto max-w-4xl shadow-2xl">
             <TerminalDemo />
-          </div>
-
-          {/* Infrastructure Metrics Footer Ribbon */}
-          <div className="mt-8 mx-auto max-w-4xl rounded-xl border border-slate-800 bg-slate-950/60 p-4 backdrop-blur-md">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center divide-y sm:divide-y-0 sm:divide-x divide-slate-800 font-mono text-xs">
-              <div className="pt-2 sm:pt-0">
-                <p className="text-slate-500 uppercase tracking-wider text-[10px]">Uptime SLA</p>
-                <p className="mt-1 font-bold text-white">99.99%</p>
-              </div>
-              <div className="pt-2 sm:pt-0">
-                <p className="text-slate-500 uppercase tracking-wider text-[10px]">P99 Edge Cache</p>
-                <p className="mt-1 font-bold text-cyan-400">&lt; 20ms</p>
-              </div>
-              <div className="pt-2 sm:pt-0">
-                <p className="text-slate-500 uppercase tracking-wider text-[10px]">SDK Support</p>
-                <p className="mt-1 font-bold text-indigo-400">TS, Py, Go, Swift</p>
-              </div>
-              <div className="pt-2 sm:pt-0">
-                <p className="text-slate-500 uppercase tracking-wider text-[10px]">Vector DB</p>
-                <p className="mt-1 font-bold text-emerald-400">Integrated</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
