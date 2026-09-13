@@ -1,0 +1,64 @@
+[project]
+name = "rag"
+version = "0.1.0"
+description = "Retrieval pipeline for the portfolio: indexes an author's work and measures a job description against it."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    # Orchestration. langchain-core alone — the monolithic `langchain` package pulls in a
+    # world of integrations this service does not use, and the pieces here (LCEL, the
+    # splitters, one chat integration) are the whole of the dependency.
+    "langchain-core>=1.6.2",
+    "langchain-anthropic>=1.7.2",
+    "langchain-text-splitters>=1.1.2",
+    # Embeddings, on the CPU, with no key and no torch. See rag.embeddings.
+    "fastembed>=0.8.0",
+    "psycopg[binary,pool]>=3.3.5",
+    "pydantic>=2",
+    "pydantic-settings>=2.15.0",
+    "tenacity>=9.1.4",
+    # Unseals the provider keys the API stored. Must agree with SecretProtector.
+    "cryptography>=46.0.5",
+    "beautifulsoup4>=4.15.0",
+]
+
+[project.scripts]
+# The three things this package is ever asked to do.
+rag-worker = "rag.cli:worker"
+rag-index = "rag.cli:index"
+rag-eval = "rag.cli:evaluate"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# Installed into the environment rather than merely resolved, so `rag.` imports resolve
+# the same way in tests, in the eval harness and in the container.
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rag", "eval"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Anything that wants a database or a provider key is marked, so the default run is the
+# part of the suite that needs neither.
+markers = [
+    "integration: needs a live Postgres (RAG_DATABASE_URL)",
+    "live: spends real money against a provider",
+]
+addopts = "-m 'not integration and not live'"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "eval", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
