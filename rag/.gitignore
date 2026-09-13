@@ -1,0 +1,12 @@
+# The local environment, which holds the encryption key this deployment shares with the API.
+# Committing it would put that key in the history; .env.example is the version to edit.
+.env
+
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# fastembed's model cache, when the worker is run outside its container.
+.cache/
