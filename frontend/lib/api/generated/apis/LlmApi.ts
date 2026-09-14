@@ -25,6 +25,11 @@ import {
     LlmCredentialDtoToJSON,
 } from '../models/LlmCredentialDto';
 import {
+    type LlmProviderDto,
+    LlmProviderDtoFromJSON,
+    LlmProviderDtoToJSON,
+} from '../models/LlmProviderDto';
+import {
     type ProblemDetails,
     ProblemDetailsFromJSON,
     ProblemDetailsToJSON,
@@ -224,6 +229,51 @@ export class LlmApi extends runtime.BaseAPI {
      */
     async llmGetJob(requestParameters: LlmGetJobRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
         const response = await this.llmGetJobRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for llmGetProviders without sending the request
+     */
+    async llmGetProvidersRequestOpts(): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/llm/providers`;
+
+        return {
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async llmGetProvidersRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<LlmProviderDto>>> {
+        const requestOptions = await this.llmGetProvidersRequestOpts();
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(LlmProviderDtoFromJSON));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async llmGetProviders(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<LlmProviderDto>> {
+        const response = await this.llmGetProvidersRaw(initOverrides);
         return await response.value();
     }
 
