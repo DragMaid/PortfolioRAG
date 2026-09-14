@@ -103,7 +103,7 @@ class AnthropicProvider:
         if price:
             return ModelPrice(
                 input_per_mtok=Decimal(price["usd_mtok_input"]),
-                output_per_mtok=Decimal(price["usd_mttok_output"]),
+                output_per_mtok=Decimal(price["usd_mtok_output"]),
             )
 
     def build(

@@ -31,7 +31,7 @@ export interface SaveLlmCredentialDto {
     /**
      * 
      */
-    provider?: LlmProvider;
+    provider: LlmProvider;
     /**
      * 
      */
@@ -48,6 +48,7 @@ export interface SaveLlmCredentialDto {
  * Check if a given object implements the SaveLlmCredentialDto interface.
  */
 export function instanceOfSaveLlmCredentialDto(value: object): value is SaveLlmCredentialDto {
+    if (!('provider' in value) || value['provider'] === undefined) return false;
     if (!('apiKey' in value) || value['apiKey'] === undefined) return false;
     return true;
 }
@@ -62,7 +63,7 @@ export function SaveLlmCredentialDtoFromJSONTyped(json: any, ignoreDiscriminator
     }
     return {
         
-        'provider': json['provider'] == null ? undefined : LlmProviderFromJSON(json['provider']),
+        'provider': LlmProviderFromJSON(json['provider']),
         'apiKey': json['apiKey'],
         'model': json['model'] === undefined ? undefined : json['model'] === null ? null : json['model'],
     };

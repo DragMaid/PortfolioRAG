@@ -48,6 +48,19 @@ public class LlmCredentialService : ILlmCredentialService
             : await DescribeAsync(credential, Array.Empty<string>(), cancellationToken);
     }
 
+    public IReadOnlyList<LlmProviderDto> GetProviders() =>
+        _providers.Supported
+            .Order()
+            .Select(supported => _providers.For(supported))
+            .Select(validator => new LlmProviderDto
+            {
+                Provider = validator.Provider,
+                DisplayName = validator.DisplayName,
+                DefaultModel = validator.DefaultModel,
+                KeyPlaceholder = validator.KeyPlaceholder
+            })
+            .ToList();
+
     public async Task<LlmCredentialDto> SaveAsync(
         SaveLlmCredentialDto dto,
         CancellationToken cancellationToken = default)
@@ -55,13 +68,18 @@ public class LlmCredentialService : ILlmCredentialService
         var authorId = _currentUser.RequireAuthorId();
         var now = _timeProvider.GetUtcNow();
 
+        // NOTE: [Required] catches this at the controller; the check is repeated for callers
+        // that reach the service without model binding
+        if (dto.Provider is not { } chosen)
+            throw new ValidationException("Choose which provider the key belongs to.");
+
         var apiKey = dto.ApiKey.Trim();
-        var provider = _providers.For(dto.Provider);
+        var provider = _providers.For(chosen);
 
         if (!provider.LooksLikeKey(apiKey))
         {
             throw new ValidationException(
-                $"That does not look like a {dto.Provider} API key. Check you pasted the key itself, " +
+                $"That does not look like a {provider.DisplayName} API key. Check you pasted the key itself, " +
                 "and nothing around it.");
         }
 
@@ -89,7 +107,7 @@ public class LlmCredentialService : ILlmCredentialService
             await _rag.AddCredentialAsync(credential, cancellationToken);
         }
 
-        credential.Provider = dto.Provider;
+        credential.Provider = chosen;
         credential.KeyCiphertext = _protector.Protect(apiKey);
         credential.KeyPreview = Preview(apiKey);
         credential.Model = model;

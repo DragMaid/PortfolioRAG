@@ -20,6 +20,8 @@
  */
 export const LlmProvider = {
     Anthropic: 'Anthropic',
+    OpenAi: 'OpenAI',
+    Gemini: 'Gemini',
 } as const;
 export type LlmProvider = typeof LlmProvider[keyof typeof LlmProvider];
 

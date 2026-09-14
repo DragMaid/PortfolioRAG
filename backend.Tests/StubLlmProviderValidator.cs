@@ -15,6 +15,10 @@ public sealed class StubLlmProviderValidator : ILlmProviderValidator
 {
     public LlmProvider Provider { get; set; } = LlmProvider.Anthropic;
 
+    public string DisplayName { get; set; } = "Anthropic";
+
+    public string KeyPlaceholder { get; set; } = "sk-ant-...";
+
     public string DefaultModel { get; set; } = "claude-opus-5";
 
     /// <summary>What the next call answers. Defaults to accepting.</summary>

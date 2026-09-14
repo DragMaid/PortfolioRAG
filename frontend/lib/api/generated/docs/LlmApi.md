@@ -7,6 +7,7 @@ All URIs are relative to *http://localhost:5019*
 | [**llmDeleteCredential**](LlmApi.md#llmdeletecredential) | **DELETE** /api/llm/credential |  |
 | [**llmGetCredential**](LlmApi.md#llmgetcredential) | **GET** /api/llm/credential |  |
 | [**llmGetJob**](LlmApi.md#llmgetjob) | **GET** /api/llm/jobs/{id} |  |
+| [**llmGetProviders**](LlmApi.md#llmgetproviders) | **GET** /api/llm/providers |  |
 | [**llmRebuildIndex**](LlmApi.md#llmrebuildindex) | **POST** /api/llm/index/rebuild |  |
 | [**llmRevalidate**](LlmApi.md#llmrevalidate) | **POST** /api/llm/credential/validate |  |
 | [**llmSaveCredential**](LlmApi.md#llmsavecredential) | **PUT** /api/llm/credential |  |
@@ -216,6 +217,71 @@ example().catch(console.error);
 | **401** |  |  -  |
 | **403** |  |  -  |
 | **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmGetProviders
+
+> Array&lt;LlmProviderDto&gt; llmGetProviders()
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmGetProvidersRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  try {
+    const data = await api.llmGetProviders();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**Array&lt;LlmProviderDto&gt;**](LlmProviderDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

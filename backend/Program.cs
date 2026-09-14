@@ -208,9 +208,22 @@ if (noCheck && !LlmOptions.TryDecodeKey(llmOptions.EncryptionKey, out _))
 
 builder.Services.AddSingleton<ISecretProtector, SecretProtector>();
 
-// LLM validator for each provider
+// LLM validator for each provider. Named, because every one shares ILlmProviderValidator
+// as its client type and the factory refuses a second registration under the same name.
 builder.Services
-    .AddHttpClient<ILlmProviderValidator, AnthropicProviderValidator>(client =>
+    .AddHttpClient<ILlmProviderValidator, AnthropicProviderValidator>(nameof(AnthropicProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, OpenAIProviderValidator>(nameof(OpenAIProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, GeminiProviderValidator>(nameof(GeminiProviderValidator), client =>
     {
         client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
     });

@@ -94,9 +94,36 @@ public class JobFitTests
         harness.CurrentUser.AuthorId = author.Id;
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => harness.LlmCredentials.SaveAsync(new SaveLlmCredentialDto { ApiKey = "hunter2xxxxx" }));
+            () => harness.LlmCredentials.SaveAsync(new SaveLlmCredentialDto { Provider = LlmProvider.Anthropic, ApiKey = "hunter2xxxxx" }));
 
         Assert.Empty(harness.Provider.Validated);
+    }
+
+    [Fact]
+    public async Task RefusesAKeyWithNoProviderChosenWithoutAskingAnyProvider()
+    {
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => harness.LlmCredentials.SaveAsync(new SaveLlmCredentialDto { ApiKey = Key }));
+
+        Assert.Empty(harness.Provider.Validated);
+        Assert.Empty(await harness.Context.LlmCredentials.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ListsTheRegisteredProvidersWithTheirDefaults()
+    {
+        await using var harness = await TestHarness.CreateAsync();
+
+        var provider = Assert.Single(harness.LlmCredentials.GetProviders());
+
+        Assert.Equal(LlmProvider.Anthropic, provider.Provider);
+        Assert.Equal("Anthropic", provider.DisplayName);
+        Assert.Equal("claude-opus-5", provider.DefaultModel);
+        Assert.Equal("sk-ant-...", provider.KeyPlaceholder);
     }
 
     [Fact]
@@ -113,7 +140,7 @@ public class JobFitTests
         harness.Provider.GoOffline();
 
         await Assert.ThrowsAsync<NotConfiguredException>(
-            () => harness.LlmCredentials.SaveAsync(new SaveLlmCredentialDto { ApiKey = Key + "-new" }));
+            () => harness.LlmCredentials.SaveAsync(new SaveLlmCredentialDto { Provider = LlmProvider.Anthropic, ApiKey = Key + "-new" }));
 
         var stored = await harness.Context.LlmCredentials.AsNoTracking().SingleAsync();
 

@@ -11,6 +11,8 @@ from functools import lru_cache
 
 from .anthropic import AnthropicProvider
 from .base import ChatProvider
+from .gemini import GeminiProvider
+from .openai import OpenAIProvider
 
 
 class UnknownProviderError(LookupError):
@@ -19,7 +21,7 @@ class UnknownProviderError(LookupError):
 
 @lru_cache(maxsize=1)
 def _registry() -> dict[str, ChatProvider]:
-    providers: list[ChatProvider] = [AnthropicProvider()]
+    providers: list[ChatProvider] = [AnthropicProvider(), OpenAIProvider(), GeminiProvider()]
     return {provider.name: provider for provider in providers}
 
 

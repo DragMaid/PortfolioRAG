@@ -44,6 +44,7 @@ docs/JobFitVerdict.md
 docs/LlmApi.md
 docs/LlmCredentialDto.md
 docs/LlmProvider.md
+docs/LlmProviderDto.md
 docs/LoginDto.md
 docs/MediaApi.md
 docs/MediaDto.md
@@ -102,6 +103,7 @@ models/JobFitRequestDto.ts
 models/JobFitVerdict.ts
 models/LlmCredentialDto.ts
 models/LlmProvider.ts
+models/LlmProviderDto.ts
 models/LoginDto.ts
 models/MediaDto.ts
 models/MediaExtension.ts

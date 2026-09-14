@@ -38,6 +38,10 @@ public class AnthropicProviderValidator : ILlmProviderValidator
 
     public LlmProvider Provider => LlmProvider.Anthropic;
 
+    public string DisplayName => "Anthropic";
+
+    public string KeyPlaceholder => "sk-ant-...";
+
     public string DefaultModel => _options.DefaultModel;
 
     // NOTE: shape only. Anthropic keys are "sk-ant-" followed by an opaque tail, and the

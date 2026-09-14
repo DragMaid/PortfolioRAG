@@ -25,6 +25,7 @@ export * from './JobFitRequestDto';
 export * from './JobFitVerdict';
 export * from './LlmCredentialDto';
 export * from './LlmProvider';
+export * from './LlmProviderDto';
 export * from './LoginDto';
 export * from './MediaDto';
 export * from './MediaExtension';
