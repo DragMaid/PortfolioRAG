@@ -3,21 +3,24 @@
 from __future__ import annotations
 
 from rag.citations import quote_is_supported, verify
+from rag.corpus import SourceType
 from rag.retrieval import Passage
-from rag.schemas import EvidenceRef, RequirementFinding
+from rag.schemas import EvidenceRef, RequirementFinding, RequirementStatus
 
 
 def passage(document_id: int, content: str, label: str = "Vector Core") -> Passage:
     return Passage(
         document_id=document_id,
-        source_type=2,
+        source_type=SourceType.POST,
         source_label=label,
         chunk_index=0,
         content=content,
     )
 
 
-def finding(status: str, evidence: list[EvidenceRef], requirement: str = "Rust in production"):
+def finding(
+    status: RequirementStatus, evidence: list[EvidenceRef], requirement: str = "Rust in production"
+):
     return RequirementFinding(
         requirement=requirement,
         status=status,

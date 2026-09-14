@@ -21,6 +21,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from rag.corpus import SourceType
+
 # ---------------------------------------------------------------------------
 # Model-facing
 # ---------------------------------------------------------------------------
@@ -160,7 +162,7 @@ class VerifiedEvidence:
     """A citation that resolved to a real passage and a quote that is really in it."""
 
     document_id: int
-    source_type: int
+    source_type: SourceType
     source_label: str
     quote: str
 
@@ -181,7 +183,11 @@ class VerifiedFinding:
 # Wire
 # ---------------------------------------------------------------------------
 
-_SOURCE_NAMES = {0: "profile", 1: "experience", 2: "post"}
+_SOURCE_NAMES = {
+    SourceType.PROFILE: "profile",
+    SourceType.EXPERIENCE: "experience",
+    SourceType.POST: "post"
+}
 
 
 def build_report(

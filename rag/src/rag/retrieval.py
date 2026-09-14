@@ -16,6 +16,8 @@ from typing import Any
 
 from psycopg import Connection
 
+from rag.corpus import SourceType
+
 from .db import fetch_all
 from .embeddings import Embedder
 
@@ -27,7 +29,7 @@ class Passage:
     """One retrieved chunk, with how it was found."""
 
     document_id: int
-    source_type: int
+    source_type: SourceType
     source_label: str
     chunk_index: int
     content: str

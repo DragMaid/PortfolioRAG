@@ -9,14 +9,14 @@ from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
 )
 
-from .corpus import SourceDocument
+from .corpus import SourceDocument, SourceType
 
 
 @dataclass(slots=True)
 class Chunk:
     """One retrievable passage."""
 
-    source_type: int
+    source_type: SourceType
     source_id: int
     source_label: str
     chunk_index: int
@@ -28,7 +28,7 @@ class Chunk:
         return sha256(self.content.encode("utf-8")).hexdigest()
 
     @property
-    def key(self) -> tuple[int, int, int]:
+    def key(self) -> tuple[SourceType, int, int]:
         return (self.source_type, self.source_id, self.chunk_index)
 
 
