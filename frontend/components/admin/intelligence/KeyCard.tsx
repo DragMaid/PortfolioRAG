@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LlmCredentialDto } from "@/lib/api/generated";
+import type { LlmCredentialDto, LlmProvider, LlmProviderDto } from "@/lib/api/generated";
 import type { Busy } from "@/lib/admin/useIntelligence";
 import { formatRelative } from "@/lib/admin/useApiTokens";
 import { Button } from "../ui/Button";
@@ -17,23 +17,37 @@ import { Panel, PanelHeader } from "../ui/Panel";
  */
 export function KeyCard({
   credential,
+  providers,
   busy,
   onSave,
   onRevalidate,
   onRemove,
 }: {
   credential: LlmCredentialDto | null;
+  providers: LlmProviderDto[];
   busy: Busy;
-  onSave: (apiKey: string, model?: string) => Promise<boolean>;
+  onSave: (provider: LlmProvider, apiKey: string, model?: string) => Promise<boolean>;
   onRevalidate: () => void;
   onRemove: () => void;
 }) {
   const [apiKey, setApiKey] = useState("");
+  // Null until the author picks one, unless there is only one to pick or a key is being
+  // replaced, where the stored provider is the likely answer. Never silently Anthropic.
+  const [chosen, setChosen] = useState<LlmProvider | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const locked = busy !== null;
   const showForm = credential === null || replacing;
+
+  const provider =
+    chosen ??
+    credential?.provider ??
+    (providers.length === 1 ? (providers[0].provider ?? null) : null);
+  const selected = providers.find((option) => option.provider === provider);
+
+  const providerName = (value: LlmProvider | undefined) =>
+    providers.find((option) => option.provider === value)?.displayName ?? value ?? "";
 
   return (
     <Panel className="flex flex-col gap-4 p-5 sm:p-6">
@@ -48,7 +62,7 @@ export function KeyCard({
         <dl className="grid gap-x-6 gap-y-2 rounded border border-warm-border bg-warm-sunken p-4 sm:grid-cols-2">
           <Detail label="Key" value={credential.keyPreview ?? ""} mono />
           <Detail label="Model" value={credential.model ?? ""} mono />
-          <Detail label="Provider" value={credential.provider ?? ""} />
+          <Detail label="Provider" value={providerName(credential.provider)} />
           <Detail
             label="Last checked"
             value={
@@ -71,12 +85,44 @@ export function KeyCard({
           className="flex flex-col gap-3"
           onSubmit={async (event) => {
             event.preventDefault();
-            if (await onSave(apiKey)) {
+            if (provider === null) return;
+            if (await onSave(provider, apiKey)) {
               setApiKey("");
+              setChosen(null);
               setReplacing(false);
             }
           }}
         >
+          <Field
+            label="Provider"
+            htmlFor="llm-provider"
+            hint={
+              selected
+                ? `New keys use ${selected.defaultModel} until you choose another model.`
+                : "The vendor the key was issued by. It is checked with them, so the wrong one is refused."
+            }
+          >
+            <select
+              id="llm-provider"
+              value={provider ?? ""}
+              onChange={(event) => setChosen(event.target.value as LlmProvider)}
+              disabled={locked || providers.length === 0}
+              required
+              className="rounded border border-warm-border bg-warm-sunken px-3 py-2 text-[13px] text-warm-black focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60"
+            >
+              {provider === null ? (
+                <option value="" disabled>
+                  Choose a provider
+                </option>
+              ) : null}
+              {providers.map((option) => (
+                <option key={option.provider} value={option.provider}>
+                  {option.displayName}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <Field
             label={credential ? "Replace the key" : "API key"}
             htmlFor="llm-key"
@@ -92,7 +138,7 @@ export function KeyCard({
               spellCheck={false}
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              placeholder="sk-ant-..."
+              placeholder={selected?.keyPlaceholder ?? "Choose a provider first"}
               disabled={locked}
               className="font-mono text-[13px]"
             />
@@ -104,7 +150,7 @@ export function KeyCard({
               variant="primary"
               icon="check-circle"
               busy={busy === "saving"}
-              disabled={locked || apiKey.trim().length === 0}
+              disabled={locked || provider === null || apiKey.trim().length === 0}
             >
               Check and store
             </Button>
@@ -116,6 +162,7 @@ export function KeyCard({
                 onClick={() => {
                   setReplacing(false);
                   setApiKey("");
+                  setChosen(null);
                 }}
                 disabled={locked}
               >
