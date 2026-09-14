@@ -20,6 +20,8 @@ dependencies = [
     # Unseals the provider keys the API stored. Must agree with SecretProtector.
     "cryptography>=46.0.5",
     "beautifulsoup4>=4.15.0",
+    "langchain-openai>=1.6.2",
+    "langchain-google-genai>=4.4.0",
 ]
 
 [project.scripts]
