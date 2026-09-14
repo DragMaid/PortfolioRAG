@@ -15,9 +15,11 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Generator
 from datetime import UTC, datetime
 
 import pytest
+from psycopg.rows import DictRow
 
 from rag import queue
 from rag.db import close_pool, execute, fetch_one, get_pool
@@ -40,7 +42,7 @@ def conn(settings: Settings):
 
 
 @pytest.fixture
-def author(conn) -> int:
+def author(conn) -> Generator[int]:
     """A throwaway account. Cascades take everything hung off it on the way out."""
     suffix = uuid.uuid4().hex[:8]
 
@@ -54,12 +56,15 @@ def author(conn) -> int:
         (f"queue-{suffix}@localhost.invalid", f"queue-{suffix}"),
     )
 
+    assert row is not None
     yield row["Id"]
 
     execute(conn, 'DELETE FROM "Authors" WHERE "Id" = %s', (row["Id"],))
 
 
-def enqueue(conn, author_id: int, kind: int = queue.KIND_INDEX, **columns) -> uuid.UUID:
+def enqueue(
+    conn, author_id: int, kind: queue.JobKind = queue.JobKind.INDEX, **columns
+) -> uuid.UUID:
     job_id = uuid.uuid4()
 
     execute(
@@ -74,7 +79,7 @@ def enqueue(conn, author_id: int, kind: int = queue.KIND_INDEX, **columns) -> uu
             job_id,
             author_id,
             kind,
-            columns.get("status", queue.STATUS_QUEUED),
+            columns.get("status", queue.Status.QUEUED),
             json.dumps(columns.get("payload", {"force": True})),
             columns.get("max_attempts", 3),
         ),
@@ -83,7 +88,7 @@ def enqueue(conn, author_id: int, kind: int = queue.KIND_INDEX, **columns) -> uu
     return job_id
 
 
-def status_of(conn, job_id: uuid.UUID) -> dict:
+def status_of(conn, job_id: uuid.UUID) -> DictRow | None:
     return fetch_one(conn, 'SELECT * FROM "RagJobs" WHERE "Id" = %s', (job_id,))
 
 
@@ -102,7 +107,8 @@ def test_claiming_marks_the_row_running_and_counts_the_attempt(conn, settings, a
     assert job.attempts == 1
 
     row = status_of(conn, job_id)
-    assert row["Status"] == queue.STATUS_RUNNING
+    assert row is not None
+    assert row["Status"] == queue.Status.RUNNING.value
     assert row["LockedBy"] == "test-worker"
     assert row["StartedAt"] is not None
 
@@ -173,6 +179,7 @@ def test_success_records_the_answer_and_the_spend(conn, settings, author):
     enqueue(conn, author)
     job = queue.claim(conn, settings)
 
+    assert job is not None
     queue.succeed(
         conn,
         job,
@@ -181,8 +188,9 @@ def test_success_records_the_answer_and_the_spend(conn, settings, author):
     )
 
     row = status_of(conn, job.id)
+    assert row is not None
 
-    assert row["Status"] == queue.STATUS_SUCCEEDED
+    assert row["Status"] == queue.Status.SUCCEEDED
     assert row["ResultJson"] == {"document_count": 12}
     assert row["InputTokens"] == 1000
     assert float(row["CostUsd"]) == pytest.approx(0.01)
@@ -193,22 +201,26 @@ def test_failure_schedules_a_retry_until_the_attempts_run_out(conn, settings, au
     job_id = enqueue(conn, author, max_attempts=2)
 
     first = queue.claim(conn, settings)
+    assert first is not None
     queue.fail(conn, first, "provider timed out")
 
     row = status_of(conn, job_id)
-    assert row["Status"] == queue.STATUS_QUEUED
+    assert row is not None
+    assert row["Status"] == queue.Status.QUEUED
     assert row["AvailableAt"] > datetime.now(UTC)
     assert row["CompletedAt"] is None
 
     execute(conn, 'UPDATE "RagJobs" SET "AvailableAt" = now() WHERE "Id" = %s', (job_id,))
 
     second = queue.claim(conn, settings)
+    assert second is not None
     assert second.is_final_attempt
 
     queue.fail(conn, second, "provider timed out again")
 
     row = status_of(conn, job_id)
-    assert row["Status"] == queue.STATUS_FAILED
+    assert row is not None
+    assert row["Status"] == queue.Status.FAILED
     assert row["CompletedAt"] is not None
 
 
@@ -218,12 +230,14 @@ def test_a_failure_still_records_what_was_spent(conn, settings, author):
 
     job_id = enqueue(conn, author, max_attempts=1)
     job = queue.claim(conn, settings)
+    assert job is not None
 
     queue.fail(conn, job, "the assess step failed", queue.Usage(5000, 900, Decimal("0.05")))
 
     row = status_of(conn, job_id)
+    assert row is not None
 
-    assert row["Status"] == queue.STATUS_FAILED
+    assert row["Status"] == queue.Status.FAILED
     assert row["InputTokens"] == 5000
     assert float(row["CostUsd"]) == pytest.approx(0.05)
 
@@ -233,9 +247,14 @@ def test_a_long_error_is_truncated_rather_than_losing_the_failure(conn, settings
     job_id = enqueue(conn, author, max_attempts=1)
     job = queue.claim(conn, settings)
 
+    assert job is not None
+
     queue.fail(conn, job, "x" * 9000)
 
-    assert len(status_of(conn, job_id)["Error"]) == 2000
+    status = status_of(conn, job_id)
+    assert status is not None
+    error = status["Error"]
+    assert len(error) == 2000
 
 
 def test_the_enum_integers_match_what_the_api_stores(conn, settings, author):
@@ -244,21 +263,28 @@ def test_the_enum_integers_match_what_the_api_stores(conn, settings, author):
     These constants are copied from the API's enums. If either side renumbers, jobs stop
     being found rather than anything failing loudly — so the agreement is asserted here.
     """
-    fit_id = enqueue(conn, author, kind=queue.KIND_JOB_FIT)
+    fit_id = enqueue(conn, author, kind=queue.JobKind.JOB_FIT)
 
     row = status_of(conn, fit_id)
+    assert row is not None
 
-    assert row["Kind"] == queue.KIND_JOB_FIT == 1
-    assert row["Status"] == queue.STATUS_QUEUED == 0
+    assert row["Kind"] == queue.JobKind.JOB_FIT == 1
+    assert row["Status"] == queue.Status.QUEUED == 0
 
     job = queue.claim(conn, settings)
-    assert status_of(conn, job.id)["Status"] == queue.STATUS_RUNNING == 1
+    assert job is not None
+    status = status_of(conn, job.id)
+    assert status is not None
+    assert status["Status"] == queue.Status.RUNNING == 1
 
     queue.succeed(conn, job, {}, queue.Usage())
-    assert status_of(conn, job.id)["Status"] == queue.STATUS_SUCCEEDED == 2
+    status = status_of(conn, job.id)
+    assert status is not None
+    assert status["Status"] == queue.Status.SUCCEEDED == 2
 
 
-def test_notify_wakes_a_listener(conn, settings, author):
+@pytest.mark.usefixtures("author")
+def test_notify_wakes_a_listener(conn, settings):
     """The optimisation over polling. A lost notification costs latency, not a job."""
     import psycopg
 
@@ -275,7 +301,8 @@ def test_notify_wakes_a_listener(conn, settings, author):
         listener.close()
 
 
-def test_waiting_times_out_when_nothing_arrives(conn, settings, author):
+@pytest.mark.usefixtures("conn", "author")
+def test_waiting_times_out_when_nothing_arrives(settings):
     import psycopg
 
     listener = psycopg.connect(settings.database_url, autocommit=True)

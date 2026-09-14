@@ -123,7 +123,7 @@ class Worker:
             "Claimed a job.",
             extra={
                 "job_id": str(job.id),
-                "kind": "index" if job.kind == queue.JobKind.KIND_INDEX else "job_fit",
+                "kind": "index" if job.kind == queue.JobKind.INDEX else "job_fit",
                 "author_id": job.author_id,
                 "attempt": job.attempts,
             },
@@ -137,10 +137,10 @@ class Worker:
         # means a second bill.
         try:
             with pool.connection() as conn:
-                if job.kind == queue.JobKind.KIND_INDEX:
+                if job.kind == queue.JobKind.INDEX:
                     result, usage = self._run_index(conn, job)
 
-                elif job.kind == queue.JobKind.KIND_JOB_FIT:
+                elif job.kind == queue.JobKind.JOB_FIT:
                     result, usage = self._run_job_fit(conn, job)
 
                 else:

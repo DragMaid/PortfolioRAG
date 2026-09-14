@@ -196,7 +196,7 @@ def _upsert(
             [
                 (
                     author_id,
-                    chunk.source_type,
+                    chunk.source_type.value,
                     chunk.source_id,
                     chunk.source_label[:300],
                     chunk.chunk_index,

@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from enum import Enum
+from enum import IntEnum
 from typing import Any
 from uuid import UUID
 
@@ -22,17 +22,17 @@ logger = logging.getLogger(__name__)
 CHANNEL = "rag_jobs"
 
 
-class Status(Enum):
-    STATUS_QUEUED = 0
-    STATUS_RUNNING = 1
-    STATUS_SUCCEEDED = 2
-    STATUS_FAILED = 3
-    STATUS_CANCELLED = 4
+class Status(IntEnum):
+    QUEUED = 0
+    RUNNING = 1
+    SUCCEEDED = 2
+    FAILED = 3
+    CANCELLED = 4
 
 
-class JobKind(Enum):
-    KIND_INDEX = 0
-    KIND_JOB_FIT = 1
+class JobKind(IntEnum):
+    INDEX = 0
+    JOB_FIT = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +41,7 @@ class Job:
 
     id: UUID
     author_id: int
-    kind: int
+    kind: JobKind
     payload: dict[str, Any]
     attempts: int
     max_attempts: int
@@ -96,8 +96,8 @@ def claim(conn: Connection, settings: Settings) -> Job | None:
         conn,
         CLAIM_SQL,
         {
-            "queued": Status.STATUS_QUEUED,
-            "running": Status.STATUS_RUNNING,
+            "queued": Status.QUEUED,
+            "running": Status.RUNNING,
             "lease": settings.lease_seconds,
             "worker": settings.worker_id,
         },
@@ -112,7 +112,7 @@ def claim(conn: Connection, settings: Settings) -> Job | None:
     return Job(
         id=row["Id"],
         author_id=row["AuthorId"],
-        kind=row["Kind"],
+        kind=JobKind(row["Kind"]),
         payload=payload if isinstance(payload, dict) else json.loads(payload or "{}"),
         attempts=row["Attempts"],
         max_attempts=row["MaxAttempts"],
@@ -142,7 +142,7 @@ def succeed(
         WHERE "Id" = %(id)s
         """,
         {
-            "status": Status.STATUS_SUCCEEDED,
+            "status": Status.SUCCEEDED,
             "result": json.dumps(result) if result is not None else None,
             "input_tokens": usage.input_tokens,
             "output_tokens": usage.output_tokens,
@@ -185,7 +185,7 @@ def fail(conn: Connection, job: Job, error: str, usage: Usage | None = None) -> 
         WHERE "Id" = %(id)s
         """,
         {
-            "status": Status.STATUS_QUEUED if retry else Status.STATUS_FAILED,
+            "status": Status.QUEUED if retry else Status.FAILED,
             "error": error[:2000],  # Truncated so it fits
             "retry": retry,
             "backoff": backoff,

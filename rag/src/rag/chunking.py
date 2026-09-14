@@ -28,8 +28,8 @@ class Chunk:
         return sha256(self.content.encode("utf-8")).hexdigest()
 
     @property
-    def key(self) -> tuple[SourceType, int, int]:
-        return (self.source_type, self.source_id, self.chunk_index)
+    def key(self) -> tuple[int, int, int]:
+        return (self.source_type.value, self.source_id, self.chunk_index)
 
 
 class Chunker:
