@@ -16,6 +16,9 @@ public interface ILlmCredentialService
     /// </summary>
     Task<LlmCredentialDto?> GetAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>The providers a key can be saved for, in the order the studio offers them.</summary>
+    IReadOnlyList<LlmProviderDto> GetProviders();
+
     /// <summary>
     /// Checks a key with the provider and stores it if it works, replacing whatever was
     /// there. A key the provider rejects is not stored at all.

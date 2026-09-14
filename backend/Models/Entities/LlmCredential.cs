@@ -2,7 +2,9 @@ namespace Backend.Models.Entities;
 
 public enum LlmProvider
 {
-    Anthropic = 0
+    Anthropic = 0,
+    OpenAI = 1,
+    Gemini = 2
 }
 
 /// <summary>

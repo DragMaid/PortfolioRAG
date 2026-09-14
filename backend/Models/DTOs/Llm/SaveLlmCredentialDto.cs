@@ -9,7 +9,13 @@ namespace Backend.Models.DTOs.Llm;
 /// </summary>
 public class SaveLlmCredentialDto
 {
-    public LlmProvider Provider { get; init; } = LlmProvider.Anthropic;
+    /// <summary>
+    /// Which vendor the key belongs to. Required rather than defaulted: a key checked
+    /// against the wrong vendor fails with a misleading "rejected", so the author says which
+    /// one it is. <c>GET /api/llm/providers</c> lists the choices.
+    /// </summary>
+    [Required]
+    public LlmProvider? Provider { get; init; }
 
     /// <summary>
     /// The raw provider key. The only request in this API that carries one, and the only

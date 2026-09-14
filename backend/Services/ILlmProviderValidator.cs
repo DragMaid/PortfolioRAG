@@ -45,6 +45,15 @@ public interface ILlmProviderValidator
 {
     LlmProvider Provider { get; }
 
+    /// <summary>The vendor's name as the studio shows it — "OpenAI", not "openai".</summary>
+    string DisplayName { get; }
+
+    /// <summary>
+    /// What this provider's keys start with, for the key field's placeholder, so an author
+    /// can tell at a glance they are pasting the right vendor's key.
+    /// </summary>
+    string KeyPlaceholder { get; }
+
     /// <summary>
     /// The model a key of this provider's gets when the author has not chosen one.
     /// </summary>
