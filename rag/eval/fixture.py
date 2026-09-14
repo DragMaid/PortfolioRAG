@@ -20,7 +20,9 @@ from psycopg.rows import dict_row
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from rag.credentials import PROVIDER_NAMES
 from rag.crypto import decode_encryption_key
+from rag.providers import get_provider
 from rag.settings import get_settings
 
 FIXTURE_PATH = Path(__file__).parent / "datasets" / "portfolio.json"
@@ -30,9 +32,8 @@ FIXTURE_PATH = Path(__file__).parent / "datasets" / "portfolio.json"
 FIXTURE_EMAIL = "eval-fixture@localhost.invalid"
 FIXTURE_HANDLE = "eval-fixture"
 
-# TODO: change this one instead
-# Mirrors Backend.Models.Entities.LlmProvider, which is stored as an int.
-_PROVIDER_IDS = {"anthropic": 0}
+# Name to stored int, inverted from the one mapping the worker reads credentials with.
+_PROVIDER_IDS = {name: provider_id for provider_id, name in PROVIDER_NAMES.items()}
 
 
 class EvalCredentialSettings(BaseSettings):
@@ -153,8 +154,7 @@ def seed_credential(conn: Connection, author_id: int) -> bool:
     if eval_settings.api_key is None or not eval_settings.api_key.get_secret_value():
         return False
 
-    # TODO: fix this one instead
-    provider = _PROVIDER_IDS.get(eval_settings.provider)
+    provider = _PROVIDER_IDS.get(eval_settings.provider.strip().lower())
 
     if provider is None:
         raise ValueError(
@@ -180,7 +180,7 @@ def seed_credential(conn: Connection, author_id: int) -> bool:
                 provider,
                 _seal(api_key, encryption_key),
                 _preview(api_key),
-                eval_settings.model or settings.default_model,
+                eval_settings.model or get_provider(eval_settings.provider).default_model,
             ),
         )
 
