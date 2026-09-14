@@ -57,7 +57,10 @@ def extract_pricing(html: str) -> dict[str, dict]:
 
     model_to_price = {}
 
-    for tr in table.find("tbody").find_all("tr"):
+    table = table.find("tbody")
+    assert table is not None
+
+    for tr in table.find_all("tr"):
         cells = tr.find_all("td")
 
         if len(cells) != len(headers):
