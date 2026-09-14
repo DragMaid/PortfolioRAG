@@ -55,6 +55,7 @@ export function IntelligencePanel() {
 
       <KeyCard
         credential={credential}
+        providers={intelligence.providers}
         busy={intelligence.busy}
         onSave={intelligence.saveKey}
         onRevalidate={() => void intelligence.revalidate()}

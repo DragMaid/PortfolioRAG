@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  LlmProvider,
   RagJobKind,
   RagJobStatus,
   type LlmCredentialDto,
+  type LlmProvider,
+  type LlmProviderDto,
   type RagJobDto,
 } from "@/lib/api/generated";
 import { isPending, pollDelayMs } from "@/lib/jobfit/report";
@@ -39,6 +40,9 @@ export function useIntelligence() {
   const authorId = session?.authorId ?? null;
 
   const [credential, setCredential] = useState<LlmCredentialDto | null>(null);
+  // What this deployment can accept a key for, as the API lists it — the picker offers
+  // exactly these rather than assuming a vendor.
+  const [providers, setProviders] = useState<LlmProviderDto[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = useState<Busy>(null);
   const [draft, setDraft] = useState<ExposureDraft | null>(null);
@@ -72,9 +76,13 @@ export function useIntelligence() {
     try {
       // 204 when no key has been added, which the generated client surfaces as null or
       // undefined. That is the normal state of a new account, not an error.
-      const loaded = await llmApi.llmGetCredential();
+      const [loaded, supported] = await Promise.all([
+        llmApi.llmGetCredential(),
+        llmApi.llmGetProviders(),
+      ]);
       if (marker !== requestToken.current) return;
 
+      setProviders(supported);
       adopt(loaded ?? null);
       setState("ready");
     } catch (error) {
@@ -95,7 +103,7 @@ export function useIntelligence() {
   /* ---------------------------------------------------------------------- */
 
   const saveKey = useCallback(
-    async (apiKey: string, model?: string): Promise<boolean> => {
+    async (provider: LlmProvider, apiKey: string, model?: string): Promise<boolean> => {
       const trimmed = apiKey.trim();
       if (!trimmed) return false;
 
@@ -104,7 +112,7 @@ export function useIntelligence() {
       try {
         const saved = await llmApi.llmSaveCredential({
           saveLlmCredentialDto: {
-            provider: LlmProvider.Anthropic,
+            provider,
             apiKey: trimmed,
             model: model?.trim() || undefined,
           },
@@ -286,6 +294,7 @@ export function useIntelligence() {
     state,
     busy,
     credential,
+    providers,
     draft,
     isDirty,
     update,
