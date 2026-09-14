@@ -10,7 +10,7 @@ from .crypto import SecretUnsealError, unseal
 from .db import fetch_one
 
 # Mirrors Backend.Models.Entities.LlmProvider, which is stored as an int.
-_PROVIDER_NAMES = {0: "anthropic"}
+PROVIDER_NAMES = {0: "anthropic", 1: "openai", 2: "gemini"}
 
 
 class MissingCredentialError(RuntimeError):
@@ -47,7 +47,7 @@ def load(conn: Connection, author_id: int, encryption_key: bytes) -> Credential:
             "The account's provider key has not been confirmed with the provider."
         )
 
-    provider = _PROVIDER_NAMES.get(row["Provider"])
+    provider = PROVIDER_NAMES.get(row["Provider"])
 
     if provider is None:
         raise MissingCredentialError(
