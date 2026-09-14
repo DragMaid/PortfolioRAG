@@ -6,6 +6,7 @@ why keeping them pure was worth doing.
 
 from __future__ import annotations
 
+from rag.corpus import SourceType
 from rag.retrieval import (
     Passage,
     maximal_marginal_relevance,
@@ -16,7 +17,7 @@ from rag.retrieval import (
 def passage(document_id: int, label: str = "Post", embedding: list[float] | None = None) -> Passage:
     return Passage(
         document_id=document_id,
-        source_type=2,
+        source_type=SourceType.POST,
         source_label=label,
         chunk_index=0,
         content=f"content {document_id}",
@@ -63,7 +64,7 @@ def test_the_constant_flattens_the_top_of_each_list():
 def test_mmr_returns_everything_when_under_the_limit():
     passages = [passage(1), passage(2)]
 
-    assert maximal_marginal_relevance(passages, [1.0, 0.0], limit=5) == passages
+    assert maximal_marginal_relevance(passages, limit=5) == passages
 
 
 def test_mmr_prefers_variety_over_a_fourth_near_duplicate():
@@ -78,9 +79,7 @@ def test_mmr_prefers_variety_over_a_fourth_near_duplicate():
     different = passage(9, label="Ledger Replay", embedding=[0.0, 1.0])
     different.score = 0.5
 
-    chosen = maximal_marginal_relevance(
-        [*duplicates, different], [1.0, 0.0], limit=2, diversity_lambda=0.5
-    )
+    chosen = maximal_marginal_relevance([*duplicates, different], limit=2, diversity_lambda=0.5)
 
     assert {item.document_id for item in chosen} == {1, 9}
 
@@ -94,6 +93,6 @@ def test_lambda_one_is_plain_ranking():
         item.score = document_id / 10
         items.append(item)
 
-    chosen = maximal_marginal_relevance(items, [1.0, 0.0], limit=2, diversity_lambda=1.0)
+    chosen = maximal_marginal_relevance(items, limit=2, diversity_lambda=1.0)
 
     assert [item.document_id for item in chosen] == [4, 3]

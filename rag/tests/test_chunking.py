@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from rag.chunking import Chunker
-from rag.corpus import SOURCE_POST, SourceDocument
+from rag.corpus import SourceDocument, SourceType
 
 
 def document(text: str, label: str = "Vector Core") -> SourceDocument:
-    return SourceDocument(source_type=SOURCE_POST, source_id=7, label=label, text=text)
+    return SourceDocument(source_type=SourceType.POST, source_id=7, label=label, text=text)
 
 
 def test_short_document_survives_as_one_passage():

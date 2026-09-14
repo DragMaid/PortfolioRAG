@@ -14,28 +14,24 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from datetime import date
+from enum import Enum
 from typing import Any
 
 from psycopg import Connection
 
 from .db import fetch_all, fetch_one
 
-SOURCE_PROFILE = 0
-SOURCE_EXPERIENCE = 1
-SOURCE_POST = 2
 
-SOURCE_NAMES = {
-    SOURCE_PROFILE: "profile",
-    SOURCE_EXPERIENCE: "experience",
-    SOURCE_POST: "post"
-}
-
+class SourceType(Enum):
+    PROFILE = 0
+    EXPERIENCE = 1
+    POST = 2
 
 @dataclass(slots=True)
 class SourceDocument:
     """One thing worth indexing, before it is cut into passages."""
 
-    source_type: int
+    source_type: SourceType
     source_id: int
     label: str
     text: str
@@ -105,7 +101,7 @@ def _load_profile(conn: Connection, author_id: int) -> SourceDocument | None:
 
     # NOTE: source id is Zero because an author has exactly one profile
     return SourceDocument(
-        source_type=SOURCE_PROFILE,
+        source_type=SourceType.PROFILE,
         source_id=0,
         label=f"{row['Name']} — profile",
         text=text,
@@ -146,7 +142,7 @@ def _load_experiences(conn: Connection, author_id: int) -> list[SourceDocument]:
 
         documents.append(
             SourceDocument(
-                source_type=SOURCE_EXPERIENCE,
+                source_type=SourceType.EXPERIENCE,
                 source_id=row["Id"],
                 label=label,
                 text="\n".join(lines),
@@ -204,7 +200,7 @@ def _load_posts(conn: Connection, author_id: int) -> list[SourceDocument]:
 
         documents.append(
             SourceDocument(
-                source_type=SOURCE_POST,
+                source_type=SourceType.POST,
                 source_id=row["Id"],
                 label=row["Title"],
                 text="\n".join(lines).strip(),
