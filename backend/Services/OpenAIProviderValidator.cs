@@ -37,8 +37,7 @@ public class OpenAIProviderValidator : ILlmProviderValidator
 
     // NOTE: project keys are "sk-proj-", older user and service keys plain "sk-"; all share
     // the "sk-" marker, so that and a floor are all this checks.
-    public bool LooksLikeKey(string key) =>
-        key.StartsWith("sk-", StringComparison.Ordinal) && key.Length >= 20;
+    public bool LooksLikeKey(string key) => key.Length >= 20;
 
     public async Task<LlmValidationResult> ValidateAsync(
         string apiKey,

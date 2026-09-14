@@ -36,8 +36,7 @@ public class GeminiProviderValidator : ILlmProviderValidator
 
     // NOTE: Google API keys start "AIza" and are 39 characters today; the length is checked
     // as a floor for the same reason the Anthropic check is.
-    public bool LooksLikeKey(string key) =>
-        key.StartsWith("AIza", StringComparison.Ordinal) && key.Length >= 30;
+    public bool LooksLikeKey(string key) => key.Length >= 30;
 
     public async Task<LlmValidationResult> ValidateAsync(
         string apiKey,

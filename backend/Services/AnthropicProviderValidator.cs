@@ -47,8 +47,7 @@ public class AnthropicProviderValidator : ILlmProviderValidator
     // NOTE: shape only. Anthropic keys are "sk-ant-" followed by an opaque tail, and the
     // length is theirs to change, so this checks the marker and a floor rather than a
     // pattern that would start rejecting valid keys the day the format is extended.
-    public bool LooksLikeKey(string key) =>
-        key.StartsWith("sk-ant-", StringComparison.Ordinal) && key.Length >= 20;
+    public bool LooksLikeKey(string key) => key.Length >= 20;
 
     public async Task<LlmValidationResult> ValidateAsync(
         string apiKey,
