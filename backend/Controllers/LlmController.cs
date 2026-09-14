@@ -30,6 +30,17 @@ public class LlmController : ControllerBase
     }
 
     /// <summary>
+    /// The providers this deployment can accept a key for, with each one's default model and
+    /// what its keys look like. The choices for <c>PUT credential</c>'s <c>provider</c>.
+    /// </summary>
+    [HttpGet("providers")]
+    [ProducesResponseType(typeof(IReadOnlyList<LlmProviderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public ActionResult<IReadOnlyList<LlmProviderDto>> GetProviders() =>
+        Ok(_credentials.GetProviders());
+
+    /// <summary>
     /// The key on this account with its month to date and its index, or 204 when none has
     /// been added.
     /// </summary>

@@ -38,6 +38,19 @@ public class LlmOptions
     /// <summary>Where the provider's API lives. Overridable so tests can point it at a stub.</summary>
     public string AnthropicBaseUrl { get; set; } = "https://api.anthropic.com";
 
+    /// <summary>The model a newly saved OpenAI credential is given.</summary>
+    public string OpenAIDefaultModel { get; set; } = "gpt-6-astra";
+
+    public string OpenAIBaseUrl { get; set; } = "https://api.openai.com";
+
+    /// <summary>
+    /// The model a newly saved Gemini credential is given. A stable model rather than a
+    /// preview, which could be withdrawn from under a stored credential.
+    /// </summary>
+    public string GeminiDefaultModel { get; set; } = "gemini-3.8-flash";
+
+    public string GeminiBaseUrl { get; set; } = "https://generativelanguage.googleapis.com";
+
     public const int EncryptionKeyBytes = 32;
 
     public void Validate()
