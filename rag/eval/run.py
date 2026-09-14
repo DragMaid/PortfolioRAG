@@ -255,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
             pipeline = None
 
             if not args.retrieval_only:
+                # NOTE: this thing load the database from the database, not really good for testing
                 credential = load_credential(
                     conn,
                     author_id,

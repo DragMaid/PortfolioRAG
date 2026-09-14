@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     pool_min_size: int = 1
     pool_max_size: int = 4
 
-
     # Worker
     worker_id: str = Field(
         default_factory=lambda: f"{socket.gethostname()}:{os.getpid()}",
