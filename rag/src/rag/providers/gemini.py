@@ -9,7 +9,8 @@ from pydantic import SecretStr
 
 from .base import Effort, ModelPrice
 
-# TODO: add an automatic extractor later, for now the structure is hard to extract so hard-coded for now
+# TODO: add an automatic extractor later, for now the structure is hard to extract so
+# hard-coded for now
 # Paid tier, prompts up to 200k tokens, USD per million tokens, from
 # https://ai.google.dev/gemini-api/docs/pricing (September 2026). A table to update, like
 # OpenAI's. Longer prompts are billed higher by Google, which this under-counts — the safe

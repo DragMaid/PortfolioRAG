@@ -9,9 +9,25 @@ from __future__ import annotations
 from rag.corpus import SourceType
 from rag.retrieval import (
     Passage,
+    _to_passage,
     maximal_marginal_relevance,
     reciprocal_rank_fusion,
 )
+
+
+def test_a_database_row_becomes_a_passage_with_a_source_type_member():
+    """The column holds an int; left as one, no passage ever equals SourceType.PROFILE and
+    every citation is reported as a post."""
+    row = {
+        "document_id": 1,
+        "source_type": 0,
+        "source_label": "Profile",
+        "chunk_index": 0,
+        "content": "about me",
+        "metadata": "{}",
+    }
+
+    assert _to_passage(row, 1.0).source_type is SourceType.PROFILE
 
 
 def passage(document_id: int, label: str = "Post", embedding: list[float] | None = None) -> Passage:
