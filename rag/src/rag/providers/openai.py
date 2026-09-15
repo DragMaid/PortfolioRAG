@@ -9,7 +9,8 @@ from pydantic import SecretStr
 
 from .base import Effort, ModelPrice
 
-# TODO: add an automatic extractor later, for now the structure is hard to extract so hard-coded for now
+# TODO: add an automatic extractor later, for now the structure is hard to extract so
+# hard-coded for now
 # Standard tier, USD per million tokens, from https://developers.openai.com/api/docs/pricing
 # (September 2026). Unlike Anthropic's pricing page, OpenAI's is rendered client-side and
 # has nothing to scrape, so this is a table to update. A model missing from it is priced as

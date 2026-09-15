@@ -314,7 +314,9 @@ def _to_passage(row: dict[str, Any], score: float) -> Passage:
 
     return Passage(
         document_id=row["document_id"],
-        source_type=row["source_type"],
+        # NOTE: the column is the int the API's enum is stored as. Converted here, because
+        # everything downstream compares against SourceType and an int never equals a member.
+        source_type=SourceType(row["source_type"]),
         source_label=row["source_label"],
         chunk_index=row["chunk_index"],
         content=row["content"],

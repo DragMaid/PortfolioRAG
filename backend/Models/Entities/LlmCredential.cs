@@ -4,7 +4,8 @@ public enum LlmProvider
 {
     Anthropic = 0,
     OpenAI = 1,
-    Gemini = 2
+    Gemini = 2,
+    Groq = 3
 }
 
 /// <summary>

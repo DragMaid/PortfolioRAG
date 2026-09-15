@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -105,9 +106,19 @@ class JobFitPipeline:
 
         self._usage = Usage()
 
-    def run(self, conn: Connection, author_id: int, request: JobFitRequest) -> JobFitOutcome:
+    def run(
+        self,
+        conn: Connection,
+        author_id: int,
+        request: JobFitRequest,
+        on_stage: Callable[[str], None] | None = None,
+    ) -> JobFitOutcome:
+        """Runs the six stages. ``on_stage`` is told each stage's name as it starts, for a
+        caller that wants to show progress; the worker passes nothing."""
+        stage = on_stage or (lambda _name: None)
         started = time.monotonic()
 
+        stage("extract")
         analysis = self._extract(request)
 
         if not analysis.requirements:
@@ -118,6 +129,7 @@ class JobFitPipeline:
 
         queries = [requirement.search_query for requirement in analysis.requirements]
 
+        stage("retrieve")
         passages = retrieval.retrieve(
             conn,
             self.embedder,
@@ -136,6 +148,7 @@ class JobFitPipeline:
                 "the posting against."
             )
 
+        stage("assess")
         assessment = self._assess(analysis, passages)
 
         essential = {
@@ -143,12 +156,14 @@ class JobFitPipeline:
             for requirement in analysis.requirements
         }
 
+        stage("verify")
         verification = citations.verify(assessment.findings, passages, essential)
 
         value = scoring.score(verification.findings)
         verdict = scoring.verdict(verification.findings, value)
         counts = scoring.summarize(verification.findings)
 
+        stage("narrate")
         narrative = self._narrate(analysis, verification.findings, value, verdict, counts)
 
         duration_ms = int((time.monotonic() - started) * 1000)

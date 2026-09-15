@@ -51,6 +51,12 @@ public class LlmOptions
 
     public string GeminiBaseUrl { get; set; } = "https://generativelanguage.googleapis.com";
 
+    /// <summary>The model a newly saved Groq credential is given.</summary>
+    public string GroqDefaultModel { get; set; } = "openai/gpt-oss-120b";
+
+    /// <summary>Groq's OpenAI-compatible API root; the models list lives under it.</summary>
+    public string GroqBaseUrl { get; set; } = "https://api.groq.com/openai";
+
     public const int EncryptionKeyBytes = 32;
 
     public void Validate()
