@@ -121,7 +121,7 @@ jobs:
       # crash or a collapse in recall shows up in the log where a reviewer sees it.
       - name: Retrieval eval
         working-directory: rag
-        run: uv run rag-eval --retrieval-only
+        run: uv run rag-eval --retrieval-only --container
 
   frontend:
     name: Frontend build

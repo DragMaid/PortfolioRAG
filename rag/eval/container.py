@@ -11,7 +11,7 @@ from pathlib import Path
 
 import psycopg
 
-from rag.schema import resize_embedding_column
+from rag.utils import resize_embedding_column
 
 # The image compose and backend.Tests/PostgresFixture.cs run, so all three agree on pgvector.
 IMAGE = "pgvector/pgvector:pg16"
