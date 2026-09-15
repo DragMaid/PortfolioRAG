@@ -3,8 +3,9 @@
 ``rag-worker``  drain the queue — what the container runs
 ``rag-index``   rebuild one author's index, without going through the queue
 ``rag-eval``    run the eval suite
+``rag-migrate`` resize the embedding column to the configured model's width
 
-The last two exist so that indexing and evaluation can be exercised from a terminal against
+The middle two exist so that indexing and evaluation can be exercised from a terminal against
 a real database without a running API, which is what makes the pipeline developable.
 """
 
@@ -19,6 +20,7 @@ from .embeddings import get_embedder
 from .indexing import ensure
 from .logging_setup import configure_logging
 from .settings import get_settings
+from .utils import embedding_dimensions, resize_embedding_column
 from .worker import Worker
 
 logger = logging.getLogger("rag.cli")
@@ -76,6 +78,42 @@ def index(argv: list[str] | None = None) -> int:
         f"({result.embedded} embedded, {result.unchanged} unchanged, {result.deleted} removed) "
         f"in {result.duration_ms}ms"
     )
+
+    return 0
+
+
+def migrate(argv: list[str] | None = None) -> int:
+    """Resizes the embedding column to the configured model's width."""
+    parser = argparse.ArgumentParser(
+        prog="rag-migrate",
+        description=(
+            "Resize RagDocuments.Embedding to RAG_EMBEDDING_DIMENSIONS. Clears stored vectors "
+            "when the width changes; each author is re-embedded on their next index run."
+        ),
+    )
+    parser.add_argument(
+        "--dimensions",
+        type=int,
+        help="Override RAG_EMBEDDING_DIMENSIONS for this run.",
+    )
+    args = parser.parse_args(argv)
+
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_json)
+
+    dimensions = args.dimensions or settings.embedding_dimensions
+
+    try:
+        with get_pool(settings).connection() as conn:
+            before = embedding_dimensions(conn)
+            changed = resize_embedding_column(conn, dimensions)
+    finally:
+        close_pool()
+
+    if changed:
+        print(f"Embedding column resized from vector({before}) to vector({dimensions}).")
+    else:
+        print(f"Embedding column is already vector({dimensions}); nothing to do.")
 
     return 0
 

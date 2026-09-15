@@ -11,6 +11,9 @@ full run              also runs the whole pipeline on each case and grades the o
                       real money against a real key, so it says what it will cost and asks
                       before it spends anything.
 
+Every run is written to ``eval/reports/<run id>/`` with the metadata needed to compare it
+with another — see ``eval.reporting``.
+
 Expectations in ``golden.jsonl`` are written as ranges and keyword sets rather than exact
 strings, on purpose. A generated report is not deterministic and an eval that asserted on
 its prose would fail on every rerun and teach everyone to ignore it. What is asserted is
@@ -21,11 +24,16 @@ and — the part that matters most — that nothing is claimed without evidence.
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import io
 import json
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
+
+from tqdm import tqdm
 
 from rag import indexing
 from rag.corpus import SourceType
@@ -39,7 +47,7 @@ from rag.providers import get_provider
 from rag.retrieval import Passage, retrieve
 from rag.settings import Settings, get_settings
 
-from . import fixture
+from . import fixture, reporting
 from .judge import JUDGE_PROMPT, JudgeVerdict, grade, structural_checks
 from .metrics import RetrievalScores, evaluate_retrieval, mean
 
@@ -59,6 +67,13 @@ class CaseResult:
     judge: JudgeVerdict | None = None
     expectation_failures: list[str] = field(default_factory=list)
     error: str | None = None
+    # What the report files need beyond the verdict: the searches that were run, where they
+    # landed, which stage a failure happened in, and what the case cost.
+    queries: list[str] = field(default_factory=list)
+    retrieved_sources: list[str] = field(default_factory=list)
+    failed_stage: str | None = None
+    usage: dict[str, Any] | None = None
+    duration_ms: int = 0
 
     @property
     def verdict(self) -> str:
@@ -205,6 +220,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--case", action="append", help="Run only these case ids.")
     parser.add_argument(
+        "--container",
+        action="store_true",
+        help=(
+            "Run against a throwaway pgvector container, migrated by the API's migrations and "
+            "with the embedding column sized to RAG_EMBEDDING_DIMENSIONS, instead of "
+            "RAG_DATABASE_URL. Needs Docker and dotnet. Cannot be combined with --author-id."
+        ),
+    )
+    parser.add_argument(
         "--k",
         type=int,
         default=DEFAULT_CUTOFF,
@@ -220,12 +244,48 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip the confirmation before spending money.",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=reporting.REPORTS_DIR,
+        help=f"Where run directories are written (default {reporting.REPORTS_DIR}).",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Hide the progress bar. It is hidden anyway when stderr is not a terminal.",
+    )
     args = parser.parse_args(argv)
+
+    if args.container and args.author_id is not None:
+        parser.error("--container starts an empty database; --author-id has nothing to read.")
 
     settings = get_settings()
     configure_logging("WARNING", False)
 
-    cases = load_cases()
+    if not args.container:
+        return _evaluate(args, argv, settings)
+
+    from .container import migrated_database
+
+    print(
+        f"Starting a pgvector container with vector({settings.embedding_dimensions}) "
+        "embeddings and applying migrations...",
+        file=sys.stderr,
+    )
+
+    with migrated_database(settings.embedding_dimensions) as database_url:
+        return _evaluate(
+            args,
+            argv,
+            settings.model_copy(update={"database_url": database_url}),
+        )
+
+
+def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settings) -> int:
+
+    all_cases = load_cases()
+    cases = all_cases
 
     if args.case:
         cases = [case for case in cases if case["id"] in set(args.case)]
@@ -237,25 +297,94 @@ def main(argv: list[str] | None = None) -> int:
     if not args.retrieval_only and not args.yes and not _confirm(len(cases), args.judge):
         return 1
 
-    pool = get_pool(settings)
-    embedder = get_embedder(
-        settings.embedding_model,
-        settings.embedding_dimensions,
-        settings.embedding_batch_size,
+    uses_fixture = args.author_id is None
+    mode = "retrieval" if args.retrieval_only else ("full+judge" if args.judge else "full")
+
+    started = reporting.utc_now()
+    clock = time.monotonic()
+
+    run: dict[str, Any] = {
+        "schema_version": 1,
+        "run_id": None,
+        "status": "running",
+        "started_at": started,
+        "finished_at": None,
+        "duration_seconds": None,
+        "command": ["rag-eval", *(sys.argv[1:] if argv is None else argv)],
+        "options": {
+            "mode": mode,
+            "retrieval_only": args.retrieval_only,
+            "judge": args.judge,
+            "cutoff_k": args.k,
+            "author_id": args.author_id,
+            "uses_fixture": uses_fixture,
+            "container": args.container,
+        },
+        "git": reporting.git_state(),
+        "environment": reporting.environment(),
+        "settings": reporting.settings_snapshot(settings),
+        "dataset": {
+            "path": str(GOLDEN_PATH.relative_to(Path(__file__).parent.parent)),
+            "sha256": reporting.sha256_file(GOLDEN_PATH),
+            "total_cases": len(all_cases),
+            "selected_case_ids": [case["id"] for case in cases],
+        },
+        "fixture": (
+            {
+                "path": str(fixture.FIXTURE_PATH.relative_to(Path(__file__).parent.parent)),
+                "sha256": reporting.sha256_file(fixture.FIXTURE_PATH),
+            }
+            if uses_fixture
+            else None
+        ),
+        "provider": None,
+        "summary": None,
+        "cases": [],
+    }
+
+    setup_steps = (1 if uses_fixture else 0) + 1 + (0 if args.retrieval_only else 1)
+    progress = _Progress(
+        total=setup_steps + len(cases) * _steps_per_case(args.retrieval_only, args.judge),
+        enabled=not args.no_progress and sys.stderr.isatty(),
     )
 
     results: list[CaseResult] = []
+    writer: reporting.RunWriter | None = None
+
+    def finish(status: str, exit_code: int | None) -> None:
+        if writer is None:
+            return
+
+        run["status"] = status
+        run["finished_at"] = reporting.utc_now()
+        run["duration_seconds"] = round(time.monotonic() - clock, 3)
+        run["summary"] = _summary(results, args.retrieval_only, exit_code, pipeline)
+        writer.write_run(run)
+
+    pipeline: JobFitPipeline | None = None
 
     try:
-        with pool.connection() as conn:
-            author_id = args.author_id or fixture.seed(conn)
+        pool = get_pool(settings)
+        embedder = get_embedder(
+            settings.embedding_model,
+            settings.embedding_dimensions,
+            settings.embedding_batch_size,
+        )
 
+        with pool.connection() as conn:
+            progress.begin("setup", setup_steps)
+
+            if uses_fixture:
+                progress.stage("seeding fixture portfolio")
+                author_id = fixture.seed(conn)
+            else:
+                author_id = args.author_id
+
+            progress.stage("indexing portfolio")
             indexing.ensure(conn, settings, embedder, author_id, force=True)
 
-            pipeline = None
-
             if not args.retrieval_only:
-                # NOTE: this thing load the database from the database, not really good for testing
+                progress.stage("loading provider credential")
                 credential = load_credential(
                     conn,
                     author_id,
@@ -268,21 +397,162 @@ def main(argv: list[str] | None = None) -> int:
                     api_key=credential.api_key,
                     model=credential.model,
                 )
+                run["provider"] = {"name": credential.provider, "model": credential.model}
 
-            for case in cases:
-                results.append(
-                    _run_case(
-                        conn, settings, embedder, author_id, case, pipeline, args.judge, args.k
-                    )
+            progress.end()
+
+            # Named once the provider is known, so the directory says what was measured.
+            run["run_id"] = reporting.make_run_id(
+                started,
+                mode.replace("+", "-"),
+                (run["provider"] or {}).get("name"),
+                (run["provider"] or {}).get("model"),
+            )
+            writer = reporting.RunWriter(args.output_dir, run["run_id"])
+            writer.write_run(run)
+
+            for number, case in enumerate(cases, start=1):
+                progress.begin(
+                    f"[{number}/{len(cases)}] {case['id']}",
+                    _steps_per_case(args.retrieval_only, args.judge),
                 )
 
-            if args.author_id is None:
+                result = _run_case(
+                    conn,
+                    settings,
+                    embedder,
+                    author_id,
+                    case,
+                    pipeline,
+                    args.judge,
+                    args.k,
+                    progress.stage,
+                )
+                results.append(result)
+                progress.end()
+
+                path = writer.write_case(result.case_id, _case_file(result, case, args.k))
+                run["cases"].append(_case_index(result, path.relative_to(writer.directory)))
+                writer.write_run(run)
+
+                progress.note_result(result, args.retrieval_only)
+
+            if uses_fixture:
                 fixture.purge(conn)
 
+    except KeyboardInterrupt:
+        progress.close()
+        finish("interrupted", None)
+        raise
+    except BaseException:
+        progress.close()
+        finish("error", None)
+        raise
     finally:
+        progress.close()
         close_pool()
 
-    return _report(results, as_json=args.json, retrieval_only=args.retrieval_only)
+    exit_code = _exit_code(results, args.retrieval_only)
+
+    table = io.StringIO()
+    _print_table(results, args.retrieval_only, table)
+
+    if writer is not None:
+        writer.write_summary(table.getvalue())
+
+    finish("completed", exit_code)
+
+    if args.json:
+        print(json.dumps([_serialize(result) for result in results], indent=2, default=str))
+    else:
+        print(table.getvalue(), end="")
+
+    if writer is not None:
+        print(f"Report written to {writer.directory}", file=sys.stderr)
+
+    return exit_code
+
+
+# The stages one case passes through, in order, for the progress bar's arithmetic.
+_PIPELINE_STAGES = ("extract", "retrieve", "assess", "verify", "narrate")
+
+
+def _steps_per_case(retrieval_only: bool, use_judge: bool) -> int:
+    if retrieval_only:
+        return 1
+
+    # The eval's own extraction and retrieval scoring, then the pipeline, then the judge.
+    return 2 + len(_PIPELINE_STAGES) + (1 if use_judge else 0)
+
+
+class _Progress:
+    """One bar for the whole run, labelled with the block and stage currently running.
+
+    Each ``stage`` call completes the previous one, so the count is of finished stages. A
+    case that fails part-way still advances the bar by all of its steps when it ends, so the
+    total stays honest.
+    """
+
+    def __init__(self, total: int, enabled: bool):
+        self._bar = tqdm(
+            total=total,
+            unit="step",
+            file=sys.stderr,
+            disable=not enabled,
+            dynamic_ncols=True,
+            bar_format="{desc} |{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]{postfix}",
+        )
+        self._prefix = ""
+        self._block_end = 0
+        self._open = False
+        self._counts = {"pass": 0, "warn": 0, "fail": 0}
+
+    def begin(self, prefix: str, steps: int) -> None:
+        self._prefix = prefix
+        self._block_end = self._bar.n + steps
+
+    def stage(self, name: str) -> None:
+        self._complete_open_stage()
+        self._bar.set_description_str(f"{self._prefix}: {name}")
+        self._open = True
+
+    def end(self) -> None:
+        self._complete_open_stage()
+
+        if self._bar.n < self._block_end:
+            self._bar.update(self._block_end - self._bar.n)
+
+    def note_result(self, result: CaseResult, retrieval_only: bool) -> None:
+        retrieval = result.retrieval
+        scores = (
+            f"recall {retrieval.recall:.2f} · mrr {retrieval.mrr:.2f} · ndcg {retrieval.ndcg:.2f}"
+            if retrieval
+            else "no retrieval scores"
+        )
+
+        # NOTE: a retrieval-only case is measured, not graded, so it shows its numbers
+        # rather than a "pass" that nothing checked
+        if retrieval_only:
+            label = "error" if result.error else "done"
+        else:
+            label = result.verdict
+            self._counts[label] = self._counts.get(label, 0) + 1
+            self._bar.set_postfix_str(
+                f"pass {self._counts['pass']} · warn {self._counts['warn']} · "
+                f"fail {self._counts['fail']}"
+            )
+
+        if not self._bar.disable:
+            detail = f" — {result.error}" if result.error else ""
+            self._bar.write(f"  {label:>5}  {result.case_id}  {scores}{detail}", file=sys.stderr)
+
+    def close(self) -> None:
+        self._bar.close()
+
+    def _complete_open_stage(self) -> None:
+        if self._open and self._bar.n < self._block_end:
+            self._bar.update(1)
+        self._open = False
 
 
 def _run_case(
@@ -294,29 +564,45 @@ def _run_case(
     pipeline: JobFitPipeline | None,
     use_judge: bool,
     cutoff: int,
+    on_stage=lambda _name: None,
 ) -> CaseResult:
     result = CaseResult(case_id=case["id"])
+    started = time.monotonic()
+    usage_before = pipeline.usage if pipeline else None
+
+    def stage(name: str) -> None:
+        result.failed_stage = name
+        on_stage(name)
 
     try:
         if pipeline is None:
             # No provider available, so the posting stands in for its own queries. A cruder
             # search than the pipeline's — which is the honest thing to report when the
             # requirement-extraction stage has not run.
-            queries = [case["job_description"][:800]]
-            result.retrieval, _ = score_retrieval(
-                conn, settings, embedder, author_id, case, queries, cutoff
+            stage("retrieval scoring")
+            result.queries = [case["job_description"][:800]]
+            result.retrieval, passages = score_retrieval(
+                conn, settings, embedder, author_id, case, result.queries, cutoff
             )
+            result.retrieved_sources = _distinct_sources(passages)
+            result.failed_stage = None
             return result
 
+        stage("eval: extract requirements")
         analysis = pipeline._extract(JobFitRequest(job_description=case["job_description"]))
-        queries = [requirement.search_query for requirement in analysis.requirements]
+        result.queries = [requirement.search_query for requirement in analysis.requirements]
 
-        result.retrieval, _ = score_retrieval(
-            conn, settings, embedder, author_id, case, queries, cutoff
+        stage("eval: retrieval scoring")
+        result.retrieval, passages = score_retrieval(
+            conn, settings, embedder, author_id, case, result.queries, cutoff
         )
+        result.retrieved_sources = _distinct_sources(passages)
 
         outcome = pipeline.run(
-            conn, author_id, JobFitRequest(job_description=case["job_description"])
+            conn,
+            author_id,
+            JobFitRequest(job_description=case["job_description"]),
+            on_stage=lambda name: stage(f"pipeline: {name}"),
         )
 
         result.report = outcome.report
@@ -324,12 +610,32 @@ def _run_case(
         result.expectation_failures = check_expectations(outcome.report, case["expect"])
 
         if use_judge:
+            stage("judge")
             result.judge = _judge(pipeline, outcome.report)
+
+        result.failed_stage = None
 
     except Exception as error:  # the suite reports a broken case rather than stopping
         result.error = f"{type(error).__name__}: {error}"
 
+    finally:
+        result.duration_ms = int((time.monotonic() - started) * 1000)
+
+        if pipeline is not None and usage_before is not None:
+            result.usage = reporting.usage_between(usage_before, pipeline.usage)
+
     return result
+
+
+def _distinct_sources(passages: list[Passage]) -> list[str]:
+    sources: list[str] = []
+
+    for passage in passages:
+        key = source_key(passage)
+        if key not in sources:
+            sources.append(key)
+
+    return sources
 
 
 def _judge(pipeline: JobFitPipeline, report: dict[str, Any]) -> JudgeVerdict | None:
@@ -371,12 +677,7 @@ def _confirm(count: int, use_judge: bool) -> bool:
     return input("Continue? [y/N] ").strip().lower() in ("y", "yes")
 
 
-def _report(results: list[CaseResult], as_json: bool, retrieval_only: bool) -> int:
-    if as_json:
-        print(json.dumps([_serialize(result) for result in results], indent=2, default=str))
-    else:
-        _print_table(results, retrieval_only)
-
+def _exit_code(results: list[CaseResult], retrieval_only: bool) -> int:
     # A retrieval-only run reports numbers rather than passing or failing: there is no
     # threshold that is right for every corpus, and a suite that fails on a number somebody
     # picked once is a suite people start passing with --no-verify.
@@ -386,11 +687,92 @@ def _report(results: list[CaseResult], as_json: bool, retrieval_only: bool) -> i
     return 1 if any(result.verdict == "fail" for result in results) else 0
 
 
-def _print_table(results: list[CaseResult], retrieval_only: bool) -> None:
-    print()
-    print(f"{'case':30} {'recall':>7} {'mrr':>6} {'ndcg':>6}", end="")
-    print("" if retrieval_only else f" {'score':>6} {'verdict':>10} {'cites':>6}  result")
-    print("-" * (52 if retrieval_only else 92))
+def _summary(
+    results: list[CaseResult],
+    retrieval_only: bool,
+    exit_code: int | None,
+    pipeline: JobFitPipeline | None,
+) -> dict[str, Any]:
+    scored = [result.retrieval for result in results if result.retrieval]
+
+    return {
+        "cases_run": len(results),
+        "retrieval_mean": {
+            "recall": mean([s.recall for s in scored]),
+            "precision": mean([s.precision for s in scored]),
+            "mrr": mean([s.mrr for s in scored]),
+            "ndcg": mean([s.ndcg for s in scored]),
+        },
+        "verdicts": (
+            None
+            if retrieval_only
+            else {
+                verdict: sum(1 for result in results if result.verdict == verdict)
+                for verdict in ("pass", "warn", "fail")
+            }
+        ),
+        "errors": sum(1 for result in results if result.error),
+        "usage": reporting.usage_dict(pipeline.usage) if pipeline else None,
+        "exit_code": exit_code,
+    }
+
+
+def _case_file(result: CaseResult, case: dict[str, Any], cutoff: int) -> dict[str, Any]:
+    """Everything about one case: enough to see why it got its verdict without rerunning."""
+    return {
+        "case_id": result.case_id,
+        "note": case.get("note"),
+        "verdict": result.verdict,
+        "duration_ms": result.duration_ms,
+        "error": result.error,
+        "failed_stage": result.failed_stage,
+        "input": {
+            "job_description": case["job_description"],
+            "relevant_sources": case["relevant_sources"],
+            "expect": case.get("expect"),
+        },
+        "retrieval": {
+            "cutoff_k": cutoff,
+            "queries": result.queries,
+            "retrieved_sources": result.retrieved_sources,
+            "scores": dataclasses.asdict(result.retrieval) if result.retrieval else None,
+        },
+        "report": result.report,
+        "structural": result.structural,
+        "judge": result.judge,
+        "expectation_failures": result.expectation_failures,
+        "usage": result.usage,
+    }
+
+
+def _case_index(result: CaseResult, path: Path) -> dict[str, Any]:
+    """The line for this case in run.json: the headline numbers and where the detail is."""
+    report = result.report or {}
+    retrieval = result.retrieval
+
+    return {
+        "case_id": result.case_id,
+        "verdict": result.verdict,
+        "score": report.get("score"),
+        "report_verdict": report.get("verdict"),
+        "recall": retrieval.recall if retrieval else None,
+        "mrr": retrieval.mrr if retrieval else None,
+        "ndcg": retrieval.ndcg if retrieval else None,
+        "error": result.error,
+        "duration_ms": result.duration_ms,
+        "cost_usd": (result.usage or {}).get("cost_usd"),
+        "file": str(path),
+    }
+
+
+def _print_table(results: list[CaseResult], retrieval_only: bool, out: TextIO) -> None:
+    def emit(text: str = "", end: str = "\n") -> None:
+        out.write(text + end)
+
+    emit()
+    emit(f"{'case':30} {'recall':>7} {'mrr':>6} {'ndcg':>6}", end="")
+    emit("" if retrieval_only else f" {'score':>6} {'verdict':>10} {'cites':>6}  result")
+    emit("-" * (52 if retrieval_only else 92))
 
     for result in results:
         retrieval = result.retrieval
@@ -398,33 +780,33 @@ def _print_table(results: list[CaseResult], retrieval_only: bool) -> None:
         mrr = f"{retrieval.mrr:.2f}" if retrieval else "-"
         ndcg = f"{retrieval.ndcg:.2f}" if retrieval else "-"
 
-        print(f"{result.case_id:30} {recall:>7} {mrr:>6} {ndcg:>6}", end="")
+        emit(f"{result.case_id:30} {recall:>7} {mrr:>6} {ndcg:>6}", end="")
 
         if not retrieval_only:
             report = result.report or {}
             rejected = result.structural.get("citations_rejected", "-")
-            print(
+            emit(
                 f" {report.get('score', '-'):>6} {report.get('verdict', '-')!s:>10}"
                 f" {rejected:>6}  {result.verdict}",
                 end="",
             )
 
-        print()
+        emit()
 
         for failure in result.expectation_failures:
-            print(f"{'':30}   ! {failure}")
+            emit(f"{'':30}   ! {failure}")
 
         if result.judge and result.judge.unsupported_claims:
             for claim in result.judge.unsupported_claims:
-                print(f"{'':30}   ~ unsupported: {claim[:80]}")
+                emit(f"{'':30}   ~ unsupported: {claim[:80]}")
 
         if result.error:
-            print(f"{'':30}   x {result.error}")
+            emit(f"{'':30}   x {result.error}")
 
     scored = [result.retrieval for result in results if result.retrieval]
 
-    print("-" * (52 if retrieval_only else 92))
-    print(
+    emit("-" * (52 if retrieval_only else 92))
+    emit(
         f"{'mean':30} {mean([s.recall for s in scored]):>7.2f} "
         f"{mean([s.mrr for s in scored]):>6.2f} {mean([s.ndcg for s in scored]):>6.2f}"
     )
@@ -433,16 +815,17 @@ def _print_table(results: list[CaseResult], retrieval_only: bool) -> None:
         passed = sum(1 for result in results if result.verdict == "pass")
         warned = sum(1 for result in results if result.verdict == "warn")
         failed = sum(1 for result in results if result.verdict == "fail")
-        print(f"\n{passed} passed, {warned} warned, {failed} failed")
+        emit(f"\n{passed} passed, {warned} warned, {failed} failed")
 
-    print()
+    emit()
 
 
 def _serialize(result: CaseResult) -> dict[str, Any]:
     return {
         "case_id": result.case_id,
         "verdict": result.verdict,
-        "retrieval": result.retrieval.__dict__ if result.retrieval else None,
+        # NOTE: asdict rather than __dict__ — RetrievalScores is a slots dataclass and has none
+        "retrieval": dataclasses.asdict(result.retrieval) if result.retrieval else None,
         "score": (result.report or {}).get("score"),
         "report_verdict": (result.report or {}).get("verdict"),
         "structural": result.structural,

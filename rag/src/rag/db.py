@@ -107,5 +107,6 @@ def assert_embedding_column(conn: Connection, expected_dimensions: int) -> None:
         raise RuntimeError(
             f'"RagDocuments"."Embedding" is vector({actual}) but RAG_EMBEDDING_DIMENSIONS is '
             f"{expected_dimensions}. Either configure the model whose width the column was "
-            "built for, or migrate the column and re-index every author."
+            "built for, or run `rag-migrate` to resize the column (it clears the stored "
+            "vectors; each author is re-embedded on their next index run)."
         )

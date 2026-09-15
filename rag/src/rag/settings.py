@@ -79,9 +79,10 @@ class Settings(BaseSettings):
         default=384,
         description=(
             "Must equal the width of the RagDocuments.Embedding column, which the migration "
-            "fixed at 384. Changing the model means changing the column and re-embedding "
-            "everything; the worker refuses to start rather than writing vectors the column "
-            "will reject."
+            "creates at 384. Changing the model means `rag-migrate` to resize the column, "
+            "which clears the stored vectors so every author is re-embedded; the worker "
+            "refuses to start rather than writing vectors the column will reject. "
+            "`rag-eval --container` sizes its throwaway database from this instead."
         ),
     )
 
