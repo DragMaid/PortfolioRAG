@@ -25,8 +25,18 @@ public class BlogDbContext : DbContext
 
     public DbSet<PageView> PageViews => Set<PageView>();
 
+    public DbSet<LlmCredential> LlmCredentials => Set<LlmCredential>();
+
+    public DbSet<RagJob> RagJobs => Set<RagJob>();
+
+    public DbSet<RagDocument> RagDocuments => Set<RagDocument>();
+
+    public DbSet<RagIndexState> RagIndexStates => Set<RagIndexState>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("vector");
+
         modelBuilder.Entity<Author>(entity =>
         {
             entity.HasKey(a => a.Id);
@@ -169,6 +179,83 @@ public class BlogDbContext : DbContext
             entity.HasOne(c => c.Author)
                 .WithMany(a => a.ContactChannels)
                 .HasForeignKey(c => c.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LlmCredential>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.KeyCiphertext).IsRequired().HasMaxLength(1024);
+            entity.Property(c => c.KeyPreview).IsRequired().HasMaxLength(32);
+            entity.Property(c => c.Model).IsRequired().HasMaxLength(120);
+            entity.Property(c => c.ValidationError).HasMaxLength(500);
+            entity.Property(c => c.MonthlyBudgetUsd).HasPrecision(10, 4);
+            // NOTE: only one credential per user only
+            entity.HasIndex(c => c.AuthorId).IsUnique();
+
+            entity.HasOne(c => c.Author)
+                .WithOne(a => a.LlmCredential)
+                .HasForeignKey<LlmCredential>(c => c.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RagJob>(entity =>
+        {
+            entity.HasKey(j => j.Id);
+            entity.Property(j => j.PayloadJson).IsRequired().HasColumnType("jsonb");
+            entity.Property(j => j.ResultJson).HasColumnType("jsonb");
+            entity.Property(j => j.Error).HasMaxLength(2000);
+            entity.Property(j => j.LockedBy).HasMaxLength(120);
+            entity.Property(j => j.VisitorHash).HasMaxLength(64);
+            entity.Property(j => j.CostUsd).HasPrecision(12, 6);
+
+            // NOTE: index since a worker asks for the oldest queued-or-lapsed row and takes the first it can lock.
+            entity.HasIndex(j => new { j.Status, j.AvailableAt });
+
+            // NOTE: for the studio's list, and the monthly count and spend behind the budget.
+            entity.HasIndex(j => new { j.AuthorId, j.CreatedAt });
+
+            // NOTE: The per-visitor rate limit, which is a count over one hash in a rolling day.
+            entity.HasIndex(j => new { j.VisitorHash, j.CreatedAt });
+
+            entity.HasOne(j => j.Author)
+                .WithMany()
+                .HasForeignKey(j => j.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RagDocument>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            entity.Property(d => d.Content).IsRequired();
+            entity.Property(d => d.ContentHash).IsRequired().HasMaxLength(64);
+            entity.Property(d => d.SourceLabel).IsRequired().HasMaxLength(300);
+            entity.Property(d => d.MetadataJson).IsRequired().HasColumnType("jsonb");
+            entity.HasIndex(d => d.AuthorId);
+
+            // NOTE: create index for each chunk (index), source and author which is unnique
+            entity.HasIndex(d => new { d.AuthorId, d.SourceType, d.SourceId, d.ChunkIndex })
+                .IsUnique();
+
+            entity.HasOne(d => d.Author)
+                .WithMany()
+                .HasForeignKey(d => d.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // NOTE: `embedding vector(384)` and the generated `search tsvector`, with their
+            // indexes, are added by raw SQL in the ApiTokens+Rag migration. EF does not have
+            // types for these 2 so just it will not know about them here.
+        });
+
+        modelBuilder.Entity<RagIndexState>(entity =>
+        {
+            entity.HasKey(s => s.AuthorId);
+            entity.Property(s => s.CorpusHash).HasMaxLength(64);
+            entity.Property(s => s.Error).HasMaxLength(2000);
+
+            entity.HasOne(s => s.Author)
+                .WithOne(a => a.RagIndex)
+                .HasForeignKey<RagIndexState>(s => s.AuthorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

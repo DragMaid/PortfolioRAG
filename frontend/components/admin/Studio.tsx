@@ -6,6 +6,7 @@ import { useStudio } from "@/lib/admin/useStudio";
 import { AccessPanel } from "./access/AccessPanel";
 import { AnalyticsPanel } from "./analytics/AnalyticsPanel";
 import { ContentPanel } from "./content/ContentPanel";
+import { IntelligencePanel } from "./intelligence/IntelligencePanel";
 import { ProfilePanel } from "./profile/ProfilePanel";
 import { TabNav, type StudioTab } from "./TabNav";
 import { TopBar } from "./TopBar";
@@ -64,10 +65,35 @@ export function Studio() {
         <div hidden={tab !== "profile"}>
           <ProfilePanel profile={profile} />
         </div>
+
+        {/*
+         * Unlike the other three, this one is unmounted while it is closed, so it owns its
+         * own hook rather than being handed one. Two reasons: it holds the only copy of a
+         * freshly minted secret in state, and a secret left sitting behind a hidden div is
+         * one nobody decided to dismiss; and its list is worth fetching when somebody opens
+         * the tab rather than for every visit to the editor.
+         */}
+        {tab === "access" ? <AccessPanel /> : null}
+
+        {/*
+         * Unmounted while closed, like the access tab and for one of the same two reasons:
+         * its list is worth fetching when somebody opens the tab rather than on every visit
+         * to the editor. It holds no secret of its own — the provider key is write-only —
+         * but it does poll a running job, and a poller left behind a hidden div is one
+         * nobody decided to keep running.
+         */}
+        {tab === "intelligence" ? <IntelligencePanel /> : null}
       </main>
     </>
   );
 }
+
+/** What the status pill says on a tab that writes straight through and so is never dirty. */
+const SELF_SAVING_LABELS: Partial<Record<StudioTab, string>> = {
+  profile: "Profile • saved",
+  access: "Access • saved",
+  intelligence: "Intelligence • saved",
+};
 
 /**
  * Warns before a reload or a close while an edit is unsaved.

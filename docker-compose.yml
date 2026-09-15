@@ -1,9 +1,6 @@
-# The development database and object store. Tests do not use these services — they start
-# their own throwaway container through Testcontainers, so `dotnet test` needs nothing
-# running.
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: portfolio-db
     restart: unless-stopped
     environment:
@@ -32,8 +29,6 @@ services:
     environment:
       MINIO_ROOT_USER: portfolio
       MINIO_ROOT_PASSWORD: portfolio-secret
-      # Nothing is served from a browser origin: the API mints presigned links and the
-      # browser follows a redirect to them, so no bucket needs a CORS policy of its own.
       MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
     ports:
       # S3 API. NEXT_PUBLIC/appsettings point at this one.
@@ -74,6 +69,20 @@ services:
       echo 'bucket portfolio-media ready (private, versioned)' &&
       mc anonymous get local/portfolio-media
       "
+
+  # The retrieval worker that handle vector indexing 
+  # Scale by running more of these (`docker compose up -d --scale rag=3`)
+  rag:
+    build: ./rag
+    container_name: portfolio-rag
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAG_DATABASE_URL: postgresql://portfolio:portfolio@db:5432/portfolio
+      RAG_ENCRYPTION_KEY: ${RAG_ENCRYPTION_KEY:-ZGV2LW9ubHktc2VhbC1rZXktbm90LWZvci1wcm9kISE=}
+      RAG_LOG_LEVEL: ${RAG_LOG_LEVEL:-INFO}
 
 volumes:
   portfolio-db-data:

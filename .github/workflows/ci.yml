@@ -51,3 +51,99 @@ jobs:
           name: test-results
           path: ${{ runner.temp }}/test-results
           if-no-files-found: ignore
+
+  rag:
+    name: Retrieval service
+    runs-on: ubuntu-latest
+
+    # The integration tests and the retrieval eval both want the API's schema, which means a
+    # database with pgvector in it — the same image compose runs.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: portfolio
+          POSTGRES_USER: portfolio
+          POSTGRES_PASSWORD: portfolio
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U portfolio -d portfolio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      RAG_DATABASE_URL: postgresql://portfolio:portfolio@localhost:5433/portfolio
+      # A throwaway seal for the run. Nothing here unseals a real key: the tests that touch
+      # encryption pin their own fixture key, and no provider is ever called.
+      RAG_ENCRYPTION_KEY: ZGV2LW9ubHktc2VhbC1rZXktbm90LWZvci1wcm9kISE=
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # The API owns the schema, so the migrations are what create it here too rather than
+      # a SQL dump that would quietly drift from them.
+      - name: Apply migrations
+        run: |
+          dotnet tool restore
+          dotnet restore backend/backend.csproj
+          dotnet ef database update --project backend/backend.csproj
+        env:
+          ConnectionStrings__Postgres: Host=localhost;Port=5433;Database=portfolio;Username=portfolio;Password=portfolio
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: rag/uv.lock
+
+      - name: Install
+        working-directory: rag
+        run: uv sync --locked
+
+      - name: Lint
+        working-directory: rag
+        run: uv run ruff check .
+
+      - name: Test
+        working-directory: rag
+        # Both halves: the unit suite needs nothing, the integration suite needs the
+        # database above. Neither calls a provider or spends anything.
+        run: uv run pytest -m "integration or not integration" -q
+
+      # Retrieval quality, measured for free. Reports rather than asserts a threshold —
+      # a number somebody picked once becomes a suite people pass with --no-verify — but a
+      # crash or a collapse in recall shows up in the log where a reviewer sees it.
+      - name: Retrieval eval
+        working-directory: rag
+        run: uv run rag-eval --retrieval-only --container
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      # The generated client is committed, so this typechecks the whole app against the
+      # API surface as it stood when it was last regenerated. A backend change that has not
+      # been regenerated fails here rather than at runtime.
+      - name: Build
+        working-directory: frontend
+        run: npm run build

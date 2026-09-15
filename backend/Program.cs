@@ -65,6 +65,7 @@ builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IApiTokenRepository, ApiTokenRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
+builder.Services.AddScoped<IRagRepository, RagRepository>();
 
 builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<IPostService, PostService>();
@@ -72,6 +73,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<ILlmCredentialService, LlmCredentialService>();
+builder.Services.AddScoped<IJobFitService, JobFitService>();
 
 // NOTE: the visitor salt is too insignificant so ill leave it as optional for now
 var analyticsOptions = builder.Configuration
@@ -186,6 +189,53 @@ builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = mediaOptions.MaxUploadBytes + RequestOverheadBytes;
 });
+
+var llmOptions = builder.Configuration
+    .GetSection(LlmOptions.SectionName)
+    .Get<LlmOptions>() ?? new LlmOptions();
+
+builder.Services.Configure<LlmOptions>(builder.Configuration.GetSection(LlmOptions.SectionName));
+
+if (!noCheck)
+    llmOptions.Validate();
+
+// In case of a test run just generate a temporary encryption key
+if (noCheck && !LlmOptions.TryDecodeKey(llmOptions.EncryptionKey, out _))
+{
+    var ephemeralSeal = Convert.ToBase64String(RandomNumberGenerator.GetBytes(LlmOptions.EncryptionKeyBytes));
+    builder.Services.PostConfigure<LlmOptions>(options => options.EncryptionKey = ephemeralSeal);
+}
+
+builder.Services.AddSingleton<ISecretProtector, SecretProtector>();
+
+// LLM validator for each provider. Named, because every one shares ILlmProviderValidator
+// as its client type and the factory refuses a second registration under the same name.
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, AnthropicProviderValidator>(nameof(AnthropicProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, OpenAIProviderValidator>(nameof(OpenAIProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, GeminiProviderValidator>(nameof(GeminiProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, GroqProviderValidator>(nameof(GroqProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
+builder.Services.AddScoped<ILlmProviderRegistry, LlmProviderRegistry>();
+builder.Services.AddScoped<IVisitorFingerprint, VisitorFingerprint>();
 
 // NOTE: this one add problem+json instead of 500s for debuggability
 builder.Services.AddProblemDetails();

@@ -20,6 +20,7 @@ namespace backend.Migrations
                 .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Backend.Models.Entities.ApiToken", b =>
@@ -277,6 +278,69 @@ namespace backend.Migrations
                     b.ToTable("ExternalLogins");
                 });
 
+            modelBuilder.Entity("Backend.Models.Entities.LlmCredential", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DailyVisitorLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsPublicFitEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("KeyCiphertext")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("KeyPreview")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("MonthlyAccountLimit")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MonthlyBudgetUsd")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("numeric(10,4)");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ValidatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ValidationError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId")
+                        .IsUnique();
+
+                    b.ToTable("LlmCredentials");
+                });
+
             modelBuilder.Entity("Backend.Models.Entities.Media", b =>
                 {
                     b.Property<int>("Id")
@@ -446,6 +510,157 @@ namespace backend.Migrations
                     b.ToTable("Posts");
                 });
 
+            modelBuilder.Entity("Backend.Models.Entities.RagDocument", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MetadataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceLabel")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("AuthorId", "SourceType", "SourceId", "ChunkIndex")
+                        .IsUnique();
+
+                    b.ToTable("RagDocuments");
+                });
+
+            modelBuilder.Entity("Backend.Models.Entities.RagIndexState", b =>
+                {
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("BuiltAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CorpusHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("DocumentCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("AuthorId");
+
+                    b.ToTable("RagIndexStates");
+                });
+
+            modelBuilder.Entity("Backend.Models.Entities.RagJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("AvailableAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("CostUsd")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ResultJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VisitorHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId", "CreatedAt");
+
+                    b.HasIndex("Status", "AvailableAt");
+
+                    b.HasIndex("VisitorHash", "CreatedAt");
+
+                    b.ToTable("RagJobs");
+                });
+
             modelBuilder.Entity("Backend.Models.Entities.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
@@ -529,6 +744,17 @@ namespace backend.Migrations
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("Backend.Models.Entities.LlmCredential", b =>
+                {
+                    b.HasOne("Backend.Models.Entities.Author", "Author")
+                        .WithOne("LlmCredential")
+                        .HasForeignKey("Backend.Models.Entities.LlmCredential", "AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
             modelBuilder.Entity("Backend.Models.Entities.Media", b =>
                 {
                     b.HasOne("Backend.Models.Entities.Post", "Post")
@@ -568,6 +794,39 @@ namespace backend.Migrations
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("Backend.Models.Entities.RagDocument", b =>
+                {
+                    b.HasOne("Backend.Models.Entities.Author", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("Backend.Models.Entities.RagIndexState", b =>
+                {
+                    b.HasOne("Backend.Models.Entities.Author", "Author")
+                        .WithOne("RagIndex")
+                        .HasForeignKey("Backend.Models.Entities.RagIndexState", "AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("Backend.Models.Entities.RagJob", b =>
+                {
+                    b.HasOne("Backend.Models.Entities.Author", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
             modelBuilder.Entity("Backend.Models.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Backend.Models.Entities.Author", "Author")
@@ -589,7 +848,11 @@ namespace backend.Migrations
 
                     b.Navigation("ExternalLogins");
 
+                    b.Navigation("LlmCredential");
+
                     b.Navigation("Posts");
+
+                    b.Navigation("RagIndex");
 
                     b.Navigation("RefreshTokens");
                 });

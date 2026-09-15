@@ -34,6 +34,7 @@ public class AnalyticsService : IAnalyticsService
     private readonly IPostRepository _posts;
     private readonly ICurrentUser _currentUser;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IVisitorFingerprint _visitors;
     private readonly TimeProvider _timeProvider;
     private readonly AnalyticsOptions _options;
 
@@ -42,6 +43,7 @@ public class AnalyticsService : IAnalyticsService
         IPostRepository posts,
         ICurrentUser currentUser,
         IHttpContextAccessor httpContextAccessor,
+        IVisitorFingerprint visitors,
         TimeProvider timeProvider,
         IOptions<AnalyticsOptions> options)
     {
@@ -49,6 +51,7 @@ public class AnalyticsService : IAnalyticsService
         _posts = posts;
         _currentUser = currentUser;
         _httpContextAccessor = httpContextAccessor;
+        _visitors = visitors;
         _timeProvider = timeProvider;
         _options = options.Value;
     }
@@ -212,20 +215,14 @@ public class AnalyticsService : IAnalyticsService
     private static int NormalizeWindow(int windowDays) =>
         windowDays <= 0 ? DefaultWindowDays : Math.Clamp(windowDays, MinWindowDays, MaxWindowDays);
 
-    /// <summary>Return the reader's id based on available information</summary>
-    private string ComputeVisitorHash(DateTimeOffset now)
-    {
-        var context = _httpContextAccessor.HttpContext;
-
-        var address = context?.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        var userAgent = context?.Request.Headers.UserAgent.ToString() ?? string.Empty;
-        var day = now.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-        var material = $"{_options.VisitorSalt}|{day}|{address}|{userAgent}";
-        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(material));
-
-        return Convert.ToHexString(digest);
-    }
+    /// <summary>
+    /// Return the reader's id based on available information.
+    ///
+    /// The digest itself moved to <see cref="IVisitorFingerprint"/> when the public
+    /// job-fit endpoint needed to count the same visitors this does — two definitions of
+    /// "one reader" would have drifted the first time either was tuned.
+    /// </summary>
+    private string ComputeVisitorHash(DateTimeOffset now) => _visitors.Compute(now);
 
     /// <summary>
     /// Reduces a referrer to the host the reader came from, or null for "direct". Anything
