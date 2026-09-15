@@ -220,6 +220,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--case", action="append", help="Run only these case ids.")
     parser.add_argument(
+        "--container",
+        action="store_true",
+        help=(
+            "Run against a throwaway pgvector container, migrated by the API's migrations and "
+            "with the embedding column sized to RAG_EMBEDDING_DIMENSIONS, instead of "
+            "RAG_DATABASE_URL. Needs Docker and dotnet. Cannot be combined with --author-id."
+        ),
+    )
+    parser.add_argument(
         "--k",
         type=int,
         default=DEFAULT_CUTOFF,
@@ -248,8 +257,32 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    if args.container and args.author_id is not None:
+        parser.error("--container starts an empty database; --author-id has nothing to read.")
+
     settings = get_settings()
     configure_logging("WARNING", False)
+
+    if not args.container:
+        return _evaluate(args, argv, settings)
+
+    from .container import migrated_database
+
+    print(
+        f"Starting a pgvector container with vector({settings.embedding_dimensions}) "
+        "embeddings and applying migrations...",
+        file=sys.stderr,
+    )
+
+    with migrated_database(settings.embedding_dimensions) as database_url:
+        return _evaluate(
+            args,
+            argv,
+            settings.model_copy(update={"database_url": database_url}),
+        )
+
+
+def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settings) -> int:
 
     all_cases = load_cases()
     cases = all_cases
@@ -285,6 +318,7 @@ def main(argv: list[str] | None = None) -> int:
             "cutoff_k": args.k,
             "author_id": args.author_id,
             "uses_fixture": uses_fixture,
+            "container": args.container,
         },
         "git": reporting.git_state(),
         "environment": reporting.environment(),

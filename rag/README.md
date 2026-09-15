@@ -127,7 +127,7 @@ are not free choices:
 | Setting | Must match |
 |---|---|
 | `RAG_ENCRYPTION_KEY` | The API's `Llm:EncryptionKey`, exactly. It is what author provider keys were sealed with. A mismatch is not a degraded mode — it is every analysis failing to read a key. |
-| `RAG_EMBEDDING_DIMENSIONS` | The width of the `RagDocuments.Embedding` column, which the migration fixed at 384. The worker refuses to start if they disagree rather than writing vectors the column will reject. |
+| `RAG_EMBEDDING_DIMENSIONS` | The width of the `RagDocuments.Embedding` column, which the migration creates at 384. The worker refuses to start if they disagree rather than writing vectors the column will reject. `uv run rag-migrate` resizes the column to match (clearing stored vectors, so each author is re-embedded on their next index run). |
 
 ## Tests
 
@@ -151,6 +151,16 @@ uv run rag-eval --retrieval-only     # free: no provider key, no network, no cos
 uv run rag-eval                      # the full pipeline; asks before it spends anything
 uv run rag-eval --judge              # ...and grades the prose with an LLM judge
 uv run rag-eval --retrieval-only --k 3   # tighter cutoff, to see where recall breaks
+```
+
+Add `--container` to run against a throwaway `pgvector/pgvector:pg16` container instead of
+`RAG_DATABASE_URL`. It is migrated with the API's own migrations (so it needs Docker and
+`dotnet`) and its embedding column is sized to `RAG_EMBEDDING_DIMENSIONS`, which is how a
+different embedding model is measured without resizing the development database:
+
+```sh
+RAG_EMBEDDING_MODEL=BAAI/bge-base-en-v1.5 RAG_EMBEDDING_DIMENSIONS=768 \
+  uv run rag-eval --container --retrieval-only
 ```
 
 Both halves run against a fixture portfolio (`eval/datasets/portfolio.json`) seeded into a
