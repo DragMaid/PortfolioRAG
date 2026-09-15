@@ -228,6 +228,12 @@ builder.Services
         client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
     });
 
+builder.Services
+    .AddHttpClient<ILlmProviderValidator, GroqProviderValidator>(nameof(GroqProviderValidator), client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(llmOptions.ValidationTimeoutSeconds);
+    });
+
 builder.Services.AddScoped<ILlmProviderRegistry, LlmProviderRegistry>();
 builder.Services.AddScoped<IVisitorFingerprint, VisitorFingerprint>();
 

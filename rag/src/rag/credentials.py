@@ -10,7 +10,7 @@ from .crypto import SecretUnsealError, unseal
 from .db import fetch_one
 
 # Mirrors Backend.Models.Entities.LlmProvider, which is stored as an int.
-PROVIDER_NAMES = {0: "anthropic", 1: "openai", 2: "gemini"}
+PROVIDER_NAMES = {0: "anthropic", 1: "openai", 2: "gemini", 3: "groq"}
 
 
 class MissingCredentialError(RuntimeError):
