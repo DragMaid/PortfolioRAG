@@ -115,7 +115,9 @@ class AnthropicProvider:
         effort: Effort,
         timeout: float,
         max_retries: int,
+        _seed: int | None = None,
     ) -> BaseChatModel:
+        # NOTE: no seed option for this one
         return ChatAnthropic(
             model_name=model,
             api_key=api_key,

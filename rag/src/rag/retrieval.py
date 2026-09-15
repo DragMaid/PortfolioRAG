@@ -119,7 +119,7 @@ def sparse_search(
         WHERE d."AuthorId" = %(author)s
           AND q.query IS NOT NULL
           AND d."SearchVector" @@ q.query
-        ORDER BY rank DESC
+        ORDER BY rank DESC, d."Id"
         LIMIT %(limit)s
         """,
         {"query": query, "author": author_id, "limit": limit},

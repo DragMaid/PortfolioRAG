@@ -62,8 +62,13 @@ class ChatProvider(Protocol):
         effort: Effort,
         timeout: float,
         max_retries: int,
+        seed: int | None = None,
     ) -> BaseChatModel:
-        """A chat model ready to be called."""
+        """A chat model ready to be called.
+
+        ``seed`` asks for repeatable sampling where the vendor offers it. An adapter whose
+        vendor has no seed ignores it rather than failing: reproducibility is best effort.
+        """
         ...
 
     def structured(self, model: BaseChatModel, schema: type) -> Runnable:

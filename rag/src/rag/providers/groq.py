@@ -50,6 +50,7 @@ class GroqProvider:
         effort: Effort,
         timeout: float,
         max_retries: int,
+        seed: int | None = None,
     ) -> BaseChatModel:
         return ChatGroq(
             model=model,
@@ -60,6 +61,8 @@ class GroqProvider:
             ),
             timeout=timeout,
             max_retries=max_retries,
+            # NOTE: ChatGroq has no seed field; the API takes one, so it rides in model_kwargs
+            model_kwargs={} if seed is None else {"seed": seed},
         )
 
     def structured(self, model: BaseChatModel, schema: type) -> Runnable:

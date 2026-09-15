@@ -50,6 +50,7 @@ class OpenAIProvider:
         effort: Effort,
         timeout: float,
         max_retries: int,
+        seed: int | None = None,
     ) -> BaseChatModel:
         return ChatOpenAI(
             model=model,
@@ -58,8 +59,7 @@ class OpenAIProvider:
             reasoning_effort=_EFFORTS.get(effort, "medium"),
             timeout=timeout,
             max_retries=max_retries,
-            # NOTE: without this a streamed response carries no usage_metadata, and the job
-            # could not be costed.
+            seed=seed,
             stream_usage=True,
         )
 

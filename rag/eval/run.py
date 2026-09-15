@@ -27,12 +27,15 @@ import argparse
 import dataclasses
 import io
 import json
+import os
+import random
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
+import numpy as np
 from tqdm import tqdm
 
 from rag import indexing
@@ -51,11 +54,13 @@ from . import fixture, reporting
 from .judge import JUDGE_PROMPT, JudgeVerdict, grade, structural_checks
 from .metrics import RetrievalScores, evaluate_retrieval, mean
 
+# TODO: probably should just put them in a config class
 GOLDEN_PATH = Path(__file__).parent / "datasets" / "golden.jsonl"
 
-# How far down the ranking the metrics look, counted in distinct sources. Six because the
-# fixture portfolio has eight, and a cutoff at or above the corpus size measures nothing.
 DEFAULT_CUTOFF = 6
+DEFAULT_SEED = 0
+# Specify only providers that support the seeding feature
+_SEEDED_PROVIDERS = frozenset({"openai", "gemini", "groq"})
 
 
 @dataclass
@@ -238,6 +243,16 @@ def main(argv: list[str] | None = None) -> int:
             "where it is to see whether it was found near the top."
         ),
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_SEED,
+        help=(
+            f"Seed for Python's and numpy's RNGs and, where the provider accepts one, for "
+            f"model sampling (default {DEFAULT_SEED}). Retrieval is deterministic without it; "
+            "model output is only as repeatable as the provider allows."
+        ),
+    )
     parser.add_argument("--json", action="store_true", help="Machine-readable output.")
     parser.add_argument(
         "--yes",
@@ -260,7 +275,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.container and args.author_id is not None:
         parser.error("--container starts an empty database; --author-id has nothing to read.")
 
-    settings = get_settings()
+    seed_environment(args.seed)
+
+    settings = get_settings().model_copy(update={"llm_seed": args.seed})
     configure_logging("WARNING", False)
 
     if not args.container:
@@ -319,6 +336,8 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
             "author_id": args.author_id,
             "uses_fixture": uses_fixture,
             "container": args.container,
+            "seed": args.seed,
+            "python_hash_seed": os.environ.get("PYTHONHASHSEED"),
         },
         "git": reporting.git_state(),
         "environment": reporting.environment(),
@@ -397,7 +416,17 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
                     api_key=credential.api_key,
                     model=credential.model,
                 )
-                run["provider"] = {"name": credential.provider, "model": credential.model}
+                run["provider"] = {
+                    "name": credential.provider,
+                    "model": credential.model,
+                    "seeded": credential.provider in _SEEDED_PROVIDERS,
+                }
+
+                if credential.provider not in _SEEDED_PROVIDERS:
+                    progress.write(
+                        f"note: {credential.provider} accepts no sampling seed; reports will "
+                        "still vary between runs."
+                    )
 
             progress.end()
 
@@ -473,6 +502,21 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
     return exit_code
 
 
+def seed_environment(seed: int) -> None:
+    """Pins every RNG this process owns.
+
+    Nothing in the pipeline draws from these today — retrieval is SQL and arithmetic, and
+    fastembed's ONNX inference is deterministic on CPU — so this is a guard against the next
+    shuffle or sample someone adds rather than a fix for a current one. The seed that does
+    change results is the one handed to the provider, via ``Settings.llm_seed``.
+
+    PYTHONHASHSEED is not set here: it only takes effect at interpreter start, and no code
+    path iterates a set or dict in hash order. It is recorded in run.json instead.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 # The stages one case passes through, in order, for the progress bar's arithmetic.
 _PIPELINE_STAGES = ("extract", "retrieve", "assess", "verify", "narrate")
 
@@ -545,6 +589,12 @@ class _Progress:
         if not self._bar.disable:
             detail = f" — {result.error}" if result.error else ""
             self._bar.write(f"  {label:>5}  {result.case_id}  {scores}{detail}", file=sys.stderr)
+
+    def write(self, text: str) -> None:
+        if self._bar.disable:
+            print(text, file=sys.stderr)
+        else:
+            self._bar.write(text, file=sys.stderr)
 
     def close(self) -> None:
         self._bar.close()

@@ -55,6 +55,7 @@ class GeminiProvider:
         effort: Effort,
         timeout: float,
         max_retries: int,
+        seed: int | None = None,
     ) -> BaseChatModel:
         return ChatGoogleGenerativeAI(
             model=model,
@@ -63,6 +64,7 @@ class GeminiProvider:
             reasoning_effort=_EFFORTS.get(effort, "medium"),
             timeout=timeout,
             max_retries=max_retries,
+            seed=seed,
         )
 
     def structured(self, model: BaseChatModel, schema: type) -> Runnable:
