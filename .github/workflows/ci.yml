@@ -92,6 +92,7 @@ jobs:
       - name: Apply migrations
         run: |
           dotnet tool restore
+          dotnet restore backend/backend.csproj
           dotnet ef database update --project backend/backend.csproj
         env:
           ConnectionStrings__Postgres: Host=localhost;Port=5433;Database=portfolio;Username=portfolio;Password=portfolio
