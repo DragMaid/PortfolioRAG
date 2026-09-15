@@ -24,7 +24,8 @@ class MyProvider:
     def default_model(self) -> str:
         return "their-best-model"
 
-    def build(self, *, api_key, model, max_tokens, effort, timeout, max_retries):
+    def build(self, *, api_key, model, max_tokens, effort, timeout, max_retries, seed=None):
+        # seed: pass it on if the vendor takes one, otherwise ignore it
         return ChatMyVendor(model=model, api_key=api_key, max_tokens=max_tokens, ...)
 
     def structured(self, model, schema):

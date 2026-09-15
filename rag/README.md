@@ -163,6 +163,14 @@ RAG_EMBEDDING_MODEL=BAAI/bge-base-en-v1.5 RAG_EMBEDDING_DIMENSIONS=768 \
   uv run rag-eval --container --retrieval-only
 ```
 
+**Runs are seeded** (`--seed`, default `0`, recorded in `run.json`). Retrieval is
+deterministic on its own. The seed matters for model output: it reaches OpenAI, Gemini
+and Groq as a sampling seed, which vendors describe as mostly repeatable rather than
+identical. Anthropic accepts no seed and current Claude models reject `temperature`, so a
+full run against it will still vary between runs. Use `--container` as well for a full run
+you want to compare. Passage ids are cited in the prompt, and a fresh container issues the
+same ids every time, where a long-lived database hands out new ones on every run.
+
 Both halves run against a fixture portfolio (`eval/datasets/portfolio.json`) seeded into a
 scratch account and deleted afterwards, so results do not depend on whatever is in somebody's
 development database.

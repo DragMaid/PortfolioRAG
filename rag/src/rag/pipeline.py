@@ -93,6 +93,7 @@ class JobFitPipeline:
             effort=settings.extraction_effort,
             timeout=settings.request_timeout_seconds,
             max_retries=settings.max_retries,
+            seed=settings.llm_seed,
         )
 
         self._reasoner = provider.build(
@@ -102,6 +103,7 @@ class JobFitPipeline:
             effort=settings.assessment_effort,
             timeout=settings.request_timeout_seconds,
             max_retries=settings.max_retries,
+            seed=settings.llm_seed,
         )
 
         self._usage = Usage()

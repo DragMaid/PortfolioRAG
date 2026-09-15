@@ -141,6 +141,15 @@ class Settings(BaseSettings):
 
     assessment_effort: str = Field(default="high")
 
+    llm_seed: int | None = Field(
+        default=None,
+        description=(
+            "Sampling seed for providers that accept one (OpenAI, Gemini, Groq). Best effort: "
+            "the vendor promises mostly-repeatable output, not identical. Anthropic has no seed "
+            "and ignores it. Left unset in production; the eval sets it with --seed."
+        ),
+    )
+
     request_timeout_seconds: float = 300.0
     max_retries: int = 3
 
