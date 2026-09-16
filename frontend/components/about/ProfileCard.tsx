@@ -36,7 +36,13 @@ function ContactRow({
 }
 
 /** Avatar, identity, availability and contact handles. */
-export function ProfileCard({ profile }: { profile: Profile }) {
+export function ProfileCard({
+  profile,
+  showJobFitCta = false,
+}: {
+  profile: Profile;
+  showJobFitCta?: boolean;
+}) {
   return (
     <SurfaceCard className="flex h-full flex-col items-start justify-between p-7 text-left sm:p-8">
       <div className="flex w-full flex-col items-start">
@@ -67,6 +73,24 @@ export function ProfileCard({ profile }: { profile: Profile }) {
           <StatusDot variant="pulse" />
           <span className="text-[11px] leading-snug">{profile.availability}</span>
         </div>
+
+        {/* Only when the job-fit section is actually rendered further down to scroll to. */}
+        {showJobFitCta ? (
+          <a
+            href="#job-fit"
+            className="group mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-warm-black px-4 py-3 text-warm-bg shadow-subtle transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent"
+          >
+            <span className="flex flex-col">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-warm-accent">
+                Hiring?
+              </span>
+              <span className="text-sm font-medium">Check your role against my work</span>
+            </span>
+            <span aria-hidden className="text-lg transition-transform group-hover:translate-y-0.5">
+              ↓
+            </span>
+          </a>
+        ) : null}
 
         <div className="my-5 h-px w-full bg-warm-border" />
 

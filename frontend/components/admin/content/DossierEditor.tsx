@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/admin/format";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
-import { Field, TextInput } from "../ui/Field";
+import { Field, TextArea, TextInput } from "../ui/Field";
 import { Icon } from "../ui/Icon";
 import { Panel, PanelHeader } from "../ui/Panel";
 import { Toggle } from "../ui/Toggle";
@@ -160,29 +160,33 @@ export function DossierEditor({
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Project title" htmlFor={`${ids}-title`}>
-          <TextInput
-            id={`${ids}-title`}
-            value={draft.title}
-            disabled={locked}
-            maxLength={200}
-            onChange={(event) => onChange({ title: event.target.value })}
-            className="font-serif text-base"
-          />
-        </Field>
+      <Field label="Project title" htmlFor={`${ids}-title`}>
+        <TextInput
+          id={`${ids}-title`}
+          value={draft.title}
+          disabled={locked}
+          maxLength={200}
+          onChange={(event) => onChange({ title: event.target.value })}
+          className="font-serif text-base"
+        />
+      </Field>
 
-        <Field label="Subheading / pitch" htmlFor={`${ids}-summary`}>
-          <TextInput
-            id={`${ids}-summary`}
-            value={draft.summary}
-            disabled={locked}
-            maxLength={500}
-            onChange={(event) => onChange({ summary: event.target.value })}
-            className="text-[13.5px]"
-          />
-        </Field>
-      </div>
+      <Field
+        label="Summary"
+        htmlFor={`${ids}-summary`}
+        hint={`Shown on the project card and the preview banner. The full write-up below opens on its own page. ${draft.summary.length} / 500`}
+      >
+        <TextArea
+          id={`${ids}-summary`}
+          rows={3}
+          value={draft.summary}
+          disabled={locked}
+          maxLength={500}
+          placeholder="Two or three sentences on what this is and why it matters."
+          onChange={(event) => onChange({ summary: event.target.value })}
+          className="text-[13.5px] leading-relaxed"
+        />
+      </Field>
 
       {/*
        * Not in the prototype, which never showed the slug. It is the project's public
@@ -193,7 +197,7 @@ export function DossierEditor({
       <Field
         label="Public slug"
         htmlFor={`${ids}-slug`}
-        hint={`Reachable at /posts/${draft.slug || "…"} once published. Changing it breaks existing links.`}
+        hint={`Reachable at /your-handle/posts/${draft.slug || "…"} once published. Changing it breaks existing links.`}
       >
         <TextInput
           id={`${ids}-slug`}
@@ -205,36 +209,6 @@ export function DossierEditor({
           className="font-mono text-xs"
         />
       </Field>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field
-          label="Category"
-          htmlFor={`${ids}-category`}
-          hint="The kicker beside the ordinal on the card."
-        >
-          <TextInput
-            id={`${ids}-category`}
-            value={draft.category}
-            disabled={locked}
-            maxLength={60}
-            placeholder="VECTOR CORE"
-            onChange={(event) => onChange({ category: event.target.value })}
-            className="font-mono text-xs"
-          />
-        </Field>
-
-        <Field label="Domain" htmlFor={`${ids}-domain`} hint="The line in the card footer.">
-          <TextInput
-            id={`${ids}-domain`}
-            value={draft.domain}
-            disabled={locked}
-            maxLength={60}
-            placeholder="Vector Storage"
-            onChange={(event) => onChange({ domain: event.target.value })}
-            className="font-mono text-xs"
-          />
-        </Field>
-      </div>
 
       {/* The two files the project leads with, and the gate on publishing it. */}
       <div className="flex flex-col gap-4 border-t border-warm-border pt-5">
@@ -276,11 +250,10 @@ export function DossierEditor({
           description="Each one drawn as a button on the preview banner. Left blank, the button is not drawn."
         />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {([
             ["repoUrl", "Repository", "https://github.com/you/project"],
             ["demoUrl", "Live demo", "https://project.example.com"],
-            ["specUrl", "Write-up / RFC", "https://example.com/rfc"],
           ] as const).map(([key, label, placeholder]) => (
             <Field key={key} label={label} htmlFor={`${ids}-${key}`}>
               <TextInput

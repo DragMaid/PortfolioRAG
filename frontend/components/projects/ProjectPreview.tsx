@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PreviewWindow } from "@/components/projects/PreviewWindow";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import type { Project } from "@/lib/types";
@@ -34,9 +35,7 @@ export function ProjectPreview({
          */}
         <div key={project.slug} className="animate-fade-rise space-y-4 lg:col-span-5">
           <div className="flex flex-wrap items-center gap-3 font-mono text-xs">
-            <span className="font-semibold text-warm-accent">
-              {project.category ? `${project.index} / ${project.category}` : project.index}
-            </span>
+            <span className="font-semibold text-warm-accent">{project.index}</span>
             {project.year ? <span className="text-warm-slate">{project.year}</span> : null}
           </div>
 
@@ -49,21 +48,14 @@ export function ProjectPreview({
             </p>
           ) : null}
 
-          {/*
-           * The banner used to print a row of headline figures here. They were placeholder
-           * copy with nothing behind them on the API, so the domain — which the author does
-           * write — takes the slot rather than inventing numbers to fill it.
-           */}
-          {project.domain ? (
-            <dl className="flex flex-wrap gap-x-4 gap-y-2 border-y border-warm-border/60 py-2 font-mono text-xs text-warm-black">
-              <div className="flex gap-1.5">
-                <dt className="text-warm-slate">Domain:</dt>
-                <dd className="font-semibold">{project.domain}</dd>
-              </div>
-            </dl>
-          ) : null}
-
           <div className="flex flex-wrap items-center gap-2.5 pt-2">
+            <Link
+              href={project.href}
+              className="flex items-center gap-2 rounded-lg bg-warm-accent px-4 py-2 font-mono text-xs font-semibold text-warm-black transition-colors hover:bg-warm-accent/85"
+            >
+              <span>Read the write-up</span>
+              <span aria-hidden>→</span>
+            </Link>
             {links.repo ? (
               <a
                 href={links.repo}
@@ -82,14 +74,6 @@ export function ProjectPreview({
               >
                 <span>Live Playground</span>
                 <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
-              </a>
-            ) : null}
-            {links.spec ? (
-              <a
-                href={links.spec}
-                className="rounded-lg border border-transparent px-4 py-2 font-mono text-xs text-warm-slate transition-colors hover:border-warm-border hover:text-warm-black"
-              >
-                Read Architecture RFC →
               </a>
             ) : null}
           </div>

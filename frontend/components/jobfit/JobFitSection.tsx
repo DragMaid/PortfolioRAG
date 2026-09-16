@@ -5,6 +5,7 @@ import type { JobFitAvailabilityDto } from "@/lib/api/generated";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { cn } from "@/lib/cn";
 import { useJobFit } from "@/lib/jobfit/useJobFit";
+import { JobDescriptionDropzone } from "./JobDescriptionDropzone";
 import { JobFitReport } from "./JobFitReport";
 
 const MINIMUM_CHARS = 120;
@@ -42,6 +43,8 @@ export function JobFitSection({
   const canSubmit =
     !fit.isBusy && !exhausted && trimmed.length >= MINIMUM_CHARS && !tooLong;
 
+  const maximum = availability.maxJobDescriptionChars ?? 20000;
+
   return (
     <section id="job-fit" className="scroll-mt-24">
       <SectionHeading
@@ -50,101 +53,98 @@ export function JobFitSection({
         className="mb-8"
       />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
+      <form
+        className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-stretch"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canSubmit) void fit.submit(description, role);
+        }}
+      >
         <div className="flex flex-col gap-4">
           <p className="text-[14px] leading-relaxed text-warm-slate">
-            Paste a job description and this will compare it against what {name} has
-            actually published here — the timeline, the write-ups, the profile — and say
-            which requirements are evidenced and which are not.
+            Paste a job description — or drop the file — and this will compare it against what{" "}
+            {name} has actually published here: the timeline, the write-ups, the profile. It
+            says which requirements are evidenced and which are not.
           </p>
 
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (canSubmit) void fit.submit(description, role);
-            }}
-          >
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor={`${fieldId}-role`}
-                className="font-mono text-[11px] tracking-wider text-warm-slate uppercase"
-              >
-                Role <span className="normal-case">(optional)</span>
-              </label>
-              <input
-                id={`${fieldId}-role`}
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                placeholder="Staff Engineer, Storage"
-                disabled={fit.isBusy}
-                className="rounded border border-warm-border bg-warm-surface px-3 py-2 text-[14px] text-warm-black transition-colors placeholder:text-warm-slate/60 focus:border-warm-black focus:outline-none disabled:opacity-60"
-              />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor={`${fieldId}-role`}
+              className="font-mono text-[11px] tracking-wider text-warm-slate uppercase"
+            >
+              Role <span className="normal-case">(optional)</span>
+            </label>
+            <input
+              id={`${fieldId}-role`}
+              value={role}
+              onChange={(event) => setRole(event.target.value)}
+              placeholder="Staff Engineer, Storage"
+              disabled={fit.isBusy}
+              className="rounded border border-warm-border bg-warm-surface px-3 py-2 text-[14px] text-warm-black transition-colors placeholder:text-warm-slate/60 focus:border-warm-black focus:outline-none disabled:opacity-60"
+            />
+          </div>
 
-            <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className={cn(
+                "rounded bg-warm-black px-4 py-2 font-mono text-[12px] tracking-wide text-warm-surface uppercase transition-colors",
+                "hover:bg-warm-black/88 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
+                "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-warm-black",
+              )}
+            >
+              {fit.isBusy ? "Reading the portfolio…" : "Check job fit"}
+            </button>
+
+            {fit.state === "done" || fit.state === "error" ? (
+              <button
+                type="button"
+                onClick={fit.reset}
+                className="font-mono text-[11px] tracking-wider text-warm-slate uppercase underline underline-offset-4 hover:text-warm-black"
+              >
+                Start over
+              </button>
+            ) : null}
+          </div>
+
+          <Disclosure availability={availability} exhausted={exhausted} />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          {fit.state === "error" && fit.error ? <Failure message={fit.error} /> : null}
+
+          {fit.isBusy ? (
+            <Progress elapsed={fit.elapsed} estimate={fit.estimatedSeconds} />
+          ) : null}
+
+          {fit.report ? (
+            <JobFitReport report={fit.report} />
+          ) : fit.isBusy ? null : (
+            // The idle column is the input itself — a big field to paste into or drop a
+            // file on — rather than a placeholder describing a report that is not there yet.
+            <>
               <label
                 htmlFor={`${fieldId}-jd`}
                 className="font-mono text-[11px] tracking-wider text-warm-slate uppercase"
               >
                 Job description
               </label>
-              <textarea
+              <JobDescriptionDropzone
                 id={`${fieldId}-jd`}
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={10}
+                onChange={setDescription}
                 disabled={fit.isBusy}
-                placeholder="Paste the requirements and responsibilities. The benefits and company blurb are ignored, so there is no need to trim them out."
-                className="resize-y rounded border border-warm-border bg-warm-surface px-3 py-2 text-[13.5px] leading-relaxed text-warm-black transition-colors placeholder:text-warm-slate/60 focus:border-warm-black focus:outline-none disabled:opacity-60"
+                className="flex-1"
+                placeholder="Paste the requirements and responsibilities, or drop a .txt / .md file here. The benefits and company blurb are ignored, so there is no need to trim them out."
+                footer={
+                  <CharacterCount length={trimmed.length} minimum={MINIMUM_CHARS} maximum={maximum} />
+                }
               />
-              <CharacterCount
-                length={trimmed.length}
-                minimum={MINIMUM_CHARS}
-                maximum={availability.maxJobDescriptionChars ?? 20000}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className={cn(
-                  "rounded bg-warm-black px-4 py-2 font-mono text-[12px] tracking-wide text-warm-surface uppercase transition-colors",
-                  "hover:bg-warm-black/88 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
-                  "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-warm-black",
-                )}
-              >
-                {fit.isBusy ? "Reading the portfolio…" : "Check job fit"}
-              </button>
-
-              {fit.state === "done" || fit.state === "error" ? (
-                <button
-                  type="button"
-                  onClick={fit.reset}
-                  className="font-mono text-[11px] tracking-wider text-warm-slate uppercase underline underline-offset-4 hover:text-warm-black"
-                >
-                  Start over
-                </button>
-              ) : null}
-            </div>
-          </form>
-
-          <Disclosure availability={availability} exhausted={exhausted} />
+            </>
+          )}
         </div>
-
-        <div className="min-w-0">
-          {fit.isBusy ? (
-            <Progress elapsed={fit.elapsed} estimate={fit.estimatedSeconds} />
-          ) : null}
-
-          {fit.state === "error" && fit.error ? <Failure message={fit.error} /> : null}
-
-          {fit.report ? <JobFitReport report={fit.report} /> : null}
-
-          {fit.state === "idle" ? <Placeholder /> : null}
-        </div>
-      </div>
+      </form>
     </section>
   );
 }
@@ -277,17 +277,6 @@ function Failure({ message }: { message: string }) {
         Could not finish
       </p>
       <p className="mt-1.5 text-[13.5px] leading-relaxed text-warm-black">{message}</p>
-    </div>
-  );
-}
-
-function Placeholder() {
-  return (
-    <div className="rounded border border-dashed border-warm-border p-8 text-center">
-      <p className="text-[13.5px] leading-relaxed text-warm-slate">
-        The analysis will appear here: a score, what is evidenced, what is not, and the
-        passage behind every claim.
-      </p>
     </div>
   );
 }

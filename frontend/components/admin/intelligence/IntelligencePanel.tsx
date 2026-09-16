@@ -4,6 +4,7 @@ import { useIntelligence } from "@/lib/admin/useIntelligence";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Panel } from "../ui/Panel";
+import { CoverLetterCard } from "./CoverLetterCard";
 import { ExposureCard } from "./ExposureCard";
 import { IndexCard } from "./IndexCard";
 import { KeyCard } from "./KeyCard";
@@ -47,8 +48,9 @@ export function IntelligencePanel() {
           <p className="mt-0.5 max-w-2xl text-[13.5px] text-warm-slate">
             Add your own model provider key and your portfolio can answer a question about
             itself: given this job description, which requirements does the published work
-            actually evidence? Every answer is drawn from your posts, timeline and profile,
-            and every claim it makes has to cite the passage it came from.
+            actually evidence? It can also draft you a cover letter for a posting. Everything
+            is drawn from your posts, timeline and profile, and the index behind it is kept up
+            to date for you.
           </p>
         </div>
       </header>
@@ -64,12 +66,7 @@ export function IntelligencePanel() {
 
       {credential && draft ? (
         <>
-          <IndexCard
-            credential={credential}
-            busy={intelligence.busy}
-            isWorking={intelligence.isWorking}
-            onRebuild={() => void intelligence.rebuild()}
-          />
+          <IndexCard credential={credential} />
 
           <TrialRun
             busy={intelligence.busy}
@@ -79,6 +76,8 @@ export function IntelligencePanel() {
             onRun={(text) => void intelligence.tryJobFit(text)}
             onClear={intelligence.clearTrial}
           />
+
+          <CoverLetterCard onFinished={intelligence.refresh} />
 
           <ExposureCard
             credential={credential}
@@ -101,8 +100,9 @@ export function IntelligencePanel() {
               scope.
             </Step>
             <Step n={2}>
-              Your published work is cut into passages and indexed for search. That runs on
-              our own hardware and costs nothing.
+              Your published work is cut into passages and indexed for search, and re-indexed
+              automatically whenever you publish or edit. That runs on our own hardware and
+              costs nothing.
             </Step>
             <Step n={3}>
               You can run a posting against it yourself and read exactly what a visitor

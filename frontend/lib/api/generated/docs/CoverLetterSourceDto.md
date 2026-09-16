@@ -1,28 +1,26 @@
 
-# RagIndexStateDto
+# CoverLetterSourceDto
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`builtAt` | Date
-`documentCount` | number
-`error` | string
-`sources` | [Array&lt;RagSourceDto&gt;](RagSourceDto.md)
+`documentId` | number
+`sourceType` | [RagSourceType](RagSourceType.md)
+`sourceLabel` | string
 
 ## Example
 
 ```typescript
-import type { RagIndexStateDto } from ''
+import type { CoverLetterSourceDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "builtAt": null,
-  "documentCount": null,
-  "error": null,
-  "sources": null,
-} satisfies RagIndexStateDto
+  "documentId": null,
+  "sourceType": null,
+  "sourceLabel": null,
+} satisfies CoverLetterSourceDto
 
 console.log(example)
 
@@ -31,7 +29,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as RagIndexStateDto
+const exampleParsed = JSON.parse(exampleJSON) as CoverLetterSourceDto
 console.log(exampleParsed)
 ```
 

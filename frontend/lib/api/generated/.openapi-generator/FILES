@@ -27,6 +27,9 @@ docs/AuthorsApi.md
 docs/ContactChannelDto.md
 docs/ContactChannelInputDto.md
 docs/ContactChannelsApi.md
+docs/CoverLetterDto.md
+docs/CoverLetterRequestDto.md
+docs/CoverLetterSourceDto.md
 docs/CreateApiTokenDto.md
 docs/CreatePostDto.md
 docs/DailyTrafficDto.md
@@ -62,6 +65,8 @@ docs/RagIndexStateDto.md
 docs/RagJobDto.md
 docs/RagJobKind.md
 docs/RagJobStatus.md
+docs/RagSourceDto.md
+docs/RagSourceStatus.md
 docs/RagSourceType.md
 docs/ReferrerDto.md
 docs/RefreshTokenDto.md
@@ -89,6 +94,9 @@ models/AuthorDto.ts
 models/AuthorSummaryDto.ts
 models/ContactChannelDto.ts
 models/ContactChannelInputDto.ts
+models/CoverLetterDto.ts
+models/CoverLetterRequestDto.ts
+models/CoverLetterSourceDto.ts
 models/CreateApiTokenDto.ts
 models/CreatePostDto.ts
 models/DailyTrafficDto.ts
@@ -118,6 +126,8 @@ models/RagIndexStateDto.ts
 models/RagJobDto.ts
 models/RagJobKind.ts
 models/RagJobStatus.ts
+models/RagSourceDto.ts
+models/RagSourceStatus.ts
 models/RagSourceType.ts
 models/ReferrerDto.ts
 models/RefreshTokenDto.ts

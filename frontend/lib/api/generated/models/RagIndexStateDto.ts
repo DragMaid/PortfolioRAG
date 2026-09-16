@@ -14,13 +14,13 @@
  */
 
 import { mapValues, parseDate, parseDateTime, serializeDate, serializeDateTime } from '../runtime';
-import type { RagJobDto } from './RagJobDto';
+import type { RagSourceDto } from './RagSourceDto';
 import {
-    RagJobDtoFromJSON,
-    RagJobDtoFromJSONTyped,
-    RagJobDtoToJSON,
-    RagJobDtoToJSONTyped,
-} from './RagJobDto';
+    RagSourceDtoFromJSON,
+    RagSourceDtoFromJSONTyped,
+    RagSourceDtoToJSON,
+    RagSourceDtoToJSONTyped,
+} from './RagSourceDto';
 
 /**
  * 
@@ -43,7 +43,7 @@ export interface RagIndexStateDto {
     /**
      * 
      */
-    pendingJob?: RagJobDto | null;
+    sources?: Array<RagSourceDto>;
 }
 
 /**
@@ -66,7 +66,7 @@ export function RagIndexStateDtoFromJSONTyped(json: any, ignoreDiscriminator: bo
         'builtAt': json['builtAt'] === undefined ? undefined : json['builtAt'] === null ? null : (parseDateTime(json['builtAt'])),
         'documentCount': json['documentCount'] == null ? undefined : json['documentCount'],
         'error': json['error'] === undefined ? undefined : json['error'] === null ? null : json['error'],
-        'pendingJob': json['pendingJob'] === undefined ? undefined : json['pendingJob'] === null ? null : RagJobDtoFromJSON(json['pendingJob']),
+        'sources': json['sources'] == null ? undefined : ((json['sources'] as Array<any>).map(RagSourceDtoFromJSON)),
     };
 }
 
@@ -84,7 +84,7 @@ export function RagIndexStateDtoToJSONTyped(value?: RagIndexStateDto | null, ign
         'builtAt': value['builtAt'] == null ? value['builtAt'] : serializeDateTime(value['builtAt']),
         'documentCount': value['documentCount'],
         'error': value['error'],
-        'pendingJob': RagJobDtoToJSON(value['pendingJob']),
+        'sources': value['sources'] == null ? undefined : ((value['sources'] as Array<any>).map(RagSourceDtoToJSON)),
     };
 }
 

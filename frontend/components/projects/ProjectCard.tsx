@@ -83,12 +83,7 @@ export function ProjectCard({
 
       <div className="flex flex-1 flex-col justify-between p-6">
         <div>
-          {project.category ? (
-            <span className="font-mono text-[10px] font-semibold tracking-wider text-warm-accent uppercase">
-              {project.category}
-            </span>
-          ) : null}
-          <div className="mt-1 font-serif text-xl font-normal text-warm-black">
+          <div className="font-serif text-xl font-normal text-warm-black">
             {project.title}
           </div>
           {project.summary ? (
@@ -98,9 +93,9 @@ export function ProjectCard({
           ) : null}
         </div>
         <div className="mt-6 flex items-center justify-between border-t border-warm-border pt-3.5 font-mono text-[11px]">
-          <span className="text-warm-slate">{project.domain}</span>
+          <span className="text-warm-slate">{project.year}</span>
           <span className="font-semibold text-warm-black transition-transform group-hover:translate-x-0.5">
-            Inspect Artifact ↑
+            Preview ↑
           </span>
         </div>
       </div>
