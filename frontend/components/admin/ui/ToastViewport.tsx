@@ -40,7 +40,7 @@ export function ToastViewport() {
           className={cn(
             "animate-fade-rise pointer-events-auto flex max-w-sm items-center gap-2 rounded",
             "border border-warm-black/20 bg-warm-black px-4 py-2.5 text-left shadow-elevated",
-            "font-mono text-xs tracking-wide text-warm-surface",
+            "text-[13px] tracking-wide text-warm-surface",
           )}
         >
           <Icon name={ICONS[toast.tone]} className={cn("text-[17px]", ICON_TONES[toast.tone])} />

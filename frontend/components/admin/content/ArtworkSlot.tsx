@@ -88,7 +88,7 @@ export function ArtworkSlot({ role, media, isLive, disabled, onUpload }: Artwork
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
+            <span className="text-[13px] font-medium text-warm-slate">
               {label}
             </span>
             {media ? (
@@ -97,7 +97,7 @@ export function ArtworkSlot({ role, media, isLive, disabled, onUpload }: Artwork
               <Badge tone="neutral">Required</Badge>
             )}
           </div>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-warm-slate">{description}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-warm-slate">{description}</p>
         </div>
       </div>
 
@@ -138,7 +138,7 @@ export function ArtworkSlot({ role, media, isLive, disabled, onUpload }: Artwork
             />
           )
         ) : (
-          <span className="flex flex-col items-center gap-1 font-mono text-[11px] text-warm-slate">
+          <span className="flex flex-col items-center gap-1 text-[13px] text-warm-slate">
             <Icon name={busy ? "spinner" : "image"} className="text-[22px]" />
             {busy ? "Uploading…" : "Nothing set"}
           </span>
@@ -146,7 +146,7 @@ export function ArtworkSlot({ role, media, isLive, disabled, onUpload }: Artwork
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="truncate font-mono text-[10.5px] text-warm-slate">
+        <span className="truncate text-xs text-warm-slate">
           {media ? `${media.filename} • ${formatBytes(media.byteSize ?? 0)}` : "No file yet"}
         </span>
 
@@ -166,7 +166,7 @@ export function ArtworkSlot({ role, media, isLive, disabled, onUpload }: Artwork
        * replacing, which Replace already does.
        */}
       {isLive && media ? (
-        <p className="font-mono text-[10.5px] text-warm-slate">
+        <p className="text-xs text-warm-slate">
           Live: replacing swaps it immediately. Unpublish first to remove it altogether.
         </p>
       ) : null}

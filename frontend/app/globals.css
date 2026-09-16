@@ -19,6 +19,11 @@
   --color-warm-raised: #ede9e1;
   /* A hairline for dividers inside a panel, where warm-border reads too heavy. */
   --color-warm-hairline: #ebe8e1;
+  /*
+   * The accent, darkened until it holds 4.5:1 as text on every studio surface. The accent
+   * itself stays for icons and fills, where 3:1 is enough.
+   */
+  --color-warm-accent-ink: #6a604d;
 
   /* Published, saved, healthy. The only hue in the palette, and used sparingly. */
   --color-warm-success: #2e6b47;
@@ -289,6 +294,22 @@
 
 :root {
   color-scheme: light;
+}
+
+/*
+ * The studio is dense small text on sunken and raised grounds, where the site's slate
+ * drops below 4.5:1. It gets a deeper step of the same warm grey; the portfolio keeps its own.
+ */
+.studio-theme {
+  --color-warm-slate: #65615a;
+}
+
+/*
+ * Tabs of very different lengths toggle the scrollbar on and off, which shoved the whole
+ * studio sideways on every switch. Reserving the gutter keeps it still.
+ */
+html:has(.studio-theme) {
+  scrollbar-gutter: stable;
 }
 
 body {

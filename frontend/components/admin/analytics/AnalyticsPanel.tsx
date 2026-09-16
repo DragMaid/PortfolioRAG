@@ -112,12 +112,12 @@ export function AnalyticsPanel() {
           <h1 className="font-serif text-2xl font-medium text-warm-black sm:text-3xl">
             Traffic & readership
           </h1>
-          <p className="mt-0.5 text-[13.5px] text-warm-slate">
+          <p className="mt-0.5 text-sm text-warm-slate">
             Readership telemetry for your own projects, over a rolling window ending today.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
           <span className="flex items-center gap-1.5 rounded border border-warm-border bg-warm-surface px-2.5 py-1 text-warm-slate">
             <StatusDot pulse={false} />
             {windowLabel} (rolling)
@@ -243,7 +243,7 @@ function AnalyticsBody({
           title="Daily readership & weekday baseline"
           description="Reads per day against the mean for that weekday over the four preceding weeks."
           aside={
-            <div className="flex items-center gap-4 font-mono text-[11px]">
+            <div className="flex items-center gap-4 text-[13px]">
               <span className="flex items-center gap-1.5">
                 <span aria-hidden className="size-3 rounded-xs bg-warm-black" />
                 <span className="text-warm-slate">This window</span>

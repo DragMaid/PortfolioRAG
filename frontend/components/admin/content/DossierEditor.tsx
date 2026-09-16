@@ -91,15 +91,12 @@ export function DossierEditor({
 
   return (
     <Panel className="flex flex-col gap-5 p-5 sm:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-warm-border pb-4">
-        <div className="min-w-0">
-          <span className="mb-0.5 block font-mono text-[11px] font-semibold tracking-wider text-warm-accent uppercase">
-            Dossier workspace
-          </span>
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-warm-border pb-4">
+        <div className="min-w-0 flex-1 basis-64">
           <h2 className="truncate font-serif text-2xl font-medium text-warm-black">
             {draft.title || "Untitled"}
           </h2>
-          <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-warm-slate">
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-warm-slate">
             <Badge tone={post.isDraft ? "neutral" : "success"}>{post.isDraft ? "Draft" : "Live"}</Badge>
             <span>{post.viewCount ?? 0} lifetime reads</span>
             <span aria-hidden>•</span>
@@ -151,7 +148,7 @@ export function DossierEditor({
       {post.isDraft && publishBlockers.length > 0 ? (
         <p
           role="status"
-          className="flex items-start gap-2 rounded border border-warm-accent/35 bg-warm-accent/10 px-3 py-2 font-mono text-[11.5px] leading-relaxed text-warm-black"
+          className="flex items-start gap-2 rounded border border-warm-accent/35 bg-warm-accent/10 px-3 py-2 text-[13px] leading-relaxed text-warm-black"
         >
           <Icon name="error" className="mt-px text-[14px] text-warm-accent" />
           <span>
@@ -184,7 +181,7 @@ export function DossierEditor({
           maxLength={500}
           placeholder="Two or three sentences on what this is and why it matters."
           onChange={(event) => onChange({ summary: event.target.value })}
-          className="text-[13.5px] leading-relaxed"
+          className="text-sm leading-relaxed"
         />
       </Field>
 
@@ -206,7 +203,7 @@ export function DossierEditor({
           maxLength={200}
           pattern="[a-z0-9]+(-[a-z0-9]+)*"
           onChange={(event) => onChange({ slug: event.target.value })}
-          className="font-mono text-xs"
+          className="font-mono text-[13px]"
         />
       </Field>
 
@@ -264,7 +261,7 @@ export function DossierEditor({
                 maxLength={500}
                 placeholder={placeholder}
                 onChange={(event) => onChange({ [key]: event.target.value })}
-                className="font-mono text-[11px]"
+                className="font-mono text-[13px]"
               />
             </Field>
           ))}

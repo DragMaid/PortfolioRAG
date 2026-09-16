@@ -86,7 +86,7 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
           onChange={setJobDescription}
           disabled={cover.isBusy}
           footer={
-            <span className="font-mono text-[10.5px] text-warm-slate">
+            <span className="text-xs text-warm-slate">
               {trimmed.length === 0
                 ? `At least ${MINIMUM_CHARS} characters.`
                 : trimmed.length < MINIMUM_CHARS
@@ -110,7 +110,7 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
           maxLength={1000}
           disabled={cover.isBusy}
           placeholder="Lead with the storage engine work. Keep it short."
-          className="text-[13px]"
+          className="text-sm"
         />
       </Field>
 
@@ -132,7 +132,7 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
         ) : null}
 
         {cover.isBusy ? (
-          <span className="font-mono text-[11px] text-warm-slate tabular-nums">
+          <span className="text-[13px] text-warm-slate tabular-nums">
             Reading the posting, searching your portfolio, writing… {cover.elapsed}s
             {cover.elapsed <= cover.estimatedSeconds ? ` / ~${cover.estimatedSeconds}s` : ""}
           </span>
@@ -140,7 +140,7 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
       </div>
 
       {cover.error ? (
-        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[12.5px] leading-relaxed text-warm-danger">
+        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[13.5px] leading-relaxed text-warm-danger">
           {cover.error}
         </p>
       ) : null}
@@ -156,13 +156,13 @@ function Letter({ letter, onCopy }: { letter: CoverLetterDto; onCopy: (text: str
   return (
     <div className="flex flex-col gap-4 border-t border-warm-hairline pt-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
+        <div className="text-[13px] font-medium text-warm-slate">
           {letter.roleTitle}
           {letter.company ? ` · ${letter.company}` : ""}
         </div>
         <div className="flex items-center gap-2">
           {usage ? (
-            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[10.5px] text-warm-slate">
+            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-xs text-warm-slate">
               {formatUsd(usage.costUsd ?? 0)} · {Math.round((usage.durationMs ?? 0) / 1000)}s
             </span>
           ) : null}
@@ -178,14 +178,14 @@ function Letter({ letter, onCopy }: { letter: CoverLetterDto; onCopy: (text: str
 
       {(letter.sources ?? []).length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <span className="font-mono text-[10.5px] tracking-wider text-warm-slate uppercase">
+          <span className="text-[13px] font-medium text-warm-slate">
             Drawn from
           </span>
           <ul className="flex flex-wrap gap-1.5">
             {(letter.sources ?? []).map((source) => (
               <li
                 key={source.documentId}
-                className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[11px] text-warm-black"
+                className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-[13px] text-warm-black"
               >
                 <span className="text-warm-slate">
                   {source.sourceType ? SOURCE_LABEL[source.sourceType] : ""}:
@@ -197,7 +197,7 @@ function Letter({ letter, onCopy }: { letter: CoverLetterDto; onCopy: (text: str
         </div>
       ) : null}
 
-      <p className="font-mono text-[10.5px] leading-relaxed text-warm-slate">
+      <p className="text-xs leading-relaxed text-warm-slate">
         A first draft. Read it before sending — it only knows what your portfolio says.
       </p>
     </div>

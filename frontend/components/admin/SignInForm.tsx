@@ -77,7 +77,7 @@ export function SignInForm() {
       <Panel className="w-full max-w-sm p-6">
         <div className="mb-5 flex items-center gap-2">
           <span aria-hidden className="inline-block size-2.5 rounded-full bg-warm-black" />
-          <h1 className="font-mono text-[13px] font-semibold tracking-tight text-warm-black">
+          <h1 className="text-sm font-semibold tracking-tight text-warm-black">
             Admin <span className="font-normal text-warm-slate">/ Studio</span>
           </h1>
         </div>
@@ -98,8 +98,8 @@ export function SignInForm() {
               onClick={() => switchTo(value)}
               className={
                 mode === value
-                  ? "rounded bg-warm-surface px-3 py-1.5 font-mono text-[11.5px] font-semibold text-warm-black shadow-sm"
-                  : "rounded px-3 py-1.5 font-mono text-[11.5px] text-warm-slate transition-colors hover:text-warm-black"
+                  ? "rounded bg-warm-surface px-3 py-1.5 text-[13px] font-semibold text-warm-black shadow-sm"
+                  : "rounded px-3 py-1.5 text-[13px] text-warm-slate transition-colors hover:text-warm-black"
               }
             >
               {value === "signin" ? "Sign in" : "Create account"}
@@ -164,7 +164,7 @@ export function SignInForm() {
           {error ? (
             <p
               role="alert"
-              className="flex items-start gap-2 rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 font-mono text-[11.5px] leading-relaxed text-warm-danger"
+              className="flex items-start gap-2 rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[13px] leading-relaxed text-warm-danger"
             >
               <Icon name="error" className="mt-px text-[14px]" />
               {error}
@@ -182,7 +182,7 @@ export function SignInForm() {
           <div className="mt-5">
             <div className="mb-4 flex items-center gap-3">
               <span className="h-px flex-1 bg-warm-border" />
-              <span className="font-mono text-[10.5px] tracking-wider text-warm-slate uppercase">
+              <span className="text-[13px] font-medium text-warm-slate">
                 or
               </span>
               <span className="h-px flex-1 bg-warm-border" />
@@ -193,14 +193,14 @@ export function SignInForm() {
             <div ref={containerRef} className="flex min-h-[44px] justify-center" />
 
             {googleStatus === "error" ? (
-              <p className="mt-2 text-center font-mono text-[10.5px] text-warm-slate">
+              <p className="mt-2 text-center text-xs text-warm-slate">
                 Google sign-in could not load. Use an email and password instead.
               </p>
             ) : null}
           </div>
         ) : null}
 
-        <p className="mt-5 border-t border-warm-border pt-4 font-mono text-[10.5px] leading-relaxed text-warm-slate">
+        <p className="mt-5 border-t border-warm-border pt-4 text-xs leading-relaxed text-warm-slate">
           {isSignUp
             ? "Creating an account gives you your own portfolio, published at your own handle. It does not give you access to anyone else's."
             : "Signing in opens the studio for your own portfolio only."}

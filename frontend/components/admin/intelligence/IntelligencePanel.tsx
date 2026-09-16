@@ -45,7 +45,7 @@ export function IntelligencePanel() {
           <h1 className="font-serif text-2xl font-medium text-warm-black sm:text-3xl">
             Intelligence
           </h1>
-          <p className="mt-0.5 max-w-2xl text-[13.5px] text-warm-slate">
+          <p className="mt-0.5 max-w-2xl text-sm text-warm-slate">
             Add your own model provider key and your portfolio can answer a question about
             itself: given this job description, which requirements does the published work
             actually evidence? It can also draft you a cover letter for a posting. Everything
@@ -90,10 +90,10 @@ export function IntelligencePanel() {
         </>
       ) : (
         <Panel className="flex flex-col gap-3 p-5 sm:p-6">
-          <h2 className="font-mono text-xs font-semibold tracking-wider text-warm-black uppercase">
+          <h2 className="text-[13px] font-semibold text-warm-black">
             What happens when you add one
           </h2>
-          <ol className="flex flex-col gap-2 text-[12.5px] leading-relaxed text-warm-slate">
+          <ol className="flex flex-col gap-2 text-[13.5px] leading-relaxed text-warm-slate">
             <Step n={1}>
               The key is checked with the provider, then sealed and stored. It is never
               shown again, never logged, and an API token cannot reach it however wide its
@@ -123,7 +123,7 @@ export function IntelligencePanel() {
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3">
-      <span className="mt-px font-mono text-[11px] text-warm-accent tabular-nums">
+      <span className="mt-px text-[13px] text-warm-accent-ink tabular-nums">
         {String(n).padStart(2, "0")}
       </span>
       <span>{children}</span>

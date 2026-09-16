@@ -49,7 +49,7 @@ export function Button({
       disabled={disabled || busy}
       aria-busy={busy || undefined}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded px-3 py-1.5 font-mono text-xs",
+        "inline-flex items-center justify-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-medium whitespace-nowrap",
         "transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
         "disabled:cursor-not-allowed disabled:opacity-55",
         VARIANTS[variant],
