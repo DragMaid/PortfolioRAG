@@ -153,6 +153,59 @@ class Narrative(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Cover letter
+# ---------------------------------------------------------------------------
+
+
+class CoverLetter(BaseModel):
+    """The letter, and the passages it was written from."""
+
+    letter: str = Field(
+        description=(
+            "The letter itself, as Markdown paragraphs. No subject line, no address block, "
+            "no bracketed placeholders — the author sends this as written."
+        )
+    )
+
+    cited_document_ids: list[int] = Field(
+        description=(
+            "The numbers in the [#N] labels of every passage the letter draws on. Only "
+            "passages you were shown; ids that were not are dropped."
+        )
+    )
+
+
+def build_cover_letter(
+    *,
+    letter: str,
+    role_title: str,
+    company: str | None,
+    sources: list[dict[str, Any]],
+    provider: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: Decimal,
+    duration_ms: int,
+) -> dict[str, Any]:
+    """The JSON the API reads back as a ``CoverLetterDto``."""
+    return {
+        "letter": letter,
+        "role_title": role_title,
+        "company": company,
+        "sources": sources,
+        "usage": {
+            "provider": provider,
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": str(cost_usd),
+            "duration_ms": duration_ms,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Verified
 # ---------------------------------------------------------------------------
 
@@ -186,7 +239,7 @@ class VerifiedFinding:
 _SOURCE_NAMES = {
     SourceType.PROFILE: "profile",
     SourceType.EXPERIENCE: "experience",
-    SourceType.POST: "post"
+    SourceType.POST: "post",
 }
 
 
@@ -252,3 +305,7 @@ def build_report(
             "duration_ms": duration_ms,
         },
     }
+
+
+def source_name(source_type: SourceType) -> str:
+    return _SOURCE_NAMES.get(source_type, "post")

@@ -109,21 +109,6 @@ public class LlmController : ControllerBase
     }
 
     /// <summary>
-    /// Queues a rebuild of the retrieval index. Returns the rebuild already running if
-    /// there is one, rather than queueing a second.
-    /// </summary>
-    [HttpPost("index/rebuild")]
-    [ProducesResponseType(typeof(RagJobDto), StatusCodes.Status202Accepted)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<RagJobDto>> RebuildIndex(CancellationToken cancellationToken)
-    {
-        var job = await _credentials.RebuildIndexAsync(cancellationToken);
-        return Accepted($"/api/llm/jobs/{job.Id}", job);
-    }
-
-    /// <summary>
     /// Runs an analysis against your own portfolio — what a visitor would see. Counts
     /// against the monthly budget.
     /// </summary>
@@ -140,6 +125,26 @@ public class LlmController : ControllerBase
         CancellationToken cancellationToken)
     {
         var job = await _credentials.TryJobFitAsync(dto, cancellationToken);
+        return Accepted($"/api/llm/jobs/{job.Id}", job);
+    }
+
+    /// <summary>
+    /// Writes a cover letter for a posting from your own portfolio. Poll the returned job for
+    /// the letter. Counts against the monthly budget.
+    /// </summary>
+    [HttpPost("cover-letter")]
+    [ProducesResponseType(typeof(RagJobDto), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
+    public async Task<ActionResult<RagJobDto>> WriteCoverLetter(
+        [FromBody] CoverLetterRequestDto dto,
+        CancellationToken cancellationToken)
+    {
+        var job = await _credentials.WriteCoverLetterAsync(dto, cancellationToken);
         return Accepted($"/api/llm/jobs/{job.Id}", job);
     }
 

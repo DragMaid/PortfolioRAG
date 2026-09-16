@@ -36,6 +36,9 @@ public class RagJobDto
 
     /// <summary>The answer, once <see cref="Status"/> is <see cref="RagJobStatus.Succeeded"/>.</summary>
     public JobFitReportDto? Report { get; init; }
+
+    /// <summary>The letter, once a <see cref="RagJobKind.CoverLetter"/> job has succeeded.</summary>
+    public CoverLetterDto? CoverLetter { get; init; }
 }
 
 /// <summary>A job description to measure the portfolio against.</summary>
@@ -55,4 +58,47 @@ public class JobFitRequestDto
 
     [StringLength(200)]
     public string? Company { get; init; }
+}
+
+/// <summary>A posting to write a cover letter for.</summary>
+public class CoverLetterRequestDto
+{
+    [Required]
+    [StringLength(20000, MinimumLength = 120)]
+    public string JobDescription { get; init; } = string.Empty;
+
+    [StringLength(200)]
+    public string? RoleTitle { get; init; }
+
+    [StringLength(200)]
+    public string? Company { get; init; }
+
+    /// <summary>Anything the author wants leaned on or left out — tone, a project to lead with.</summary>
+    [StringLength(1000)]
+    public string? Notes { get; init; }
+}
+
+/// <summary>A cover letter written from the portfolio, with the sources it drew on.</summary>
+public class CoverLetterDto
+{
+    /// <summary>The letter, in Markdown.</summary>
+    public string Letter { get; init; } = string.Empty;
+
+    public string RoleTitle { get; init; } = string.Empty;
+
+    public string? Company { get; init; }
+
+    /// <summary>The passages the letter leans on, resolved to what they came from.</summary>
+    public IReadOnlyList<CoverLetterSourceDto> Sources { get; init; } = Array.Empty<CoverLetterSourceDto>();
+
+    public UsageDto? Usage { get; init; }
+}
+
+public class CoverLetterSourceDto
+{
+    public long DocumentId { get; init; }
+
+    public RagSourceType SourceType { get; init; }
+
+    public string SourceLabel { get; init; } = string.Empty;
 }

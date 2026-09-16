@@ -20,14 +20,6 @@ public class CreatePostDto
     [StringLength(50000, MinimumLength = 1)]
     public string Body { get; init; } = string.Empty;
 
-    /// <summary>The kicker beside the ordinal on the card — "VECTOR CORE".</summary>
-    [StringLength(60)]
-    public string? Category { get; init; }
-
-    /// <summary>The line in the card footer — "Vector Storage".</summary>
-    [StringLength(60)]
-    public string? Domain { get; init; }
-
     [StringLength(500)]
     [Url]
     public string? RepoUrl { get; init; }
@@ -35,8 +27,4 @@ public class CreatePostDto
     [StringLength(500)]
     [Url]
     public string? DemoUrl { get; init; }
-
-    [StringLength(500)]
-    [Url]
-    public string? SpecUrl { get; init; }
 }

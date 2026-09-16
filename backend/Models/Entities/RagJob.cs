@@ -7,7 +7,10 @@ public enum RagJobKind
     Index = 0,
 
     /// <summary>Compare a pasted job description against that corpus.</summary>
-    JobFit = 1
+    JobFit = 1,
+
+    /// <summary>Write a cover letter for a pasted job description, grounded in that corpus.</summary>
+    CoverLetter = 2
 }
 
 public enum RagJobStatus

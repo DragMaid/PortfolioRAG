@@ -21,12 +21,14 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from rag import indexing
+from rag.cover_letter import CoverLetterPipeline, CoverLetterRequest
 from rag.db import close_pool, get_pool
 from rag.embeddings import get_embedder
 from rag.pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from rag.providers.base import ModelPrice
 from rag.schemas import (
     Assessment,
+    CoverLetter,
     EvidenceRef,
     ExtractedRequirement,
     Narrative,
@@ -496,6 +498,58 @@ def test_every_requirement_reaches_the_assessment_prompt(indexed, settings):
 
     # And the passages are labelled the way the model is told to cite them.
     assert "[#" in assess_prompt
+
+
+def test_a_cover_letter_keeps_only_citations_to_passages_it_was_shown(indexed, settings):
+    conn, author_id, embedder = indexed
+
+    passages = _retrieved(conn, settings, embedder, author_id)
+    shown = _passage_containing(passages, "Rust")
+
+    provider = StubProvider(
+        {
+            PostingAnalysis: ANALYSIS,
+            CoverLetter: CoverLetter(
+                letter="Dear hiring team,\n\nI rewrote a write-ahead log in Rust.\n\nBest,\nMe",
+                cited_document_ids=[shown.document_id, shown.document_id, -1],
+            ),
+        }
+    )
+
+    pipeline = CoverLetterPipeline(
+        settings=settings,
+        provider=provider,
+        embedder=embedder,
+        api_key="stub",
+        model="stub-model",
+    )
+
+    outcome = pipeline.write(
+        conn,
+        author_id,
+        CoverLetterRequest(
+            job_description="A posting long enough to be worth reading. " * 6,
+            company="Acme",
+            notes="Lead with storage.",
+        ),
+    )
+
+    report = outcome.report
+
+    assert report["letter"].startswith("Dear hiring team")
+    assert report["company"] == "Acme"
+    assert report["role_title"] == ANALYSIS.role_title
+    assert [source["document_id"] for source in report["sources"]] == [shown.document_id]
+    assert report["sources"][0]["source_type"] in {"profile", "experience", "post"}
+
+    # Two model calls: extraction and the letter.
+    assert outcome.usage.input_tokens == 2000
+    assert report["usage"]["cost_usd"] == str(outcome.usage.cost_usd)
+
+    # The notes and the author's name reach the prompt.
+    rendered = provider.prompts[-1].to_string()
+    assert "Lead with storage." in rendered
+    assert "Company: Acme" in rendered
 
 
 def _retrieved(conn, settings: Settings, embedder, author_id: int):

@@ -47,8 +47,6 @@
     {
       "slug": "vector-core",
       "title": "Vector Core",
-      "category": "STORAGE",
-      "domain": "Vector Storage",
       "summary": "A disk-backed vector index that answers nearest-neighbour queries over 400 million embeddings without holding them in memory.",
       "repo_url": "https://github.com/example/vector-core",
       "body": "## Why\n\nEvery vector database I tried assumed the index fits in RAM. At 400 million 768-dimensional vectors that is about 1.2TB, which it does not.\n\n## Design\n\nVector Core is an HNSW graph with its adjacency lists on disk and a learned cache of the upper layers in memory. The trick is that the top three layers of an HNSW graph are tiny and take almost all of the traversals, so caching them gets you most of the way to an in-memory index at a fraction of the footprint.\n\nWritten in Rust. Uses io_uring for the leaf-layer reads, which turned out to matter more than anything else I tried — the traversal is a dependent-read chain and the syscall overhead dominated before that.\n\n## Numbers\n\np50 query 3.1ms, p99 14ms, at 94% recall@10 against exact search. 41GB resident for a 1.2TB index."
@@ -56,8 +54,6 @@
     {
       "slug": "ledger-replay",
       "title": "Ledger Replay",
-      "category": "CORRECTNESS",
-      "domain": "Event Sourcing",
       "summary": "A tool that replays a Postgres logical replication stream into a shadow database to prove a migration is safe before it runs.",
       "repo_url": "https://github.com/example/ledger-replay",
       "body": "## The problem\n\nWe had a schema migration on a 4TB Postgres table that nobody was willing to sign off on, because the only way to know it was safe was to run it.\n\n## What it does\n\nLedger Replay taps the logical replication slot, applies the stream to a shadow copy with the new schema, and diffs the two continuously. When the diff has been empty for an hour under production traffic, the migration is as proven as it is going to get.\n\nGo, about 3,000 lines. The interesting part is the diffing: comparing two 4TB tables row by row is not practical, so it compares rolling Merkle hashes of primary-key ranges and only descends into ranges that disagree.\n\n## Result\n\nWe ran it before four migrations. It caught one — a partial index that silently changed a query plan under a specific parameter value."
@@ -65,8 +61,6 @@
     {
       "slug": "weather-mesh",
       "title": "Weather Mesh",
-      "category": "EMBEDDED",
-      "domain": "Sensor Networks",
       "summary": "A battery-powered mesh of weather sensors that survives a Portuguese summer on one charge.",
       "repo_url": "https://github.com/example/weather-mesh",
       "body": "## Why\n\nThe nearest weather station to my village is 40km away and reports conditions that have nothing to do with what is happening here.\n\n## Build\n\nThirty nodes, each an nRF52840 with a temperature, humidity and pressure sensor, meshed over Bluetooth. Firmware in C. The gateway is a Raspberry Pi that forwards to a small Go service writing into Postgres with TimescaleDB.\n\nThe whole problem is power. A node has to run eleven months on a 2000mAh cell, which works out to an average draw under 8 microamps. Almost all of the engineering is in being asleep: the radio is on for 40ms every four minutes, the sensors are polled on a schedule that drifts deliberately so nodes do not wake together, and the mesh routing is precomputed on the gateway rather than negotiated by the nodes.\n\n## State\n\nRunning since 2023. Two nodes lost to water ingress, one to a goat."
@@ -74,10 +68,7 @@
     {
       "slug": "quota-without-tears",
       "title": "Quota Without Tears",
-      "category": "OPERATIONS",
-      "domain": "Multi-tenancy",
       "summary": "How we stopped one tenant's backfill from being everybody's incident, and what the first three designs got wrong.",
-      "spec_url": "https://example.com/specs/quota",
       "body": "## The incident\n\nA customer started a backfill at 02:00 on a Tuesday and pushed 60x their normal write rate for nine hours. Our replication lag went to twenty minutes and every other tenant's reads went stale.\n\n## What did not work\n\nA global rate limit punished everybody for one tenant. Per-tenant hard caps meant support tickets every time somebody had a legitimate spike. A token bucket sized for peak was a token bucket that never limited anything.\n\n## What worked\n\nWeighted fair queuing at the ingest layer, with the weights derived from paid capacity, plus a borrowing rule: a tenant under its share accumulates credit it can spend later. A tenant can burst well past its steady-state share as long as somebody else is not asking for it at the same moment, which is the case almost all of the time.\n\nShipped in Rust as part of the ingest path. The measurable outcome is that we have not had a noisy-neighbour incident since, across eighteen months and roughly forty backfills that would previously have caused one."
     }
   ]

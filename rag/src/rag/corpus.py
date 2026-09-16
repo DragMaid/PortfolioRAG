@@ -165,8 +165,8 @@ def _load_posts(conn: Connection, author_id: int) -> list[SourceDocument]:
     rows = fetch_all(
         conn,
         """
-        SELECT "Id", "Title", "Slug", "Summary", "Body", "Category", "Domain",
-               "PublishedAt", "RepoUrl", "DemoUrl", "SpecUrl"
+        SELECT "Id", "Title", "Slug", "Summary", "Body",
+               "PublishedAt", "RepoUrl", "DemoUrl"
         FROM "Posts"
         WHERE "AuthorId" = %s AND "IsDraft" = false
         ORDER BY "PublishedAt" DESC NULLS LAST, "Id" DESC
@@ -179,19 +179,12 @@ def _load_posts(conn: Connection, author_id: int) -> list[SourceDocument]:
     for row in rows:
         lines = [f"Project: {row['Title']}"]
 
-        if _present(row["Category"]):
-            lines.append(f"Category: {row['Category'].strip()}")
-
-        if _present(row["Domain"]):
-            lines.append(f"Domain: {row['Domain'].strip()}")
-
         if _present(row["Summary"]):
             lines.append(f"Summary: {row['Summary'].strip()}")
 
         # NOTE: the links are indexed as text. "Is there public code" is a question a
         # posting asks constantly, and the presence of a repository URL is the answer.
-        for name, value in (("Repository", row["RepoUrl"]), ("Live demo", row["DemoUrl"]),
-                            ("Design document", row["SpecUrl"])):
+        for name, value in (("Repository", row["RepoUrl"]), ("Live demo", row["DemoUrl"])):
             if _present(value):
                 lines.append(f"{name}: {value.strip()}")
 
@@ -207,8 +200,6 @@ def _load_posts(conn: Connection, author_id: int) -> list[SourceDocument]:
                 metadata={
                     "title": row["Title"],
                     "slug": row["Slug"],
-                    "category": row["Category"],
-                    "domain": row["Domain"],
                     "published_at": _iso(row["PublishedAt"]),
                     "has_repo": _present(row["RepoUrl"]),
                 },

@@ -23,6 +23,12 @@ public static class JobFitPayload
 
     public static string Normalize(JobFitRequestDto dto, int maximumChars) =>
         Serialize(Validate(dto.JobDescription, maximumChars), dto.RoleTitle, dto.Company, notes: null);
+
+    /// <summary>The same checks for a cover letter, which also carries the author's own notes.</summary>
+    public static string Normalize(CoverLetterRequestDto dto, int maximumChars) =>
+        Serialize(Validate(dto.JobDescription, maximumChars), dto.RoleTitle, dto.Company, dto.Notes);
+
+    private static string Validate(string? jobDescription, int maximumChars)
     {
         var description = jobDescription?.Trim() ?? string.Empty;
 

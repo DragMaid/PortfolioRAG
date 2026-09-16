@@ -247,6 +247,43 @@ public class LlmCredentialService : ILlmCredentialService
         return job.ToDto(includeUsage: true);
     }
 
+    public async Task<RagJobDto> WriteCoverLetterAsync(
+        CoverLetterRequestDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+        var credential = await RequireCredentialAsync(authorId, cancellationToken);
+
+        if (!credential.IsUsable)
+        {
+            throw new ValidationException(
+                "The stored key has not been confirmed with the provider. Re-check it before writing a letter.");
+        }
+
+        var payload = JobFitPayload.Normalize(dto, _options.MaxJobDescriptionChars);
+        var now = _timeProvider.GetUtcNow();
+
+        // Spends the same key as an analysis, so the same ceiling applies.
+        await EnsureWithinBudgetAsync(credential, now, cancellationToken);
+
+        var job = new RagJob
+        {
+            Id = Guid.NewGuid(),
+            AuthorId = authorId,
+            Kind = RagJobKind.CoverLetter,
+            Status = RagJobStatus.Queued,
+            PayloadJson = payload,
+            AvailableAt = now,
+            CreatedAt = now
+        };
+
+        await _rag.AddJobAsync(job, cancellationToken);
+        await _rag.SaveChangesAsync(cancellationToken);
+        await _rag.NotifyQueueAsync(cancellationToken);
+
+        return job.ToDto(includeUsage: true);
+    }
+
     public async Task<RagJobDto> GetOwnJobAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var authorId = _currentUser.RequireAuthorId();
