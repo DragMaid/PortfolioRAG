@@ -14,6 +14,7 @@ public class PostService : IPostService
     private readonly IPostRepository _posts;
     private readonly IAuthorRepository _authors;
     private readonly IMediaService _media;
+    private readonly IRagIndexScheduler _index;
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
 
@@ -21,12 +22,14 @@ public class PostService : IPostService
         IPostRepository posts,
         IAuthorRepository authors,
         IMediaService media,
+        IRagIndexScheduler index,
         ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _posts = posts;
         _authors = authors;
         _media = media;
+        _index = index;
         _currentUser = currentUser;
         _timeProvider = timeProvider;
     }
@@ -92,11 +95,8 @@ public class PostService : IPostService
             Slug = slug,
             Summary = string.IsNullOrWhiteSpace(dto.Summary) ? null : dto.Summary.Trim(),
             Body = dto.Body,
-            Category = Clean(dto.Category),
-            Domain = Clean(dto.Domain),
             RepoUrl = Clean(dto.RepoUrl),
             DemoUrl = Clean(dto.DemoUrl),
-            SpecUrl = Clean(dto.SpecUrl),
             Author = author,
             IsDraft = true,
             CreatedAt = now,
@@ -126,14 +126,16 @@ public class PostService : IPostService
         post.Summary = string.IsNullOrWhiteSpace(dto.Summary) ? null : dto.Summary.Trim();
         post.Body = dto.Body;
         post.IsFeatured = dto.IsFeatured;
-        post.Category = Clean(dto.Category);
-        post.Domain = Clean(dto.Domain);
         post.RepoUrl = Clean(dto.RepoUrl);
         post.DemoUrl = Clean(dto.DemoUrl);
-        post.SpecUrl = Clean(dto.SpecUrl);
         post.UpdatedAt = _timeProvider.GetUtcNow();
 
         await _posts.SaveChangesAsync(cancellationToken);
+
+        // Drafts are never indexed, so only an edit to a live post moves the index.
+        if (!post.IsDraft)
+            await _index.SourceChangedAsync(post.AuthorId, RagSourceType.Post, post.Id, post.Title, cancellationToken);
+
         return post.ToDto();
     }
 
@@ -168,9 +170,13 @@ public class PostService : IPostService
 
         EnsureOwnedByCaller(post);
         var authorId = post.AuthorId;
+        var wasLive = !post.IsDraft;
 
         await _posts.RemoveAsync(post, cancellationToken);
         await _posts.SaveChangesAsync(cancellationToken);
+
+        if (wasLive)
+            await _index.SourceRemovedAsync(authorId, RagSourceType.Post, id, cancellationToken);
 
         // NOTE: after the commit, not before. The media rows go with the post by cascade,
         // and once they are gone nothing in the database remembers the keys — so this is
@@ -217,6 +223,12 @@ public class PostService : IPostService
             post.PublishedAt ??= now;
 
         await _posts.SaveChangesAsync(cancellationToken);
+
+        if (isDraft)
+            await _index.SourceRemovedAsync(post.AuthorId, RagSourceType.Post, post.Id, cancellationToken);
+        else
+            await _index.SourceChangedAsync(post.AuthorId, RagSourceType.Post, post.Id, post.Title, cancellationToken);
+
         return post.ToDto();
     }
 

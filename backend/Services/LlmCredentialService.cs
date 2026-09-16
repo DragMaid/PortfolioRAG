@@ -13,6 +13,7 @@ namespace Backend.Services;
 public class LlmCredentialService : ILlmCredentialService
 {
     private readonly IRagRepository _rag;
+    private readonly IRagIndexScheduler _index;
     private readonly ICurrentUser _currentUser;
     private readonly ISecretProtector _protector;
     private readonly ILlmProviderRegistry _providers;
@@ -22,6 +23,7 @@ public class LlmCredentialService : ILlmCredentialService
 
     public LlmCredentialService(
         IRagRepository rag,
+        IRagIndexScheduler index,
         ICurrentUser currentUser,
         ISecretProtector protector,
         ILlmProviderRegistry providers,
@@ -30,6 +32,7 @@ public class LlmCredentialService : ILlmCredentialService
         ILogger<LlmCredentialService> logger)
     {
         _rag = rag;
+        _index = index;
         _currentUser = currentUser;
         _protector = protector;
         _providers = providers;
@@ -117,9 +120,9 @@ public class LlmCredentialService : ILlmCredentialService
 
         await _rag.SaveChangesAsync(cancellationToken);
 
-        // A key with no index behind it answers nothing, so the first save queues the build
-        // rather than leaving the author to find the button.
-        await EnqueueIndexAsync(authorId, force: true, now, cancellationToken);
+        // A key with no index behind it answers nothing, so saving one queues every source.
+        // From here on the content services keep the index current as things change.
+        await _index.ScheduleAllAsync(authorId, cancellationToken);
 
         _logger.LogInformation(
             "Author {AuthorId} stored a {Provider} key ending {Preview}.",
@@ -197,23 +200,10 @@ public class LlmCredentialService : ILlmCredentialService
         _rag.RemoveCredential(credential);
         await _rag.CancelPendingJobsAsync(authorId, now, cancellationToken);
         await _rag.DeleteDocumentsAsync(authorId, cancellationToken);
+        await _rag.DeleteSourcesAsync(authorId, cancellationToken);
         await _rag.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Author {AuthorId} removed their provider key and index.", authorId);
-    }
-
-    public async Task<RagJobDto> RebuildIndexAsync(CancellationToken cancellationToken = default)
-    {
-        var authorId = _currentUser.RequireAuthorId();
-        await RequireCredentialAsync(authorId, cancellationToken);
-
-        var job = await EnqueueIndexAsync(
-            authorId,
-            force: true,
-            _timeProvider.GetUtcNow(),
-            cancellationToken);
-
-        return job.ToDto(includeUsage: true);
     }
 
     public async Task<RagJobDto> TryJobFitAsync(
@@ -306,42 +296,6 @@ public class LlmCredentialService : ILlmCredentialService
         }
     }
 
-    /// <summary>
-    /// Queues a rebuild, or hands back the one already queued.
-    ///
-    /// The worker re-checks freshness itself before every analysis, so this is a
-    /// convenience — somewhere to press when an author has just published and wants the
-    /// index caught up now — rather than the mechanism keeping the index correct.
-    /// </summary>
-    private async Task<RagJob> EnqueueIndexAsync(
-        int authorId,
-        bool force,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
-    {
-        var existing = await _rag.GetActiveJobAsync(authorId, RagJobKind.Index, cancellationToken);
-
-        if (existing is not null)
-            return existing;
-
-        var job = new RagJob
-        {
-            Id = Guid.NewGuid(),
-            AuthorId = authorId,
-            Kind = RagJobKind.Index,
-            Status = RagJobStatus.Queued,
-            PayloadJson = JsonSerializer.Serialize(new { force }, LlmMappingExtensions.WorkerJson),
-            AvailableAt = now,
-            CreatedAt = now
-        };
-
-        await _rag.AddJobAsync(job, cancellationToken);
-        await _rag.SaveChangesAsync(cancellationToken);
-        await _rag.NotifyQueueAsync(cancellationToken);
-
-        return job;
-    }
-
     private async Task EnsureWithinBudgetAsync(
         LlmCredential credential,
         DateTimeOffset now,
@@ -360,7 +314,7 @@ public class LlmCredentialService : ILlmCredentialService
 
     /// <summary>
     /// Assembles the whole picture the studio screen needs: the credential, the month to
-    /// date, the index and whatever rebuild is in flight.
+    /// date, the index and where each source in it stands.
     /// </summary>
     private async Task<LlmCredentialDto> DescribeAsync(
         LlmCredential credential,
@@ -373,9 +327,9 @@ public class LlmCredentialService : ILlmCredentialService
         var requests = await _rag.CountAccountJobsSinceAsync(credential.AuthorId, monthStart, cancellationToken);
         var spend = await _rag.SumSpendSinceAsync(credential.AuthorId, monthStart, cancellationToken);
         var index = await _rag.GetIndexStateAsync(credential.AuthorId, tracked: false, cancellationToken);
-        var pending = await _rag.GetActiveJobAsync(credential.AuthorId, RagJobKind.Index, cancellationToken);
+        var sources = await _rag.GetSourcesAsync(credential.AuthorId, cancellationToken);
 
-        return credential.ToDto(availableModels, requests, spend, index, pending);
+        return credential.ToDto(availableModels, requests, spend, index, sources);
     }
 
     /// <summary>
