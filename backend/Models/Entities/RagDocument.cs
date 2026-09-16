@@ -90,3 +90,61 @@ public class RagIndexState
     /// <summary>Why the last rebuild failed, or null if the last one worked.</summary>
     public string? Error { get; set; }
 }
+
+/// <summary>Where one source sits in the index, as the studio's index table shows it.</summary>
+public enum RagSourceStatus
+{
+    /// <summary>Changed since it was last indexed; a rebuild is on the queue.</summary>
+    Queued = 0,
+
+    /// <summary>A worker has picked up the rebuild this source is waiting on.</summary>
+    Indexing = 1,
+
+    /// <summary>Its current text is what retrieval searches.</summary>
+    Indexed = 2,
+
+    /// <summary>The last attempt did not index it. <see cref="RagSource.Error"/> says why.</summary>
+    Failed = 3
+}
+
+/// <summary>
+/// One post, job or profile as the index knows it: whether its latest text is searchable,
+/// and if not, why.
+///
+/// Written from both sides. The API marks a source <see cref="RagSourceStatus.Queued"/>
+/// the moment its content changes, so the studio reflects an edit immediately; the worker
+/// settles it to indexed or failed, and removes rows for sources that are no longer in the
+/// corpus (an unpublished post, a deleted job).
+/// </summary>
+public class RagSource
+{
+    public long Id { get; set; }
+
+    public int AuthorId { get; set; }
+
+    public Author Author { get; set; } = null!;
+
+    public RagSourceType SourceType { get; set; }
+
+    /// <summary>The post or experience id, or 0 for the profile — as on <see cref="RagDocument"/>.</summary>
+    public int SourceId { get; set; }
+
+    /// <summary>How the row reads in the studio: the post title, "Company — Role".</summary>
+    public string Label { get; set; } = string.Empty;
+
+    public RagSourceStatus Status { get; set; }
+
+    /// <summary>Why the last attempt failed, or null.</summary>
+    public string? Error { get; set; }
+
+    /// <summary>Passages this source was cut into on its last successful index.</summary>
+    public int PassageCount { get; set; }
+
+    /// <summary>
+    /// When the API last marked it changed. The worker only settles a row queued before
+    /// its own run started, so an edit that lands mid-run stays queued for the next one.
+    /// </summary>
+    public DateTimeOffset QueuedAt { get; set; }
+
+    public DateTimeOffset? IndexedAt { get; set; }
+}

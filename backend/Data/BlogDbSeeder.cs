@@ -105,34 +105,27 @@ public static class BlogDbSeeder
                 "Sub-millisecond distributed vector database for real-time semantic retrieval "
                 + "at billion-embedding scale.",
                 isDraft: false, now.AddDays(-10),
-                category: "VECTOR CORE", domain: "Vector Storage",
                 repoUrl: "https://github.com/demo/aether-engine",
                 demoUrl: "https://demo.invalid/aether",
-                specUrl: "https://demo.invalid/aether/rfc",
                 isFeatured: true),
             NewPost(author, "Chronos Studio",
                 "Collaborative GLSL shader workbench running in WebAssembly with real-time "
                 + "state synchronization via CRDTs.",
                 isDraft: false, now.AddDays(-6),
-                category: "CREATIVE TOOL", domain: "Shader Tooling",
                 repoUrl: "https://github.com/demo/chronos-studio",
                 demoUrl: "https://demo.invalid/chronos"),
             NewPost(author, "Helios Mesh",
                 "Ultra-light edge proxy and network policy supervisor using kernel-level eBPF "
                 + "packet inspection.",
                 isDraft: false, now.AddDays(-4),
-                category: "KERNEL NETWORKING", domain: "Network Mesh",
-                repoUrl: "https://github.com/demo/helios-mesh",
-                specUrl: "https://demo.invalid/helios/rfc"),
+                repoUrl: "https://github.com/demo/helios-mesh"),
             NewPost(author, "Draft: what I want to build next",
                 "Only visible to its own author through /api/admin/posts, and missing the "
                 + "thumbnail and trailer that publishing requires.",
-                isDraft: true, now.AddDays(-1),
-                category: "SCRATCH", domain: "Unfiled"),
+                isDraft: true, now.AddDays(-1)),
             NewPost(otherAuthor, "Draft: someone else's notes",
                 "Proves that one author cannot read another's drafts.",
-                isDraft: true, now.AddDays(-2),
-                category: "SCRATCH", domain: "Unfiled")
+                isDraft: true, now.AddDays(-2))
         };
 
         context.Posts.AddRange(posts);
@@ -343,11 +336,8 @@ public static class BlogDbSeeder
         string summary,
         bool isDraft,
         DateTimeOffset created,
-        string? category = null,
-        string? domain = null,
         string? repoUrl = null,
         string? demoUrl = null,
-        string? specUrl = null,
         bool isFeatured = false) =>
         new()
         {
@@ -357,11 +347,8 @@ public static class BlogDbSeeder
             Body = $"# {title}\n\n{summary}\n\nSeeded body text.",
             IsDraft = isDraft,
             IsFeatured = isFeatured,
-            Category = category,
-            Domain = domain,
             RepoUrl = repoUrl,
             DemoUrl = demoUrl,
-            SpecUrl = specUrl,
             Author = author,
             CreatedAt = created,
             UpdatedAt = created,

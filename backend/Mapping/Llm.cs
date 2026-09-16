@@ -27,13 +27,16 @@ public static class LlmMappingExtensions
     /// <summary>And an analysis, which is dominated by one long generation.</summary>
     private const int JobFitEstimateSeconds = 45;
 
+    /// <summary>A letter: one extraction and one generation.</summary>
+    private const int CoverLetterEstimateSeconds = 30;
+
     public static LlmCredentialDto ToDto(
         this LlmCredential credential,
         IReadOnlyList<string> availableModels,
         int monthlyRequestCount,
         decimal monthlySpendUsd,
         RagIndexState? index,
-        RagJob? pendingIndexJob) => new()
+        IReadOnlyList<RagSource> sources) => new()
     {
         Provider = credential.Provider,
         KeyPreview = credential.KeyPreview,
@@ -54,7 +57,17 @@ public static class LlmMappingExtensions
             BuiltAt = index?.BuiltAt,
             DocumentCount = index?.DocumentCount ?? 0,
             Error = index?.Error,
-            PendingJob = pendingIndexJob?.ToDto(includeUsage: true)
+            Sources = sources.Select(source => new RagSourceDto
+            {
+                SourceType = source.SourceType,
+                SourceId = source.SourceId,
+                Label = source.Label,
+                Status = source.Status,
+                Error = source.Status == RagSourceStatus.Failed ? source.Error : null,
+                PassageCount = source.PassageCount,
+                QueuedAt = source.QueuedAt,
+                IndexedAt = source.IndexedAt
+            }).ToList()
         }
     };
 
@@ -74,9 +87,31 @@ public static class LlmMappingExtensions
         CreatedAt = job.CreatedAt,
         CompletedAt = job.CompletedAt,
         Error = job.Status == RagJobStatus.Failed ? job.Error : null,
-        EstimatedSeconds = job.Kind == RagJobKind.Index ? IndexEstimateSeconds : JobFitEstimateSeconds,
-        Report = ReadReport(job, includeUsage)
+        EstimatedSeconds = job.Kind switch
+        {
+            RagJobKind.Index => IndexEstimateSeconds,
+            RagJobKind.CoverLetter => CoverLetterEstimateSeconds,
+            _ => JobFitEstimateSeconds
+        },
+        Report = job.Kind == RagJobKind.JobFit ? ReadReport(job, includeUsage) : null,
+        CoverLetter = job.Kind == RagJobKind.CoverLetter ? ReadCoverLetter(job) : null
     };
+
+    /// <summary>The letter out of a finished job, or null if there is not one to read.</summary>
+    private static CoverLetterDto? ReadCoverLetter(RagJob job)
+    {
+        if (job.Status != RagJobStatus.Succeeded || string.IsNullOrWhiteSpace(job.ResultJson))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<CoverLetterDto>(job.ResultJson, WorkerJson);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>The report out of a finished job, or null if there is not one to read.</summary>
     private static JobFitReportDto? ReadReport(RagJob job, bool includeUsage)
