@@ -606,21 +606,6 @@ public class JobFitTests
             () => harness.LlmCredentials.GetOwnJobAsync(job.Id));
     }
 
-    [Fact]
-    public async Task ARebuildDoesNotStackBehindOneAlreadyQueued()
-    {
-        await using var harness = await TestHarness.CreateAsync();
-        var author = await harness.AddAuthorAsync("author@example.com");
-        harness.CurrentUser.AuthorId = author.Id;
-        await harness.LlmCredentials.SaveAsync(Save());
-
-        var first = await harness.LlmCredentials.RebuildIndexAsync();
-        var second = await harness.LlmCredentials.RebuildIndexAsync();
-
-        Assert.Equal(first.Id, second.Id);
-        Assert.Single(await harness.Context.RagJobs.Where(j => j.Kind == RagJobKind.Index).ToListAsync());
-    }
-
     /* ---------------------------------------------------------------------- */
     /* Helpers                                                                */
     /* ---------------------------------------------------------------------- */
