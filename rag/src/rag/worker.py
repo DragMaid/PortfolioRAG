@@ -19,6 +19,7 @@ from types import FrameType
 import psycopg
 
 from . import credentials, indexing, queue
+from .cover_letter import CoverLetterPipeline, CoverLetterRequest
 from .crypto import decode_encryption_key
 from .db import assert_embedding_column, close_pool, get_pool
 from .embeddings import Embedder, get_embedder
@@ -123,7 +124,7 @@ class Worker:
             "Claimed a job.",
             extra={
                 "job_id": str(job.id),
-                "kind": "index" if job.kind == queue.JobKind.INDEX else "job_fit",
+                "kind": job.kind.name.lower(),
                 "author_id": job.author_id,
                 "attempt": job.attempts,
             },
@@ -131,6 +132,12 @@ class Worker:
 
         pool = get_pool(self.settings)
         self._pipeline = None
+
+        # Committed on its own, before the run's transaction opens, so the studio shows the
+        # sources as in progress while the run is still going.
+        if job.kind == queue.JobKind.INDEX:
+            with pool.connection() as conn:
+                indexing.mark_indexing(conn, job.author_id)
 
         # NOTE: the work and the row that records it commit together. A job that succeeded
         # and then could not be marked succeeded would be run again, and for an analysis that
@@ -142,6 +149,9 @@ class Worker:
 
                 elif job.kind == queue.JobKind.JOB_FIT:
                     result, usage = self._run_job_fit(conn, job)
+
+                elif job.kind == queue.JobKind.COVER_LETTER:
+                    result, usage = self._run_cover_letter(conn, job)
 
                 else:
                     raise PipelineError(f"Unknown job kind {job.kind}.")
@@ -171,17 +181,16 @@ class Worker:
     def _run_index(self, conn, job: Job) -> tuple[dict, Usage]:
         force = bool(job.payload.get("force", False))
 
-        try:
-            result = indexing.ensure(
-                conn,
-                self.settings,
-                self._require_embedder(),
-                job.author_id,
-                force=force,
-            )
-        except Exception as error:
-            indexing.record_failure(conn, job.author_id, str(error))
-            raise
+        # NOTE: no failure bookkeeping here. This connection's transaction is rolled back
+        # when the run raises, taking anything written on it along; _fail records it on a
+        # fresh one instead.
+        result = indexing.ensure(
+            conn,
+            self.settings,
+            self._require_embedder(),
+            job.author_id,
+            force=force,
+        )
 
         # Indexing costs no provider tokens
         return result.as_dict(), Usage()
@@ -216,6 +225,35 @@ class Worker:
 
         return outcome.report, outcome.usage
 
+    def _run_cover_letter(self, conn, job: Job) -> tuple[dict, Usage]:
+        credential = credentials.load(conn, job.author_id, self._encryption_key)
+        provider = get_provider(credential.provider)
+
+        indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
+
+        pipeline = CoverLetterPipeline(
+            settings=self.settings,
+            provider=provider,
+            embedder=self._require_embedder(),
+            api_key=credential.api_key,
+            model=credential.model,
+        )
+
+        self._pipeline = pipeline
+
+        outcome = pipeline.write(
+            conn,
+            job.author_id,
+            CoverLetterRequest(
+                job_description=job.payload.get("job_description", ""),
+                role_title=job.payload.get("role_title"),
+                company=job.payload.get("company"),
+                notes=job.payload.get("notes"),
+            ),
+        )
+
+        return outcome.report, outcome.usage
+
     def _fail(self, job: Job, message: str, usage: Usage, final: bool = False) -> None:
         """Records a failure on a fresh connection, because the job's was rolled back."""
         pool = get_pool(self.settings)
@@ -231,6 +269,11 @@ class Worker:
 
         with pool.connection() as conn:
             queue.fail(conn, exhausted, message, usage)
+
+            if job.kind == queue.JobKind.INDEX:
+                indexing.record_failure(
+                    conn, job.author_id, message, final=exhausted.is_final_attempt
+                )
 
     def _spent(self) -> Usage:
         """What a failed pipeline had already spent, if it got far enough to spend anything.

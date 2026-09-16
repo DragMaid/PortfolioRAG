@@ -33,6 +33,7 @@ class Status(IntEnum):
 class JobKind(IntEnum):
     INDEX = 0
     JOB_FIT = 1
+    COVER_LETTER = 2
 
 
 @dataclass(frozen=True, slots=True)
