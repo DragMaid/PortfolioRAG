@@ -125,12 +125,162 @@
   transform-origin: center;
 }
 
+/*
+ * The landing hero's opening, in one sequence: the dark machinery world covers
+ * everything, then pulls back to its diagonal to make room for the creative one
+ * ("we handle the complex stuff" so "you express yourself"). The seam draws along
+ * the settled edge, the headlines arrive on either side, and the actions settle
+ * last. Each keyframe states only its start; the end is the element's own style,
+ * so the page is complete if the animation never runs.
+ */
+@keyframes worlds-part {
+  from { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+@keyframes seam-draw {
+  from { stroke-dashoffset: 1; }
+}
+
+@keyframes seam-sweep {
+  from { transform: scaleX(0); }
+}
+
+@keyframes dock-settle {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.animate-worlds-part {
+  animation: worlds-part 950ms cubic-bezier(0.7, 0, 0.2, 1) 120ms both;
+}
+
+.animate-seam-draw {
+  animation: seam-draw 650ms cubic-bezier(0.16, 1, 0.3, 1) 850ms both;
+}
+
+.animate-seam-sweep {
+  animation: seam-sweep 650ms cubic-bezier(0.16, 1, 0.3, 1) 850ms both;
+}
+
 .animate-hero-left {
-  animation: hero-glide-left 900ms cubic-bezier(0.25, 1, 0.5, 1) both;
+  animation: hero-glide-left 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
 }
 
 .animate-hero-right {
-  animation: hero-glide-right 900ms cubic-bezier(0.25, 1, 0.5, 1) 120ms both;
+  animation: hero-glide-right 800ms cubic-bezier(0.16, 1, 0.3, 1) 700ms both;
+}
+
+.animate-dock-settle {
+  animation: dock-settle 600ms cubic-bezier(0.16, 1, 0.3, 1) 900ms both;
+}
+
+/* Loops the visitor can no longer see don't need to keep running. */
+[data-motion="paused"] svg * {
+  animation-play-state: paused;
+}
+
+/*
+ * Every scroll-driven animation below needs its section to use overflow: clip, not
+ * hidden. Hidden turns the section into a scroll container that never scrolls, and
+ * the timelines inside freeze part-way (the route line stopped at about half).
+ *
+ * The roadmap is a journey, so scroll is the clock: the traveled route draws as the
+ * map passes through the viewport, and each waypoint is marked reached as its card
+ * crosses the middle of the screen. Without scroll-driven animation support the
+ * route is simply shown complete.
+ */
+@keyframes route-travel {
+  from { stroke-dashoffset: 1; }
+}
+
+/*
+ * The map itself moves at a different depth from the stops on it: the grid drifts
+ * slower than the page and the contour lines slide sideways, so scrolling reads as
+ * travelling over terrain rather than past a flat backdrop.
+ */
+@keyframes map-drift {
+  from { transform: translateY(-6rem); }
+  to { transform: translateY(6rem); }
+}
+
+@keyframes contour-drift {
+  from { transform: translateX(-40px); }
+  to { transform: translateX(40px); }
+}
+
+/* Each stop on the journey arrives as it scrolls in; the photos trail their waypoint slightly. */
+@keyframes journey-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+}
+
+@keyframes waypoint-reach {
+  to {
+    background-color: var(--color-warm-black);
+    border-color: var(--color-warm-black);
+    color: var(--color-warm-surface);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .animate-route-travel {
+    animation: route-travel linear both;
+    animation-timeline: --route;
+    animation-range: entry 50% exit 50%;
+  }
+
+  .animate-map-drift,
+  .animate-contour-drift {
+    animation: map-drift linear both;
+    animation-timeline: --journey-map;
+    animation-range: cover 0% cover 100%;
+  }
+
+  .animate-contour-drift {
+    animation-name: contour-drift;
+  }
+
+  .animate-journey-arrive,
+  .animate-journey-arrive-late {
+    animation: journey-arrive cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+
+  .animate-journey-arrive-late {
+    animation-range: entry 15% entry 90%;
+  }
+
+  .animate-waypoint-reach {
+    animation: waypoint-reach linear both;
+    animation-timeline: view();
+    animation-range: cover 48% cover 52%;
+  }
+}
+
+/* Terminal feedback: new output resolves in, a confirmation pops once. */
+@keyframes code-swap {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(3px);
+  }
+}
+
+@keyframes confirm {
+  from { transform: scale(0.6); }
+}
+
+.animate-code-swap {
+  animation: code-swap 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-confirm {
+  animation: confirm 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-cursor {
@@ -323,6 +473,11 @@ body {
   }
 }
 
+/* "Explore The Journey" glides down to the map instead of jumping. */
+html:has(#roadmap) {
+  scroll-behavior: smooth;
+}
+
 /*
  * Honour the OS "reduce motion" setting: kill the pulsing status dots, the
  * carousel's smooth scroll, and every transition rather than only damping them.
@@ -336,4 +491,30 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /*
+   * The hero keeps its arrival as a plain fade, with no travel and no waiting on
+   * the curtain; the curtain, the seam and the scroll-drawn route are shown finished.
+   */
+  .animate-hero-left,
+  .animate-hero-right,
+  .animate-dock-settle {
+    animation: hero-fade 300ms ease-out both !important;
+  }
+
+  .animate-worlds-part,
+  .animate-seam-draw,
+  .animate-seam-sweep,
+  .animate-route-travel,
+  .animate-map-drift,
+  .animate-contour-drift,
+  .animate-journey-arrive,
+  .animate-journey-arrive-late,
+  .animate-code-swap {
+    animation: none !important;
+  }
+}
+
+@keyframes hero-fade {
+  from { opacity: 0; }
 }

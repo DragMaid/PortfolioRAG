@@ -27,7 +27,7 @@ export function RoadmapLocation({
       {/* Cartographic Header */}
       <div className="flex items-center justify-between border-b border-warm-hairline pb-3">
         {/* Map pin landmark */}
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-warm-border text-xs font-mono text-warm-slate">
+        <span className="animate-waypoint-reach flex h-7 w-7 items-center justify-center rounded-full border border-warm-border text-xs font-mono text-warm-slate">
           {index + 1}
         </span>
 
