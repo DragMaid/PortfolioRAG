@@ -218,8 +218,6 @@ class JobFitPipeline:
             chain,
             {
                 "job_description": request.job_description,
-                # Rendered as whole lines so an absent title leaves no dangling label. The
-                # posting usually carries both, and these are only for when it does not.
                 "role_line": f"Role: {request.role_title}\n" if request.role_title else "",
                 "company_line": f"Company: {request.company}\n" if request.company else "",
             },
