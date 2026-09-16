@@ -118,10 +118,10 @@ def seed(conn: Connection) -> int:
             cursor.execute(
                 """
                 INSERT INTO "Posts"
-                    ("AuthorId", "Title", "Slug", "Summary", "Body", "Category", "Domain",
-                     "RepoUrl", "SpecUrl", "IsDraft", "IsFeatured",
+                    ("AuthorId", "Title", "Slug", "Summary", "Body",
+                     "RepoUrl", "IsDraft", "IsFeatured",
                      "CreatedAt", "UpdatedAt", "PublishedAt", "ViewCount")
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, false, false,
+                VALUES (%s, %s, %s, %s, %s, %s, false, false,
                         now(), now(), %s, 0)
                 """,
                 (
@@ -130,10 +130,7 @@ def seed(conn: Connection) -> int:
                     f"eval-{post['slug']}",
                     post.get("summary"),
                     post["body"],
-                    post.get("category"),
-                    post.get("domain"),
                     post.get("repo_url"),
-                    post.get("spec_url"),
                     datetime(2024, 1, 1),
                 ),
             )

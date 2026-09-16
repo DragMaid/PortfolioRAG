@@ -252,3 +252,6 @@ def build_report(
             "duration_ms": duration_ms,
         },
     }
+
+def source_name(source_type: SourceType) -> str:
+    return _SOURCE_NAMES.get(source_type, "post")
