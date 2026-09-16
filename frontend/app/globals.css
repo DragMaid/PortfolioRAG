@@ -305,6 +305,17 @@
 }
 
 /*
+ * A public portfolio's type (see app/[handle]/layout.tsx). The theme variables are redefined
+ * here rather than on :root, so `font-serif` and `font-mono` inside resolve to this set too.
+ */
+.portfolio-type {
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-sans);
+  font-feature-settings: normal;
+}
+
+/*
  * Tabs of very different lengths toggle the scrollbar on and off, which shoved the whole
  * studio sideways on every switch. Reserving the gutter keeps it still.
  */

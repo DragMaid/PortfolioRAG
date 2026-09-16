@@ -1,5 +1,4 @@
 import { AvatarPlaceholderIcon, ContactGlyph, MailIcon, MapPinIcon } from "@/components/icons";
-import { StatusDot } from "@/components/ui/StatusDot";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import type { Profile } from "@/lib/types";
 
@@ -36,13 +35,7 @@ function ContactRow({
 }
 
 /** Avatar, identity, availability and contact handles. */
-export function ProfileCard({
-  profile,
-  showJobFitCta = false,
-}: {
-  profile: Profile;
-  showJobFitCta?: boolean;
-}) {
+export function ProfileCard({ profile }: { profile: Profile }) {
   return (
     <SurfaceCard className="flex h-full flex-col items-start justify-between p-7 text-left sm:p-8">
       <div className="flex w-full flex-col items-start">
@@ -64,35 +57,18 @@ export function ProfileCard({
           </div>
         </div>
 
-        <h1 className="font-serif text-2xl font-normal tracking-tight text-warm-black sm:text-3xl">
+        <h1 className="font-serif text-3xl font-normal tracking-tight text-balance text-warm-black sm:text-[2.125rem] sm:leading-tight">
           {profile.name}
         </h1>
-        <p className="mt-1 font-mono text-xs text-warm-slate">{profile.title}</p>
+        <p className="mt-1.5 text-sm leading-snug text-warm-slate">{profile.title}</p>
 
-        <div className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-warm-border/90 bg-warm-bg px-3 py-2 font-mono text-xs text-warm-black">
-          <StatusDot variant="pulse" />
-          <span className="text-[11px] leading-snug">{profile.availability}</span>
+        {/* A steady dot: availability is a fact about the person, not an alert. */}
+        <div className="mt-5 flex w-full items-start gap-2.5 rounded-lg bg-warm-bg px-3 py-2.5 text-[13px] leading-snug text-warm-black">
+          <span aria-hidden className="mt-[5px] size-2 shrink-0 rounded-full bg-warm-success" />
+          <span>{profile.availability}</span>
         </div>
 
-        {/* Only when the job-fit section is actually rendered further down to scroll to. */}
-        {showJobFitCta ? (
-          <a
-            href="#job-fit"
-            className="group mt-3 flex w-full items-center justify-between gap-3 rounded-xl bg-warm-black px-4 py-3 text-warm-bg shadow-subtle transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent"
-          >
-            <span className="flex flex-col">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-warm-accent">
-                Hiring?
-              </span>
-              <span className="text-sm font-medium">Check your role against my work</span>
-            </span>
-            <span aria-hidden className="text-lg transition-transform group-hover:translate-y-0.5">
-              ↓
-            </span>
-          </a>
-        ) : null}
-
-        <div className="my-5 h-px w-full bg-warm-border" />
+        <div className="my-6 h-px w-full bg-warm-border" />
 
         <div className="w-full space-y-3 font-mono text-xs text-warm-slate">
           <ContactRow icon={<MapPinIcon className="size-4" />} label={profile.location} />

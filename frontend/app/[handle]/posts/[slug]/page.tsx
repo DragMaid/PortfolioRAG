@@ -3,9 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ArrowUpRightIcon, ChevronLeftIcon, GitHubIcon, GlobeIcon } from "@/components/icons";
 import { Footer } from "@/components/layout/Footer";
 import { Monogram } from "@/components/ui/Monogram";
-import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import { MediaExtension } from "@/lib/api/generated";
 import { apiUrl } from "@/lib/api/generated/client";
 import { formatDate, getPublishedPost, toProfile } from "@/lib/portfolio";
@@ -49,13 +49,16 @@ export default async function PostPage({ params }: PageProps<"/[handle]/posts/[s
     post.trailer?.extension === MediaExtension.Mp4 ||
     post.trailer?.extension === MediaExtension.Webm;
 
+  const focusRing =
+    "rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-accent";
+
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-warm-border bg-warm-bg/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6 sm:px-8">
           <Link
             href={portfolioHref}
-            className="group flex shrink-0 items-center gap-2.5 text-sm font-semibold tracking-tight text-warm-black"
+            className={`group flex shrink-0 items-center gap-2.5 text-sm font-semibold tracking-tight text-warm-black ${focusRing}`}
           >
             <Monogram className="shadow-sm transition-colors group-hover:border-warm-accent">
               {profile.monogram}
@@ -67,67 +70,74 @@ export default async function PostPage({ params }: PageProps<"/[handle]/posts/[s
 
           <Link
             href={`${portfolioHref}#projects`}
-            className="rounded-sm font-mono text-xs uppercase tracking-wider text-warm-slate transition-colors hover:text-warm-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-accent"
+            className={`group flex items-center gap-1 font-mono text-xs uppercase tracking-wider text-warm-slate transition-colors hover:text-warm-black ${focusRing}`}
           >
-            ← All projects
+            <ChevronLeftIcon className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+            All projects
           </Link>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-6xl px-6 sm:px-8">
-        <main className="py-12 md:py-20">
-          <article className="mx-auto max-w-3xl">
-            <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-warm-slate">
-              <span className="font-semibold uppercase tracking-wider text-warm-accent">
-                Project write-up
-              </span>
-              {post.publishedAt ? (
-                <>
-                  <span aria-hidden>•</span>
-                  <time dateTime={post.publishedAt.toISOString()}>
-                    {formatDate(post.publishedAt)}
-                  </time>
-                </>
-              ) : null}
-            </div>
-
-            <h1 className="mt-3 font-serif text-4xl leading-tight text-warm-black sm:text-5xl">
+        <main className="py-14 md:py-24">
+          <article className="mx-auto max-w-3xl selection:bg-warm-raised selection:text-warm-black">
+            <h1 className="text-balance font-serif text-4xl leading-[1.1] tracking-tight text-warm-black sm:text-5xl md:text-6xl">
               {post.title}
             </h1>
 
             {post.summary ? (
-              <p className="mt-5 text-lg leading-relaxed text-warm-slate">{post.summary}</p>
+              <p className="mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-warm-slate sm:text-xl">
+                {post.summary}
+              </p>
             ) : null}
 
-            {post.repoUrl || post.demoUrl ? (
-              <div className="mt-6 flex flex-wrap items-center gap-2.5">
-                {post.repoUrl ? (
-                  <a
-                    href={post.repoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-lg bg-warm-black px-4 py-2 font-mono text-xs font-medium text-warm-bg transition-colors hover:bg-black"
-                  >
-                    <span>GitHub Repo</span>
-                    <span aria-hidden>↗</span>
-                  </a>
-                ) : null}
-                {post.demoUrl ? (
-                  <a
-                    href={post.demoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-lg border border-warm-border bg-warm-surface px-4 py-2 font-mono text-xs text-warm-black transition-colors hover:bg-warm-hover"
-                  >
-                    <span>Live Playground</span>
-                    <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
-                  </a>
-                ) : null}
-              </div>
-            ) : null}
+            {/* Byline: when, and where the work lives. Links, not buttons — the write-up is
+                the point of the page, the repository is a footnote to it. */}
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-y border-warm-hairline py-3.5 font-mono text-xs text-warm-slate">
+              {post.publishedAt ? (
+                <time dateTime={post.publishedAt.toISOString()}>
+                  {formatDate(post.publishedAt)}
+                </time>
+              ) : (
+                <span>{profile.name}</span>
+              )}
+
+              {post.repoUrl || post.demoUrl ? (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  {post.repoUrl ? (
+                    <a
+                      href={post.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`group flex items-center gap-1.5 text-warm-black transition-colors hover:text-warm-accent-ink ${focusRing}`}
+                    >
+                      <GitHubIcon className="size-3.5" />
+                      <span className="underline decoration-warm-border underline-offset-4 transition-colors group-hover:decoration-warm-accent">
+                        Source
+                      </span>
+                      <ArrowUpRightIcon className="size-3 text-warm-slate transition-transform group-hover:-translate-y-px group-hover:translate-x-px" />
+                    </a>
+                  ) : null}
+                  {post.demoUrl ? (
+                    <a
+                      href={post.demoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`group flex items-center gap-1.5 text-warm-black transition-colors hover:text-warm-accent-ink ${focusRing}`}
+                    >
+                      <GlobeIcon className="size-3.5" />
+                      <span className="underline decoration-warm-border underline-offset-4 transition-colors group-hover:decoration-warm-accent">
+                        Live demo
+                      </span>
+                      <ArrowUpRightIcon className="size-3 text-warm-slate transition-transform group-hover:-translate-y-px group-hover:translate-x-px" />
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
 
             {trailerUrl ? (
-              <div className="mt-10 aspect-video w-full overflow-hidden rounded-xl border border-warm-border bg-warm-sunken shadow-card">
+              <figure className="mt-10 aspect-video w-full overflow-hidden rounded-xl border border-warm-border bg-warm-sunken shadow-card">
                 {trailerIsVideo ? (
                   <video
                     src={trailerUrl}
@@ -150,40 +160,42 @@ export default async function PostPage({ params }: PageProps<"/[handle]/posts/[s
                     className="size-full object-cover"
                   />
                 )}
-              </div>
+              </figure>
             ) : null}
 
-            <SurfaceCard className="mt-10 p-7 sm:p-10">
-              <div className="prose-studio prose-article">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    // Embeds copied from the studio point at the API's own media route, which
-                    // is relative. Resolved against the API rather than this site.
-                    img: ({ src, alt }) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={typeof src === "string" ? (apiUrl(src) ?? undefined) : undefined}
-                        alt={alt ?? ""}
-                        loading="lazy"
-                        className="rounded-lg border border-warm-border"
-                      />
-                    ),
-                  }}
-                >
-                  {post.body ?? ""}
-                </ReactMarkdown>
-              </div>
-            </SurfaceCard>
+            <div className="prose-studio prose-article mt-12 md:mt-14">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  // Embeds copied from the studio point at the API's own media route, which
+                  // is relative. Resolved against the API rather than this site.
+                  img: ({ src, alt }) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={typeof src === "string" ? (apiUrl(src) ?? undefined) : undefined}
+                      alt={alt ?? ""}
+                      loading="lazy"
+                      className="rounded-lg border border-warm-border"
+                    />
+                  ),
+                }}
+              >
+                {post.body ?? ""}
+              </ReactMarkdown>
+            </div>
 
-            <div className="mt-10 flex justify-center">
+            <nav
+              aria-label="Post"
+              className="mt-16 flex items-center border-t border-warm-hairline pt-6"
+            >
               <Link
                 href={`${portfolioHref}#projects`}
-                className="rounded-full border border-warm-border bg-warm-surface px-6 py-2.5 font-mono text-xs tracking-wide text-warm-black shadow-sm transition-colors hover:bg-warm-hover"
+                className={`group flex items-center gap-1.5 font-mono text-xs text-warm-slate transition-colors hover:text-warm-black ${focusRing}`}
               >
-                ← Back to {profile.name}&rsquo;s projects
+                <ChevronLeftIcon className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+                More projects by {profile.name}
               </Link>
-            </div>
+            </nav>
           </article>
         </main>
         <Footer profile={profile} sectionBase={portfolioHref} />
