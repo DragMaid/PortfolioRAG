@@ -26,6 +26,17 @@
   --color-warm-accent-ink: #6a604d;
 
   /* Published, saved, healthy. The only hue in the palette, and used sparingly. */
+  /*
+   * The portfolio's two lights. The career thread's lamp glow, a warm brass that is only ever
+   * light (a line, a bloom), never text; and the screen the selected works play on, a warm
+   * near-black with the page's own paper as its ink.
+   */
+  --color-thread-glow: #d4a95f;
+  --color-thread-core: #a8742a;
+  --color-marquee: #161412;
+  --color-marquee-ink: #f7f5f0;
+  --color-marquee-dim: #cbc5b9;
+
   --color-warm-success: #2e6b47;
   --color-warm-success-bg: #ebf4ee;
   /* Destructive actions — deleting a post, removing an asset. */
@@ -345,42 +356,354 @@
 }
 
 /*
- * The career timeline is read in order, so scroll is the clock: the dotted rule draws left
- * to right as the timeline comes into view, and each role arrives as the line reaches its
- * place on it (`--at` is the node's position along the rule, 0–1), rising toward the rule
- * from whichever side it hangs on (`--from`). Without scroll-driven animation support the
- * timeline is simply drawn.
+ * The career thread (components/experience). A hairline rail runs through the centre of the
+ * nodes, and light travels down it to `--lit` (0–1, written by the section as the reader
+ * scrolls; 1 with no script or reduced motion). A node the light has reached lights up, and
+ * its card lifts off the page as paper would under a lamp.
  */
-@keyframes timeline-rule {
-  from { clip-path: inset(0 100% 0 0); }
+.thread {
+  --node: 3.5rem;
+  --rail-x: calc(var(--node) / 2);
 }
 
-@keyframes timeline-node {
+.thread-rail,
+.thread-light {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--rail-x);
+  width: 2px;
+  translate: -50% 0;
+  border-radius: 2px;
+}
+
+.thread-rail {
+  background-image: linear-gradient(var(--color-warm-border) 55%, transparent 55%);
+  background-size: 2px 7px;
+}
+
+.thread-light {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--color-thread-glow) 25%, transparent),
+    var(--color-thread-glow) 70%,
+    var(--color-thread-core)
+  );
+  transform-origin: top;
+  transform: scaleY(var(--lit));
+  box-shadow: 0 0 10px 1px color-mix(in oklab, var(--color-thread-glow) 55%, transparent);
+}
+
+/* The leading edge of the light: a small bright bead with a soft bloom around it. */
+.thread-spark {
+  position: absolute;
+  top: calc(var(--lit) * 100%);
+  left: var(--rail-x);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: var(--color-thread-core);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--color-thread-glow) 35%, transparent),
+    0 0 18px 6px color-mix(in oklab, var(--color-thread-glow) 50%, transparent);
+  /* Spent once the light has run the whole thread. */
+  opacity: clamp(0, (1 - var(--lit)) * 40, 1);
+}
+
+.role-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--node);
+  height: var(--node);
+  margin-top: 1.25rem;
+  border-radius: 9999px;
+  background: var(--color-warm-bg);
+  border: 1px solid var(--color-warm-border);
+  color: var(--color-warm-slate);
+  box-shadow: 0 1px 2px rgb(36 35 33 / 0.05);
+  transition:
+    border-color 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 600ms ease;
+}
+
+.role-node-mark {
+  display: flex;
+  width: 1.625rem;
+  height: 1.625rem;
+  filter: grayscale(1) opacity(0.55);
+  transition: filter 700ms ease;
+}
+
+.role[data-lit="true"] .role-node {
+  border-color: color-mix(in oklab, var(--color-thread-glow) 70%, var(--color-warm-black));
+  color: var(--color-warm-black);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--color-thread-glow) 22%, transparent),
+    0 6px 16px -4px color-mix(in oklab, var(--color-thread-glow) 70%, transparent);
+}
+
+.role[data-lit="true"] .role-node-mark {
+  filter: none;
+}
+
+/*
+ * The card is paper: a lit top edge, a contact shadow and a long soft one. It leans toward
+ * the pointer (--rx/--ry, set by RoleCard) and a sheen follows it (--mx/--my).
+ */
+.role-card {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 1px 2px rgb(36 35 33 / 0.04),
+    0 10px 24px -14px rgb(36 35 33 / 0.14);
+  transition:
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 400ms ease,
+    opacity 600ms ease;
+}
+
+/* Only while pointed at, so resting cards keep crisp, flat-rasterised text. */
+.role-card:hover {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+
+.role[data-lit="false"] .role-card {
+  opacity: 0.62;
+}
+
+.role[data-active="true"] .role-card {
+  border-color: color-mix(in oklab, var(--color-warm-black) 22%, var(--color-warm-border));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 2px 4px rgb(36 35 33 / 0.05),
+    0 28px 48px -22px rgb(36 35 33 / 0.28),
+    0 12px 30px -18px color-mix(in oklab, var(--color-thread-glow) 60%, transparent);
+}
+
+.role-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    22rem circle at var(--mx, 50%) var(--my, 0%),
+    rgb(255 255 255 / 0.85),
+    transparent 60%
+  );
+  mix-blend-mode: soft-light;
+  transition: opacity 400ms ease;
+}
+
+.role-card:hover .role-sheen {
+  opacity: 1;
+}
+
+.role-now {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: var(--color-thread-core);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-thread-glow) 35%, transparent);
+}
+
+/* The write-up beside the thread, lit from above where the light is. */
+.role-panel {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 2px 4px rgb(36 35 33 / 0.04),
+    0 40px 80px -40px rgb(36 35 33 / 0.22);
+  background-image: radial-gradient(
+    40rem 18rem at 12% -10%,
+    color-mix(in oklab, var(--color-thread-glow) 16%, transparent),
+    transparent 70%
+  );
+}
+
+@keyframes role-develop {
   from {
     opacity: 0;
-    transform: translateY(var(--from, 0px));
+    filter: blur(6px);
+    transform: translateY(8px);
   }
 }
 
-@supports (animation-timeline: view()) {
-  .animate-timeline-rule,
-  .animate-timeline-node {
-    animation-timeline: --career;
-    animation-fill-mode: both;
-    animation-timing-function: linear;
+.animate-role-develop {
+  animation: role-develop 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/*
+ * The selected-works screen (components/projects). The ambient light is a 32×18 canvas
+ * blown up and blurred into a glow; the screen's backdrops cross-fade, the title card is
+ * inked in, and a chosen poster morphs onto the screen through a view transition.
+ */
+.marquee-ambient {
+  filter: blur(56px) saturate(1.7);
+  opacity: 0.7;
+  transform: scale(0.94, 0.86);
+}
+
+.marquee {
+  box-shadow:
+    0 2px 4px rgb(21 20 18 / 0.1),
+    0 40px 80px -30px rgb(21 20 18 / 0.45);
+}
+
+.marquee-layer {
+  opacity: 0;
+  transform: scale(1.04);
+  filter: blur(8px);
+  transition:
+    opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1600ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.marquee-layer[data-active="true"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  z-index: 1;
+}
+
+/* During the morph the screen is already in its final state; the view transition animates it. */
+[data-morphing] .marquee-layer {
+  transition: none;
+}
+
+.marquee-scrim {
+  z-index: 2;
+  background: linear-gradient(to top, var(--color-marquee) 0%, transparent 45%);
+}
+
+@media (min-width: 64rem) {
+  .marquee-scrim {
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in oklab, var(--color-marquee) 92%, transparent) 0%,
+        color-mix(in oklab, var(--color-marquee) 65%, transparent) 32%,
+        transparent 62%
+      ),
+      linear-gradient(to top, color-mix(in oklab, var(--color-marquee) 85%, transparent) 0%, transparent 55%);
+  }
+}
+
+.marquee-credit {
+  animation: settle-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
+}
+
+.marquee-title {
+  animation: ink-in 800ms cubic-bezier(0.33, 1, 0.68, 1) 120ms backwards;
+}
+
+.marquee-summary {
+  animation: settle-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
+}
+
+.marquee-actions {
+  animation: settle-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 360ms both;
+}
+
+::view-transition-group(marquee-art) {
+  animation-duration: 720ms;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.1, 1);
+}
+
+::view-transition-old(marquee-art),
+::view-transition-new(marquee-art) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 720ms;
+}
+
+::view-transition-image-pair(marquee-art) {
+  isolation: auto;
+}
+
+/* The poster shelf. The shelf fades out at whichever edge has more films past it. */
+.shelf {
+  mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 3rem), transparent);
+}
+
+.poster {
+  box-shadow:
+    0 1px 2px rgb(21 20 18 / 0.08),
+    0 14px 28px -16px rgb(21 20 18 / 0.4);
+  transition:
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 400ms ease;
+}
+
+.poster-art {
+  transition:
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 500ms ease;
+}
+
+.poster-shade {
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--color-marquee) 94%, transparent) 0%,
+    color-mix(in oklab, var(--color-marquee) 55%, transparent) 38%,
+    transparent 70%
+  );
+}
+
+.poster:hover,
+.poster:focus-visible,
+.poster[data-active="true"] {
+  transform: translateY(-6px);
+  box-shadow:
+    0 2px 4px rgb(21 20 18 / 0.1),
+    0 26px 40px -18px rgb(21 20 18 / 0.55);
+}
+
+.poster:hover .poster-art,
+.poster[data-active="true"] .poster-art {
+  transform: scale(1.05);
+  filter: none;
+}
+
+/* The rest of the shelf is in the dark; the film on screen, and the one pointed at, are lit. */
+.poster:not([data-active="true"]):not(:hover):not(:focus-visible) .poster-art {
+  filter: saturate(0.5) brightness(0.62);
+}
+
+.poster[data-active="true"] {
+  outline: 2px solid var(--color-warm-black);
+  outline-offset: 4px;
+}
+
+/* Keyboard focus has to read differently from "on screen", which is also a ring. */
+.poster:focus-visible {
+  outline: 3px solid var(--color-warm-accent);
+  outline-offset: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-card,
+  .marquee-layer,
+  .poster,
+  .poster-art {
+    transition-duration: 1ms;
   }
 
-  .animate-timeline-rule {
-    animation-name: timeline-rule;
-    animation-range: entry 60% cover 50%;
+  .role-card:hover {
+    transform: none;
   }
 
-  .animate-timeline-node {
-    animation-name: timeline-node;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-    animation-range:
-      entry calc(60% + var(--at, 0) * 40%)
-      cover calc(20% + var(--at, 0) * 30%);
+  .animate-role-develop,
+  .marquee-credit,
+  .marquee-title,
+  .marquee-summary,
+  .marquee-actions {
+    animation: none;
   }
 }
 
