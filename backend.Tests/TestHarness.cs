@@ -172,14 +172,16 @@ public sealed class TestHarness : IAsyncDisposable
             analyticsOptions);
 
         Auth = new AuthService(Authors, ApiTokens, Tokens, Google, CurrentUser, TimeProvider);
-        PostService = new PostService(Posts, Authors, MediaService, CurrentUser, TimeProvider);
-        AuthorService = new AuthorService(Authors, MediaService, CurrentUser, TimeProvider);
 
         // ------------------------------------------------------------------
         // Retrieval
         // ------------------------------------------------------------------
 
         Rag = new RagRepository(Context);
+        IndexScheduler = new RagIndexScheduler(Rag, TimeProvider);
+
+        PostService = new PostService(Posts, Authors, MediaService, IndexScheduler, CurrentUser, TimeProvider);
+        AuthorService = new AuthorService(Authors, MediaService, IndexScheduler, CurrentUser, TimeProvider);
 
         // A fixed 32-byte key. Its value is the one thing that has to agree with the
         // interop fixture in rag/tests/test_crypto_interop.py — see the note there.
@@ -202,6 +204,7 @@ public sealed class TestHarness : IAsyncDisposable
 
         LlmCredentials = new LlmCredentialService(
             Rag,
+            IndexScheduler,
             CurrentUser,
             Protector,
             new LlmProviderRegistry([Provider]),
@@ -257,6 +260,8 @@ public sealed class TestHarness : IAsyncDisposable
     public IAuthorService AuthorService { get; }
 
     public IRagRepository Rag { get; }
+
+    public IRagIndexScheduler IndexScheduler { get; }
 
     public LlmOptions LlmOptions { get; }
 

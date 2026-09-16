@@ -209,13 +209,9 @@ public class ProjectArtworkTests
         {
             Title = "Aether Engine",
             Body = "body",
-            Category = "VECTOR CORE",
-            Domain = "Vector Storage",
             RepoUrl = "https://github.com/demo/aether"
         });
 
-        Assert.Equal("VECTOR CORE", created.Category);
-        Assert.Equal("Vector Storage", created.Domain);
         Assert.Equal("https://github.com/demo/aether", created.RepoUrl);
         Assert.Null(created.DemoUrl);
 
@@ -223,15 +219,12 @@ public class ProjectArtworkTests
         {
             Title = "Aether Engine",
             Body = "body",
-            Category = "  ",
-            Domain = "Vector Search",
+            RepoUrl = "  ",
             DemoUrl = "https://demo.invalid/aether"
         });
 
-        // Blank is cleared rather than stored as whitespace, so the card renders nothing
-        // instead of an empty label.
-        Assert.Null(updated.Category);
-        Assert.Equal("Vector Search", updated.Domain);
+        // Blank is cleared rather than stored as whitespace, so the banner draws no button
+        // for it.
         Assert.Equal("https://demo.invalid/aether", updated.DemoUrl);
         Assert.Null(updated.RepoUrl);
     }
