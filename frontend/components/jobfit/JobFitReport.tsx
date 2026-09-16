@@ -62,7 +62,7 @@ export function JobFitReport({ report }: { report: JobFitReportDto }) {
           Requirements, one by one
         </h3>
 
-        <ul className="divide-y divide-warm-hairline overflow-hidden rounded border border-warm-border bg-warm-surface">
+        <ul className="divide-y divide-warm-hairline overflow-hidden rounded-xl border border-warm-border bg-warm-bg">
           {essential.map((requirement, index) => (
             <li key={`essential-${index}`}>
               <Requirement requirement={requirement} />
@@ -75,7 +75,7 @@ export function JobFitReport({ report }: { report: JobFitReportDto }) {
             <h4 className="mt-2 font-mono text-[11px] tracking-wider text-warm-slate uppercase">
               Nice to have
             </h4>
-            <ul className="divide-y divide-warm-hairline overflow-hidden rounded border border-warm-border bg-warm-surface">
+            <ul className="divide-y divide-warm-hairline overflow-hidden rounded-xl border border-warm-border bg-warm-bg">
               {optional.map((requirement, index) => (
                 <li key={`optional-${index}`}>
                   <Requirement requirement={requirement} />
@@ -87,7 +87,7 @@ export function JobFitReport({ report }: { report: JobFitReportDto }) {
       </section>
 
       {(report.talkingPoints ?? []).length > 0 ? (
-        <section className="flex flex-col gap-2 rounded border border-warm-border bg-warm-sunken p-4">
+        <section className="flex flex-col gap-2 rounded-xl border border-warm-border bg-warm-bg p-4">
           <h3 className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
             Worth asking about
           </h3>
@@ -116,7 +116,7 @@ function ScoreHeader({ report }: { report: JobFitReportDto }) {
   return (
     <header
       className={cn(
-        "flex flex-wrap items-start gap-5 rounded border p-5",
+        "flex flex-wrap items-start gap-5 rounded-xl border p-5",
         TONE_RING[verdict.tone],
       )}
     >
@@ -130,7 +130,7 @@ function ScoreHeader({ report }: { report: JobFitReportDto }) {
         <span className="font-serif text-5xl leading-none font-medium text-warm-black tabular-nums">
           {score}
         </span>
-        <span className="mt-1 font-mono text-[10px] tracking-wider text-warm-slate uppercase">
+        <span className="mt-1 font-mono text-[11px] tracking-wider text-warm-slate uppercase">
           of 100
         </span>
       </div>
@@ -160,7 +160,7 @@ function Requirement({ requirement }: { requirement: RequirementAssessmentDto })
         </p>
         <span
           className={cn(
-            "shrink-0 font-mono text-[10.5px] tracking-wider uppercase",
+            "shrink-0 font-mono text-[11px] tracking-wider uppercase",
             status.tone,
           )}
         >
@@ -193,7 +193,7 @@ function Evidence({ evidence }: { evidence: EvidenceDto }) {
       <blockquote className="text-[12.5px] leading-relaxed text-warm-black/85 italic">
         “{evidence.quote}”
       </blockquote>
-      <figcaption className="mt-0.5 font-mono text-[10.5px] text-warm-slate">
+      <figcaption className="mt-0.5 font-mono text-[11px] text-warm-slate">
         {evidence.sourceLabel}
       </figcaption>
     </figure>
@@ -245,7 +245,7 @@ function RetrievalNote({ report }: { report: JobFitReportDto }) {
   const rejected = retrieval.citationsRejected ?? 0;
 
   return (
-    <footer className="border-t border-warm-hairline pt-3 font-mono text-[10.5px] leading-relaxed text-warm-slate">
+    <footer className="border-t border-warm-hairline pt-3 font-mono text-[11px] leading-relaxed text-warm-slate">
       Read {retrieval.passagesConsidered ?? 0} passages of this portfolio across{" "}
       {(retrieval.queries ?? []).length} searches and drew on{" "}
       {retrieval.passagesCited ?? 0}. Every claim above is tied to a passage, and the

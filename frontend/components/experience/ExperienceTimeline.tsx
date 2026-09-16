@@ -25,7 +25,7 @@ function DottedRule() {
   return (
     <div
       aria-hidden
-      className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2"
+      className="animate-timeline-rule absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2"
       style={{
         backgroundImage: DOT,
         backgroundSize: "11px 3px",
@@ -68,6 +68,8 @@ export function ExperienceTimeline({
         aria-label="Career timeline"
         aria-orientation="horizontal"
         className="relative h-72"
+        /* The scroll timeline the rule and the roles draw along; see globals.css. */
+        style={{ viewTimelineName: "--career" }}
       >
         <DottedRule />
 
@@ -125,10 +127,16 @@ export function ExperienceTimeline({
             <div
               key={entry.id}
               className={cn(
-                "absolute flex w-40 -translate-x-1/2 flex-col items-center gap-2",
+                "animate-timeline-node absolute flex w-40 -translate-x-1/2 flex-col items-center gap-2",
                 isAbove ? "bottom-1/2" : "top-1/2",
               )}
-              style={{ left: `${((index + 0.5) / entries.length) * 100}%` }}
+              style={
+                {
+                  left: `${((index + 0.5) / entries.length) * 100}%`,
+                  "--at": (index + 0.5) / entries.length,
+                  "--from": isAbove ? "-12px" : "12px",
+                } as React.CSSProperties
+              }
             >
               {isAbove ? (
                 <>

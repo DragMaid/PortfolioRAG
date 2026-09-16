@@ -20,10 +20,10 @@ export function BiographyCard({
 }) {
   return (
     <SurfaceCard accentEdge className="flex h-full flex-col p-8 sm:p-10">
-      <h2 className="max-w-[28ch] font-serif text-[1.75rem] leading-[1.2] tracking-tight text-balance text-warm-black sm:text-[2.25rem]">
+      <h2 className="animate-ink-in-late max-w-[28ch] font-serif text-[1.75rem] leading-[1.2] tracking-tight text-balance text-warm-black sm:text-[2.25rem]">
         {profile.headline}
       </h2>
-      <div className="prose-studio prose-article mt-6 max-w-prose">
+      <div className="animate-settle-in prose-studio prose-article mt-6 max-w-prose">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
           {profile.biography}
         </ReactMarkdown>
@@ -35,8 +35,9 @@ export function BiographyCard({
        * the heaviest block on the page.
        */}
       {showJobFitCta ? (
-        <div className="mt-auto pt-10">
-          <div className="flex flex-col gap-4 border-t border-warm-hairline pt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+        <div className="animate-settle-in-last mt-auto pt-10">
+          <div aria-hidden className="animate-rule-draw h-px bg-warm-hairline" />
+          <div className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
             <p className="max-w-md text-sm leading-relaxed text-pretty text-warm-slate">
               <span className="text-warm-black">Hiring?</span> Paste a job
               description and see which requirements the published work here

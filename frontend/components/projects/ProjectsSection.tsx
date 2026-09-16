@@ -75,11 +75,13 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
     !prefersReducedMotion &&
     count > 1;
 
+  /* A fresh countdown per project, so a manual step restarts it and the progress bar
+     under the counter always tells the truth about when the next one comes. */
   useEffect(() => {
     if (!isPlaying) return;
-    const timer = setInterval(() => step(1), AUTOPLAY_MS);
-    return () => clearInterval(timer);
-  }, [isPlaying, step]);
+    const timer = setTimeout(() => step(1), AUTOPLAY_MS);
+    return () => clearTimeout(timer);
+  }, [isPlaying, step, activeIndex]);
 
   if (count === 0) return null;
 
@@ -95,8 +97,17 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
         className="mb-8"
         action={
           <div className="flex items-center gap-3">
-            <span aria-hidden className="font-mono text-xs text-warm-slate">
+            <span aria-hidden className="relative font-mono text-xs text-warm-slate tabular-nums">
               {String(activeIndex + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
+              {isPlaying ? (
+                <span className="absolute inset-x-0 -bottom-1.5 h-px overflow-hidden bg-warm-border">
+                  <span
+                    key={activeIndex}
+                    className="animate-autoplay-progress block h-full bg-warm-black"
+                    style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+                  />
+                </span>
+              ) : null}
             </span>
             <div className="flex items-center gap-2">
               <button

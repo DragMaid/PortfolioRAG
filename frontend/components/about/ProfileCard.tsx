@@ -49,18 +49,18 @@ export function ProfileCard({ profile }: { profile: Profile }) {
               <img
                 src={profile.avatarUrl}
                 alt=""
-                className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="animate-portrait-develop size-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
-              <AvatarPlaceholderIcon className="size-20 text-warm-slate/50 transition-transform duration-500 group-hover:scale-105" />
+              <AvatarPlaceholderIcon className="animate-portrait-develop size-20 text-warm-slate/50 transition-transform duration-500 group-hover:scale-105" />
             )}
           </div>
         </div>
 
-        <h1 className="font-serif text-3xl font-normal tracking-tight text-balance text-warm-black sm:text-[2.125rem] sm:leading-tight">
+        <h1 className="animate-ink-in font-serif text-3xl font-normal tracking-tight text-balance text-warm-black sm:text-[2.125rem] sm:leading-tight">
           {profile.name}
         </h1>
-        <p className="mt-1.5 text-sm leading-snug text-warm-slate">{profile.title}</p>
+        <p className="animate-ink-in mt-1.5 text-sm leading-snug text-warm-slate">{profile.title}</p>
 
         {/* A steady dot: availability is a fact about the person, not an alert. */}
         <div className="mt-5 flex w-full items-start gap-2.5 rounded-lg bg-warm-bg px-3 py-2.5 text-[13px] leading-snug text-warm-black">

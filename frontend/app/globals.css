@@ -267,6 +267,177 @@
   }
 }
 
+/*
+ * A portfolio's arrival (/[handle]). One sequence, and only in the profile overview — the
+ * first thing a hiring manager reads — rather than an entrance on every section:
+ *
+ *   the portrait develops out of a blur, the name and headline are inked in top to bottom,
+ *   the card's accent edge sweeps across under them, the biography follows, and the job-fit
+ *   invitation settles last, once there is a person for it to be about.
+ *
+ * Every keyframe states only its start and fills backwards, so nothing is hidden if the
+ * animation never runs, and the masks exist only while it does.
+ */
+@keyframes portrait-develop {
+  from {
+    filter: blur(8px) grayscale(1);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes ink-in {
+  from {
+    mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+    mask-size: 100% 250%;
+    mask-repeat: no-repeat;
+    mask-position: 0 100%;
+  }
+  to {
+    mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+    mask-size: 100% 250%;
+    mask-repeat: no-repeat;
+    mask-position: 0 0;
+  }
+}
+
+@keyframes edge-sweep {
+  from { transform: scaleX(0); }
+}
+
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes rule-draw {
+  from { clip-path: inset(0 100% 0 0); }
+}
+
+.animate-portrait-develop {
+  animation: portrait-develop 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-ink-in {
+  animation: ink-in 700ms cubic-bezier(0.33, 1, 0.68, 1) 80ms backwards;
+}
+
+.animate-ink-in-late {
+  animation: ink-in 1000ms cubic-bezier(0.33, 1, 0.68, 1) 180ms backwards;
+}
+
+.animate-edge-sweep {
+  animation: edge-sweep 1100ms cubic-bezier(0.16, 1, 0.3, 1) 250ms both;
+  transform-origin: left;
+}
+
+.animate-settle-in {
+  animation: settle-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both;
+}
+
+.animate-settle-in-last {
+  animation: settle-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 800ms both;
+}
+
+.animate-settle-in-last .animate-rule-draw {
+  animation: rule-draw 800ms cubic-bezier(0.65, 0, 0.35, 1) 800ms both;
+}
+
+/*
+ * The career timeline is read in order, so scroll is the clock: the dotted rule draws left
+ * to right as the timeline comes into view, and each role arrives as the line reaches its
+ * place on it (`--at` is the node's position along the rule, 0–1), rising toward the rule
+ * from whichever side it hangs on (`--from`). Without scroll-driven animation support the
+ * timeline is simply drawn.
+ */
+@keyframes timeline-rule {
+  from { clip-path: inset(0 100% 0 0); }
+}
+
+@keyframes timeline-node {
+  from {
+    opacity: 0;
+    transform: translateY(var(--from, 0px));
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .animate-timeline-rule,
+  .animate-timeline-node {
+    animation-timeline: --career;
+    animation-fill-mode: both;
+    animation-timing-function: linear;
+  }
+
+  .animate-timeline-rule {
+    animation-name: timeline-rule;
+    animation-range: entry 60% cover 50%;
+  }
+
+  .animate-timeline-node {
+    animation-name: timeline-node;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-range:
+      entry calc(60% + var(--at, 0) * 40%)
+      cover calc(20% + var(--at, 0) * 30%);
+  }
+}
+
+/*
+ * Sections below the profile rise into place as they are scrolled to (components/ui/Reveal):
+ * a long travel on a slow exponential ease, the heading first and the section's body after
+ * it, so each section arrives as a composed block rather than all at once.
+ */
+.reveal > * > * {
+  transition:
+    opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal[data-reveal="waiting"] > * > * {
+  opacity: 0;
+  transform: translateY(56px) scale(0.985);
+}
+
+.reveal[data-reveal="shown"] > * > :nth-child(2) {
+  transition-delay: 110ms;
+}
+
+.reveal[data-reveal="shown"] > * > :nth-child(3) {
+  transition-delay: 200ms;
+}
+
+.reveal[data-reveal="shown"] > * > :nth-child(n + 4) {
+  transition-delay: 280ms;
+}
+
+/*
+ * The carousel's countdown: fills over one autoplay interval, so a rotating preview says
+ * when it will move instead of changing under the reader. Duration comes from the component.
+ */
+@keyframes autoplay-progress {
+  from { transform: scaleX(0); }
+}
+
+.animate-autoplay-progress {
+  animation: autoplay-progress linear both;
+  transform-origin: left;
+}
+
+/*
+ * Arriving at the job-fit section from the profile's invitation: the field to paste into
+ * glows once, after the smooth scroll has landed, so the visitor sees where to start.
+ */
+@keyframes arrival-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(154 143 122 / 0); }
+  35% { box-shadow: 0 0 0 6px rgb(154 143 122 / 0.28); }
+}
+
+#job-fit:target .jobfit-arrival textarea {
+  animation: arrival-glow 1400ms cubic-bezier(0.33, 1, 0.68, 1) 900ms;
+}
+
 /* Terminal feedback: new output resolves in, a confirmation pops once. */
 @keyframes code-swap {
   from {
@@ -544,6 +715,36 @@ html:has(#roadmap) {
   .animate-journey-arrive-late,
   .animate-code-swap {
     animation: none !important;
+  }
+
+  /*
+   * The portfolio: the portrait and the text are simply there, the timeline is drawn, and
+   * the only motion left is a plain fade for the invitation and the arrival glow, which
+   * both say something rather than move something.
+   */
+  .animate-portrait-develop,
+  .animate-ink-in,
+  .animate-ink-in-late,
+  .animate-edge-sweep,
+  .animate-settle-in,
+  .animate-rule-draw,
+  .animate-timeline-rule,
+  .animate-timeline-node,
+  .animate-autoplay-progress {
+    animation: none !important;
+  }
+
+  .reveal > * > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-settle-in-last {
+    animation: hero-fade 400ms ease-out 200ms both !important;
+  }
+
+  #job-fit:target .jobfit-arrival textarea {
+    animation-duration: 1400ms !important;
   }
 }
 

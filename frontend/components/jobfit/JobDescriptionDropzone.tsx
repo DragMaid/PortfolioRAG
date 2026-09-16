@@ -91,16 +91,19 @@ export function JobDescriptionDropzone({
             if (!disabled) void load(event.dataTransfer.files?.[0]);
           }}
           className={cn(
-            "min-h-72 w-full flex-1 resize-y rounded-xl border-2 border-dashed bg-warm-surface px-4 py-3 text-[13.5px] leading-relaxed text-warm-black transition-colors",
-            "placeholder:text-warm-slate/60 focus:border-solid focus:border-warm-black focus:outline-none disabled:opacity-60",
-            dragging ? "border-warm-accent bg-warm-accent/10" : "border-warm-border",
+            "min-h-72 w-full flex-1 resize-y rounded-xl border bg-warm-bg px-4 py-3.5 text-[15px] leading-relaxed text-warm-black transition-colors",
+            "placeholder:text-warm-slate/70 focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60",
+            /* Dashed only while a file is over it: the field is a drop target when that matters. */
+            dragging
+              ? "border-dashed border-warm-accent bg-warm-accent/10"
+              : "border-warm-border hover:border-warm-accent",
           )}
         />
 
         {dragging ? (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl font-mono text-xs tracking-wider text-warm-black uppercase"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl text-sm font-medium text-warm-black"
           >
             Drop to load the posting
           </div>
@@ -113,7 +116,7 @@ export function JobDescriptionDropzone({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={disabled}
-            className="rounded border border-warm-border bg-warm-surface px-2.5 py-1 font-mono text-[11px] text-warm-black transition-colors hover:bg-warm-hover disabled:opacity-50"
+            className="rounded-lg border border-warm-border bg-warm-surface px-3 py-1.5 text-[13px] text-warm-black transition-colors hover:border-warm-black disabled:opacity-50"
           >
             Choose a file
           </button>
@@ -128,14 +131,14 @@ export function JobDescriptionDropzone({
             }}
           />
           {loadedName ? (
-            <span className="font-mono text-[10.5px] text-warm-slate">Loaded {loadedName}</span>
+            <span className="text-xs text-warm-slate">Loaded {loadedName}</span>
           ) : null}
         </div>
         {footer}
       </div>
 
       {fileError ? (
-        <p role="alert" className="font-mono text-[10.5px] text-warm-danger">
+        <p role="alert" className="text-xs text-warm-danger">
           {fileError}
         </p>
       ) : null}
