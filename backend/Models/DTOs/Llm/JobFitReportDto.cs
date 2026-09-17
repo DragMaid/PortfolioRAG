@@ -29,6 +29,12 @@ public enum RequirementStatus
 /// <summary>The pipeline's answer, with every chunk attached to their original source.</summary>
 public class JobFitReportDto
 {
+    /// <summary>Name of the position from job description.</summary>
+    public string RoleTitle { get; init; } = string.Empty;
+
+    /// <summary>The hiring company, as read out of the posting.</summary>
+    public string? Company { get; init; }
+
     public JobFitVerdict Verdict { get; init; }
 
     /// <summary>

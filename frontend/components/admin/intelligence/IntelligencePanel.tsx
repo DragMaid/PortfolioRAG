@@ -4,6 +4,7 @@ import { useIntelligence } from "@/lib/admin/useIntelligence";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { Panel } from "../ui/Panel";
+import { CoverLetterCard } from "./CoverLetterCard";
 import { ExposureCard } from "./ExposureCard";
 import { IndexCard } from "./IndexCard";
 import { KeyCard } from "./KeyCard";
@@ -78,6 +79,15 @@ export function IntelligencePanel() {
             error={intelligence.trialError}
             onRun={(text) => void intelligence.tryJobFit(text)}
             onClear={intelligence.clearTrial}
+          />
+
+          <CoverLetterCard
+            busy={intelligence.busy}
+            isWorking={intelligence.isWorking}
+            job={intelligence.letter}
+            error={intelligence.letterError}
+            onWrite={(text, notes) => void intelligence.writeCoverLetter(text, notes)}
+            onClear={intelligence.clearLetter}
           />
 
           <ExposureCard

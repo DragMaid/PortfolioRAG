@@ -1,22 +1,30 @@
 
-# JobFitRequestDto
+# CoverLetterDto
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`jobDescription` | string
+`letter` | string
+`roleTitle` | string
+`company` | string
+`sources` | [Array&lt;CoverLetterSourceDto&gt;](CoverLetterSourceDto.md)
+`usage` | [UsageDto](UsageDto.md)
 
 ## Example
 
 ```typescript
-import type { JobFitRequestDto } from ''
+import type { CoverLetterDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "jobDescription": null,
-} satisfies JobFitRequestDto
+  "letter": null,
+  "roleTitle": null,
+  "company": null,
+  "sources": null,
+  "usage": null,
+} satisfies CoverLetterDto
 
 console.log(example)
 
@@ -25,7 +33,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as JobFitRequestDto
+const exampleParsed = JSON.parse(exampleJSON) as CoverLetterDto
 console.log(exampleParsed)
 ```
 

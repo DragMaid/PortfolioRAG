@@ -36,6 +36,7 @@ from psycopg import Connection
 from . import citations, prompts, retrieval, scoring
 from .embeddings import Embedder
 from .providers import ChatProvider
+from .providers.web import WebProvider
 from .queue import Usage
 from .schemas import (
     Assessment,
@@ -55,9 +56,9 @@ class PipelineError(RuntimeError):
 
 @dataclass(slots=True)
 class JobFitRequest:
+    # The posting alone. The role and company are read out of it at extraction, so a caller
+    # never has to type what the posting already says.
     job_description: str
-    role_title: str | None = None
-    company: str | None = None
 
 
 @dataclass(slots=True)
@@ -73,7 +74,7 @@ class JobFitPipeline:
         self,
         *,
         settings: Settings,
-        provider: ChatProvider,
+        provider: ChatProvider | WebProvider,
         embedder: Embedder,
         api_key: str,
         model: str,
@@ -117,7 +118,7 @@ class JobFitPipeline:
     ) -> JobFitOutcome:
         """Runs the six stages. ``on_stage`` is told each stage's name as it starts, for a
         caller that wants to show progress; the worker passes nothing."""
-        stage = on_stage or (lambda _name: None)
+        stage = on_stage or (lambda _: None)
         started = time.monotonic()
 
         stage("extract")
@@ -188,6 +189,8 @@ class JobFitPipeline:
         )
 
         report = build_report(
+            role_title=analysis.role_title,
+            company=analysis.company,
             verdict=verdict,
             score=value,
             narrative=narrative,
@@ -216,11 +219,7 @@ class JobFitPipeline:
 
         return self._invoke(
             chain,
-            {
-                "job_description": request.job_description,
-                "role_line": f"Role: {request.role_title}\n" if request.role_title else "",
-                "company_line": f"Company: {request.company}\n" if request.company else "",
-            },
+            {"job_description": request.job_description},
             PostingAnalysis,
             stage="extract",
         )

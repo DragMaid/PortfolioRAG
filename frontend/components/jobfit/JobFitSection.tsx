@@ -32,7 +32,6 @@ export function JobFitSection({
 }) {
   const fit = useJobFit(handle);
   const [description, setDescription] = useState("");
-  const [role, setRole] = useState("");
   const fieldId = useId();
 
   const trimmed = description.trim();
@@ -62,26 +61,9 @@ export function JobFitSection({
             className="flex flex-col gap-3"
             onSubmit={(event) => {
               event.preventDefault();
-              if (canSubmit) void fit.submit(description, role);
+              if (canSubmit) void fit.submit(description);
             }}
           >
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor={`${fieldId}-role`}
-                className="font-mono text-[11px] tracking-wider text-warm-slate uppercase"
-              >
-                Role <span className="normal-case">(optional)</span>
-              </label>
-              <input
-                id={`${fieldId}-role`}
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                placeholder="Staff Engineer, Storage"
-                disabled={fit.isBusy}
-                className="rounded border border-warm-border bg-warm-surface px-3 py-2 text-[14px] text-warm-black transition-colors placeholder:text-warm-slate/60 focus:border-warm-black focus:outline-none disabled:opacity-60"
-              />
-            </div>
-
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor={`${fieldId}-jd`}
@@ -95,7 +77,7 @@ export function JobFitSection({
                 onChange={(event) => setDescription(event.target.value)}
                 rows={10}
                 disabled={fit.isBusy}
-                placeholder="Paste the requirements and responsibilities. The benefits and company blurb are ignored, so there is no need to trim them out."
+                placeholder="Paste the posting as it is, title included. The role and company are read out of it, and the benefits and company blurb are ignored."
                 className="resize-y rounded border border-warm-border bg-warm-surface px-3 py-2 text-[13.5px] leading-relaxed text-warm-black transition-colors placeholder:text-warm-slate/60 focus:border-warm-black focus:outline-none disabled:opacity-60"
               />
               <CharacterCount

@@ -62,7 +62,21 @@ class ExtractedRequirement(BaseModel):
 class PostingAnalysis(BaseModel):
     """What the posting is asking for, read out of it."""
 
-    role_title: str = Field(description="The role. Infer it if the posting has no title line.")
+    role_title: str = Field(
+        description=(
+            "The job title as the posting states it, without the company, location or "
+            "employment type. Infer it from the responsibilities if there is no title line."
+        )
+    )
+
+    # Required but nullable rather than defaulted: strict structured-output modes need every
+    # field listed, and null is the honest answer for a posting that names no employer.
+    company: str | None = Field(
+        description=(
+            "The hiring company's name, as the posting gives it. Null when the posting does "
+            "not name one — do not guess from a product or a recruiter agency's name."
+        )
+    )
 
     seniority: Literal["junior", "mid", "senior", "staff", "principal", "unclear"] = Field(
         description="The level the posting is pitched at."
@@ -245,6 +259,8 @@ _SOURCE_NAMES = {
 
 def build_report(
     *,
+    role_title: str,
+    company: str | None,
     verdict: Verdict,
     score: int,
     narrative: Narrative,
@@ -262,6 +278,8 @@ def build_report(
 ) -> dict[str, Any]:
     """The JSON the API reads back as a ``JobFitReportDto``."""
     return {
+        "role_title": role_title,
+        "company": company,
         "verdict": verdict,
         "score": score,
         "headline": narrative.headline,
