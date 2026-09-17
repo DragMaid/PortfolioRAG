@@ -39,8 +39,11 @@ def worker(argv: list[str] | None = None) -> int:
 
     if args.once:
         instance.prepare()
-        instance.drain()
-        close_pool()
+        try:
+            instance.drain()
+        finally:
+            instance.close()
+            close_pool()
         return 0
 
     instance.run()

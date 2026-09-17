@@ -15,16 +15,19 @@ import logging
 import signal
 import time
 from types import FrameType
+from typing import Any
 
 import psycopg
 
 from . import credentials, indexing, queue
 from .cover_letter import CoverLetterPipeline, CoverLetterRequest
+from .credentials import Credential
 from .crypto import decode_encryption_key
 from .db import assert_embedding_column, close_pool, get_pool
 from .embeddings import Embedder, get_embedder
 from .pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from .providers import get_provider
+from .providers.base import ChatProvider
 from .providers.registry import UnknownProviderError
 from .queue import Job, Usage
 from .settings import Settings
@@ -41,6 +44,7 @@ class Worker:
         self._encryption_key = decode_encryption_key(settings.encryption_key.get_secret_value())
         self._embedder: Embedder | None = None
         self._pipeline: JobFitPipeline | None = None
+        self._web: Any | None = None
 
     def prepare(self) -> None:
         """Everything that must be true before a job is claimed.
@@ -92,6 +96,7 @@ class Worker:
                     queue.wait_for_work(listener, self.settings.poll_interval_seconds)
         finally:
             listener.close()
+            self.close()
             close_pool()
             logger.info("Worker stopped.")
 
@@ -195,9 +200,61 @@ class Worker:
         # Indexing costs no provider tokens
         return result.as_dict(), Usage()
 
+    def _resolve_provider(self, credential: Credential) -> tuple[ChatProvider, str, str]:
+        """Which provider answers this job, with the key and model to call it with.
+
+        Normally the author's stored credential. When ``RAG_WEB_SITE`` is set the call is
+        made in a signed-in browser conversation instead, which costs nothing and needs no
+        key — a development affordance, and the reason the credential is still loaded and
+        still has to be usable: nothing about the account's consent or its ceilings is
+        skipped, only the bill.
+        """
+        site = (self.settings.web_site or "").strip().lower()
+
+        if not site:
+            return get_provider(credential.provider), credential.api_key, credential.model
+
+        return self._web_provider(site), "", site
+
+    def _web_provider(self, site: str) -> ChatProvider:
+        # Imported here rather than at the top: this pulls in a browser stack that a normal
+        # deployment never touches.
+        from .providers.web import SITES, WebProvider
+
+        # An UnknownProviderError rather than a PipelineError: a misconfigured site name
+        # will not repair itself, so the job fails once instead of three times.
+        if site not in SITES:
+            raise UnknownProviderError(
+                f"RAG_WEB_SITE is '{site}', which is not a site this build knows: "
+                f"{', '.join(sorted(SITES))}."
+            )
+
+        if self._web is None:
+            logger.warning(
+                "Answering through a browser conversation, not a provider key.",
+                extra={"site": site, "browser": self.settings.web_browser},
+            )
+            self._web = WebProvider(
+                browser=self.settings.web_browser,
+                headless=self.settings.web_headless,
+                login_timeout=60 if self.settings.web_headless else 600,
+                log=lambda message: logger.info(message),
+            )
+            # Opened now so a signed-out profile fails the first job with a clear error
+            # rather than part-way through a stage.
+            self._web.session(site)
+
+        return self._web
+
+    def close(self) -> None:
+        """Releases anything held between jobs. Only the browser, when one was opened."""
+        if self._web is not None:
+            self._web.close()
+            self._web = None
+
     def _run_job_fit(self, conn, job: Job) -> tuple[dict, Usage]:
         credential = credentials.load(conn, job.author_id, self._encryption_key)
-        provider = get_provider(credential.provider)
+        provider, api_key, model = self._resolve_provider(credential)
 
         # Making sure that embeddings are up to date via hash (no force)
         indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
@@ -206,8 +263,8 @@ class Worker:
             settings=self.settings,
             provider=provider,
             embedder=self._require_embedder(),
-            api_key=credential.api_key,
-            model=credential.model,
+            api_key=api_key,
+            model=model,
         )
 
         # Kept so a failure part-way through can still report its spend. See _spent.
@@ -223,7 +280,7 @@ class Worker:
 
     def _run_cover_letter(self, conn, job: Job) -> tuple[dict, Usage]:
         credential = credentials.load(conn, job.author_id, self._encryption_key)
-        provider = get_provider(credential.provider)
+        provider, api_key, model = self._resolve_provider(credential)
 
         indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
 
@@ -231,8 +288,8 @@ class Worker:
             settings=self.settings,
             provider=provider,
             embedder=self._require_embedder(),
-            api_key=credential.api_key,
-            model=credential.model,
+            api_key=api_key,
+            model=model,
         )
 
         self._pipeline = pipeline

@@ -108,18 +108,16 @@ export type Project = {
   index: string;
   /** Public slug, used as a stable React key and for the reader-facing link. */
   slug: string;
-  /** Category shown beside the ordinal, e.g. "VECTOR CORE". Empty when unset. */
-  category: string;
+  /** Where the full write-up is read: `/{handle}/posts/{slug}`. */
+  href: string;
   title: string;
-  /** The author's pitch. Drawn in full on the banner and clamped on the card. */
+  /** The author's summary. Drawn in full on the banner and clamped on the card. */
   summary: string;
-  /** Domain label in the card footer, e.g. "Vector Storage". Empty when unset. */
-  domain: string;
   /** Publication year, or "" while the project is unpublished. */
   year: string;
   /** The card image. Required of every published project, so never null here. */
   thumbnailUrl: string;
   /** The preview reel. Required of every published project, so never null here. */
   trailer: ProjectTrailer;
-  links: { repo: string | null; demo: string | null; spec: string | null };
+  links: { repo: string | null; demo: string | null };
 };

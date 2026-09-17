@@ -129,6 +129,14 @@ are not free choices:
 | `RAG_ENCRYPTION_KEY` | The API's `Llm:EncryptionKey`, exactly. It is what author provider keys were sealed with. A mismatch is not a degraded mode — it is every analysis failing to read a key. |
 | `RAG_EMBEDDING_DIMENSIONS` | The width of the `RagDocuments.Embedding` column, which the migration creates at 384. The worker refuses to start if they disagree rather than writing vectors the column will reject. `uv run rag-migrate` resizes the column to match (clearing stored vectors, so each author is re-embedded on their next index run). |
 
+`RAG_WEB_SITE` is the one local-only setting worth knowing about. Set it to `gemini`,
+`claude` or `chatgpt` and job-fit and cover-letter jobs are answered by a signed-in browser
+conversation rather than the author's key — free, slow and unseeded, which is what makes the
+whole pipeline exercisable without spending anything. Sign in once with
+`uv run python -m rag.webchat login`, and run a single worker: one browser profile serves
+one job at a time. A stored, validated credential is still required, because nothing about
+the account's consent or its ceilings is skipped — only the bill.
+
 ## Tests
 
 ```sh

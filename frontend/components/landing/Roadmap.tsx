@@ -17,7 +17,6 @@ const ROADMAP_STEPS: RoadmapStepData[] = [
       "Automatic OpenAPI 3.0 schema generation",
       "Zero-latency edge CDN caching",
     ],
-    themeColor: "amber",
   },
   {
     id: "step-2",
@@ -32,7 +31,6 @@ const ROADMAP_STEPS: RoadmapStepData[] = [
       "100% framework agnostic architecture",
       "No vendor locked-in CSS or markup",
     ],
-    themeColor: "indigo",
   },
   {
     id: "step-3",
@@ -47,7 +45,6 @@ const ROADMAP_STEPS: RoadmapStepData[] = [
       "Hybrid vector + lexical relevance search",
       "Plug-and-play LLM retrieval endpoints",
     ],
-    themeColor: "emerald",
   },
 ];
 
@@ -55,14 +52,14 @@ export function Roadmap() {
   return (
     <section
       id="roadmap"
-      className="relative w-full overflow-hidden bg-warm-bg py-24 sm:py-32"
+      className="relative w-full overflow-clip bg-warm-bg py-24 sm:py-32 [view-timeline-name:--journey-map]"
       aria-label="Platform Roadmap: From Creation to Automation"
     >
       {/* ------------------------------------------------------------- */}
       {/* CARTOGRAPHIC BACKGROUND: Topo curves, grid lines & compass    */}
       {/* ------------------------------------------------------------- */}
       <div
-        className="pointer-events-none absolute inset-0 select-none opacity-40"
+        className="pointer-events-none absolute inset-x-0 -inset-y-32 select-none opacity-40 animate-map-drift"
         aria-hidden="true"
       >
         <svg
@@ -93,7 +90,7 @@ export function Roadmap() {
           <rect width="100%" height="100%" fill="url(#cartoGrid)" opacity="0.6" />
 
           {/* Topographic Elevation Contour Lines */}
-          <g fill="none" stroke="#dedad2" strokeWidth="1.25" opacity="0.8">
+          <g fill="none" stroke="#dedad2" strokeWidth="1.25" opacity="0.8" className="animate-contour-drift">
             <path d="M -100 200 C 200 150, 450 350, 700 220 C 950 90, 1100 250, 1300 200" />
             <path d="M -100 450 C 150 420, 380 600, 680 480 C 980 360, 1150 520, 1300 460" />
             <path d="M -100 700 C 250 680, 500 850, 800 720 C 1050 590, 1200 750, 1300 700" />
@@ -127,8 +124,8 @@ export function Roadmap() {
         {/* ------------------------------------------------------------- */}
         {/* DESKTOP & TABLET MAP VIEWPORT                                 */}
         {/* ------------------------------------------------------------- */}
-        <div className="relative mt-16 sm:mt-24">
-          {/* Animated Winding Route Line (Desktop & Tablet) */}
+        <div className="relative mt-16 sm:mt-24 [view-timeline-name:--route]">
+          {/* Winding Route Line (Desktop): draws in as you scroll through the map */}
           <div
             className="pointer-events-none absolute inset-0 hidden lg:block select-none"
             aria-hidden="true"
@@ -147,23 +144,30 @@ export function Roadmap() {
                 </linearGradient>
               </defs>
 
-              {/* Underlying Route Halo */}
-              <path
-                d="M 280 120 C 500 120, 720 240, 720 380 C 720 540, 260 620, 260 760 C 260 920, 680 940, 720 1020"
-                stroke="url(#routeGradient)"
-                strokeWidth="10"
-                strokeOpacity="0.15"
-                strokeLinecap="round"
-              />
+              {/*
+                One line, one style. The SVG stretches to the map's height, so
+                non-scaling-stroke keeps the width and dashes even on every bend;
+                the scroll-drawn mask reveals it without changing how it looks.
+              */}
+              <mask id="routeTraveled" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1100">
+                <path
+                  d="M 280 120 C 500 120, 720 240, 720 380 C 720 540, 260 620, 260 760 C 260 920, 680 940, 720 1020"
+                  stroke="white"
+                  strokeWidth="40"
+                  pathLength={1}
+                  strokeDasharray="1 1"
+                  className="animate-route-travel"
+                />
+              </mask>
 
-              {/* Dynamic Dashed Traveled Route */}
               <path
                 d="M 280 120 C 500 120, 720 240, 720 380 C 720 540, 260 620, 260 760 C 260 920, 680 940, 720 1020"
                 stroke="url(#routeGradient)"
-                strokeWidth="3.5"
+                strokeWidth="2.5"
                 strokeDasharray="8 8"
                 strokeLinecap="round"
-                className="animate-path-dash"
+                vectorEffect="non-scaling-stroke"
+                mask="url(#routeTraveled)"
               />
             </svg>
           </div>
@@ -173,12 +177,12 @@ export function Roadmap() {
             {/* ROW 1: Waypoint 1 (Create & Connect) + Person 1 (Elena Vance) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               {/* Waypoint 1: Left */}
-              <div className="lg:col-span-6 lg:pr-8">
+              <div className="lg:col-span-6 lg:pr-8 animate-journey-arrive">
                 <RoadmapLocation data={ROADMAP_STEPS[0]} index={0} />
               </div>
 
               {/* Person 1 Editorial Image: Floating near stage 1 */}
-              <div className="lg:col-span-5 lg:col-start-8">
+              <div className="lg:col-span-5 lg:col-start-8 animate-journey-arrive-late">
                 <PeopleImage
                   src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=700&q=80"
                   alt="Elena Vance, Lead Designer & Independent Essayist"
@@ -186,7 +190,6 @@ export function Roadmap() {
                   role="Lead Designer & Independent Essayist"
                   quote="I write my stories in the studio and never think about servers or schemas. It just works."
                   badge="Creative Freedom"
-                  tagColor="coral"
                   className="max-w-sm mx-auto lg:rotate-1"
                 />
               </div>
@@ -195,7 +198,7 @@ export function Roadmap() {
             {/* ROW 2: Person 2 (Marcus Chen) + Waypoint 2 (Build Frontend) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               {/* Person 2 Editorial Image: Floating near stage 2 */}
-              <div className="order-2 lg:order-1 lg:col-span-5">
+              <div className="order-2 lg:order-1 lg:col-span-5 animate-journey-arrive-late">
                 <PeopleImage
                   src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=700&q=80"
                   alt="Marcus Chen, Systems Architect"
@@ -203,20 +206,19 @@ export function Roadmap() {
                   role="Systems Architect & Founder"
                   quote="The generated OpenAPI specs meant our frontend team built the app in an afternoon with zero backend friction."
                   badge="Rapid Shipping"
-                  tagColor="sky"
                   className="max-w-sm mx-auto lg:-rotate-1"
                 />
               </div>
 
               {/* Waypoint 2: Right */}
-              <div className="order-1 lg:order-2 lg:col-span-6 lg:col-start-7 lg:pl-8">
+              <div className="order-1 lg:order-2 lg:col-span-6 lg:col-start-7 lg:pl-8 animate-journey-arrive">
                 <RoadmapLocation data={ROADMAP_STEPS[1]} index={1} />
               </div>
             </div>
 
             {/* ROW 3: Waypoint 3 (RAG handles the rest) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-7 lg:col-start-3">
+              <div className="lg:col-span-7 lg:col-start-3 animate-journey-arrive">
                 <RoadmapLocation
                   data={ROADMAP_STEPS[2]}
                   index={2}

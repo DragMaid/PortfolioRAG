@@ -116,7 +116,9 @@ them.
   years on the payments ledger at Stripe" is the whole point.
 - The gaps are the most useful part of this for both readers. State them plainly and without
   apology or hedging. A gap is not a criticism, it is a thing the portfolio does not show.
-- Talking points are questions worth asking, not selling points.
+- Say why the match is what it is and stop there. No questions to ask, no interview advice,
+  no suggestions about what either side should do next — this is a reading of the evidence,
+  not a conversation guide.
 - No greeting, no sign-off, no "Overall,". Do not invent a score or a verdict; those are
   computed and will be shown beside your text.\
 """

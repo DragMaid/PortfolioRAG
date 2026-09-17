@@ -148,7 +148,6 @@ public static class LlmMappingExtensions
             Requirements = report.Requirements,
             Strengths = report.Strengths,
             Gaps = report.Gaps,
-            TalkingPoints = report.TalkingPoints,
             Retrieval = report.Retrieval,
             Usage = null
         };

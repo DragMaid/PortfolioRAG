@@ -19,7 +19,7 @@ export function LandingNav() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-[#0b0f19]/85 backdrop-blur-md border-b border-slate-800/80 shadow-md py-3 text-white"
+          ? "bg-[#0b0f19]/90 backdrop-blur-md border-b border-slate-800/60 py-3 text-white"
           : "bg-transparent py-5 text-white"
       }`}
     >
@@ -27,30 +27,30 @@ export function LandingNav() {
         {/* Brand Logo & Emblem */}
         <Link href="/" className="group flex items-center gap-2.5 focus:outline-none">
           {/* Dual Emblem: Gear meets Petal */}
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 border border-slate-700/80 shadow-inner">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 border border-slate-800">
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
               {/* Left gear quadrant */}
               <path
                 d="M12 4V2M8 5L6.5 3.5M5 8L3.5 6.5M4 12H2"
-                stroke="#38bdf8"
-                strokeWidth="2"
+                stroke="#94a3b8"
+                strokeWidth="1.75"
                 strokeLinecap="round"
               />
-              <circle cx="12" cy="12" r="4" stroke="#38bdf8" strokeWidth="1.5" />
+              <circle cx="12" cy="12" r="4" stroke="#94a3b8" strokeWidth="1.5" />
               {/* Right organic petal arch */}
               <path
                 d="M12 4C16.4 4 20 7.6 20 12C20 16.4 16.4 20 12 20"
-                stroke="#f43f5e"
-                strokeWidth="2"
+                stroke="#c9b8a0"
+                strokeWidth="1.75"
                 strokeLinecap="round"
               />
-              <circle cx="15" cy="9" r="1.5" fill="#fb923c" />
+              <circle cx="15" cy="9" r="1.5" fill="#c9b8a0" />
             </svg>
           </div>
 
           <div className="flex flex-col">
-            <span className="font-sans font-bold tracking-tight text-sm sm:text-base text-white group-hover:text-cyan-400 transition-colors">
-              Portfolio<span className="text-cyan-400">.</span>dev
+            <span className="font-sans font-semibold tracking-tight text-sm sm:text-base text-slate-100 group-hover:text-white transition-colors">
+              Portfolio<span className="text-slate-500">.</span>dev
             </span>
           </div>
         </Link>
@@ -59,13 +59,13 @@ export function LandingNav() {
         <div className="hidden sm:flex items-center gap-3">
           <Link
             href="/admin"
-            className="px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white transition-colors"
+            className="px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-slate-100 transition-colors"
           >
             Sign In
           </Link>
           <Link
             href="/admin"
-            className="px-4 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-md transition-all duration-150 hover:scale-[1.02]"
+            className="px-4 py-2 rounded-full text-xs font-medium text-[#0b0f19] bg-slate-100 hover:bg-white transition-colors duration-150"
           >
             Launch Studio
           </Link>

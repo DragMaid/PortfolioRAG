@@ -46,7 +46,7 @@ export function ContactChannelEditor({
         title="Contact channels"
         description="However people should reach you. Any address works — the logo is recognised from it, and anything unrecognised gets a globe. The order here is the order the portfolio lists them in."
         aside={
-          <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[11px] font-medium text-warm-black">
+          <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-[13px] font-medium text-warm-black">
             {channels.length} {channels.length === 1 ? "channel" : "channels"}
           </span>
         }
@@ -140,7 +140,7 @@ function ChannelRow({
             disabled={busy}
             maxLength={120}
             onChange={(event) => setLabel(event.target.value)}
-            className="text-[12.5px]"
+            className="text-[13.5px]"
           />
         </Field>
 
@@ -151,7 +151,7 @@ function ChannelRow({
             disabled={busy}
             maxLength={500}
             onChange={(event) => setUrl(event.target.value)}
-            className="font-mono text-[11.5px]"
+            className="font-mono text-[13px]"
           />
         </Field>
 
@@ -163,7 +163,7 @@ function ChannelRow({
             maxLength={150}
             placeholder={label || "Optional"}
             onChange={(event) => setHandle(event.target.value)}
-            className="text-[12.5px]"
+            className="text-[13.5px]"
           />
         </Field>
       </div>
@@ -275,7 +275,7 @@ function NewChannelForm({
           maxLength={500}
           placeholder="https://github.com/your-handle"
           onChange={(event) => setUrl(event.target.value)}
-          className="font-mono text-[11.5px]"
+          className="font-mono text-[13px]"
         />
       </Field>
 
@@ -287,7 +287,7 @@ function NewChannelForm({
           maxLength={120}
           placeholder={suggestion || "github.com/your-handle"}
           onChange={(event) => setLabel(event.target.value)}
-          className="text-[12.5px]"
+          className="text-[13.5px]"
         />
       </Field>
 

@@ -119,7 +119,6 @@ NARRATIVE = Narrative(
     summary="Two paragraphs about the match.",
     strengths=["Owns a replication layer in production"],
     gaps=["Nothing about iOS"],
-    talking_points=["Ask how the anti-entropy repair path was validated"],
 )
 
 
@@ -232,7 +231,6 @@ def test_a_grounded_report_is_assembled_in_the_shape_the_api_reads(indexed, sett
         "requirements",
         "strengths",
         "gaps",
-        "talking_points",
         "retrieval",
         "usage",
     }

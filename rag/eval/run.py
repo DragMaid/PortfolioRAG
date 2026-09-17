@@ -818,7 +818,6 @@ def _judge(pipeline: JobFitPipeline, report: dict[str, Any]) -> JudgeVerdict | N
             "summary": report.get("summary", ""),
             "strengths": "\n".join(report.get("strengths", [])),
             "gaps": "\n".join(report.get("gaps", [])),
-            "talking_points": "\n".join(report.get("talking_points", [])),
         }
     )
 

@@ -48,48 +48,54 @@ export function TopBar({
   // today but is not what "view live" means.
   const liveUrl = post && !post.isDraft && post.slug ? `/posts/${post.slug}` : null;
 
+  const status = isDirty
+    ? "Unsaved changes"
+    : !showPostActions
+      ? selfSavingLabel
+      : post?.isDraft
+        ? "Draft • saved"
+        : "Live • synced";
+
+  const saveLabel = post?.isDraft ? "Save draft" : "Save changes";
+
   return (
     <header className="sticky top-0 z-40 border-b border-warm-border bg-warm-surface/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <span className="flex items-center gap-2">
-            <span aria-hidden className="inline-block size-2.5 rounded-full bg-warm-black" />
-            <span className="font-mono text-[13px] font-semibold tracking-tight text-warm-black">
-              {session?.authorName || "Admin"}{" "}
-              <span className="font-normal text-warm-slate">/ Studio</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex min-w-0 items-center gap-2">
+            <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full bg-warm-black" />
+            <span className="truncate text-sm font-semibold text-warm-black">
+              {session?.authorName || "Admin"}
+              <span className="hidden font-normal text-warm-slate md:inline"> / Studio</span>
             </span>
           </span>
-
-          <span aria-hidden className="hidden h-4 w-px bg-warm-border sm:block" />
 
           {/*
            * The prototype showed a fixed "Production Live • Synced". This reports the real
            * state of the open project instead — a status line that is always green is not
            * a status line.
+           *
+           * Below lg the words give way to the dot alone, which keeps its meaning for a
+           * screen reader through the title and hidden label.
            */}
           {/* TODO(review): deviates from the prototype's always-green status pill. */}
           <span
+            title={status}
             className={cn(
-              "hidden items-center gap-2 rounded border px-2.5 py-1 sm:flex",
+              "flex shrink-0 items-center gap-2 rounded-full border p-1.5 lg:rounded lg:px-2.5 lg:py-1",
               isDirty
                 ? "border-warm-accent/40 bg-warm-accent/10"
                 : "border-warm-border/60 bg-warm-sunken",
             )}
           >
             <StatusDot tone={isDirty ? "accent" : "success"} pulse={isDirty} />
-            <span className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
-              {isDirty
-                ? "Unsaved changes"
-                : !showPostActions
-                  ? selfSavingLabel
-                  : post?.isDraft
-                    ? "Draft • saved"
-                    : "Live • synced"}
+            <span className="sr-only text-[13px] font-medium whitespace-nowrap text-warm-slate lg:not-sr-only">
+              {status}
             </span>
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/*
            * The portfolio itself. Always offered, on every tab — the studio writes what
            * this page shows, and there is otherwise no way from here to go and look at it.
@@ -101,11 +107,12 @@ export function TopBar({
             href={session?.authorHandle ? `/${session.authorHandle}` : "/"}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded border border-warm-border bg-warm-surface px-3 py-1.5 font-mono text-xs text-warm-black transition-colors hover:bg-warm-sunken"
+            aria-label="Visit portfolio (opens in a new tab)"
+            className="inline-flex items-center gap-1.5 rounded border border-warm-border bg-warm-surface px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap text-warm-black transition-colors hover:bg-warm-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent"
           >
             <Icon name="eye" className="text-[15px]" />
-            <span className="hidden sm:inline">Visit portfolio</span>
-            <Icon name="arrow-outward" className="text-[15px] text-warm-slate" />
+            <span className="hidden lg:inline">Visit portfolio</span>
+            <Icon name="arrow-outward" className="hidden text-[15px] text-warm-slate lg:block" />
           </a>
 
           {showPostActions ? (
@@ -115,15 +122,21 @@ export function TopBar({
                   href={liveUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="hidden items-center gap-1.5 px-3 py-1.5 font-mono text-xs text-warm-slate transition-colors hover:text-warm-black md:inline-flex"
+                  className="hidden items-center gap-1.5 px-2 py-1.5 text-[13px] font-medium whitespace-nowrap text-warm-slate transition-colors hover:text-warm-black xl:inline-flex"
                 >
                   View live
                   <Icon name="arrow-outward" className="text-[15px]" />
                 </a>
               ) : null}
 
-              <Button onClick={onDiscard} disabled={!canAct || !isDirty}>
-                Discard
+              <Button
+                icon="x"
+                onClick={onDiscard}
+                disabled={!canAct || !isDirty}
+                aria-label="Discard changes"
+                title="Discard changes"
+              >
+                <span className="hidden lg:inline">Discard</span>
               </Button>
 
               <Button
@@ -131,13 +144,14 @@ export function TopBar({
                 onClick={onSave}
                 disabled={!canAct || !isDirty}
                 busy={busy === "saving"}
+                aria-label={saveLabel}
               >
                 {/*
                  * "Save draft" only while it is one. A PUT does not change whether a post is
                  * published, so calling it that on a live post would suggest it takes the post
                  * down, which it does not.
                  */}
-                {post?.isDraft ? "Save draft" : "Save changes"}
+                <span className="hidden md:inline">{saveLabel}</span>
               </Button>
 
               {/*
@@ -161,13 +175,24 @@ export function TopBar({
                 }
                 busy={busy === "publishing"}
               >
-                {post?.isDraft ? "Publish" : "Publish changes"}
+                {post?.isDraft ? "Publish" : (
+                  <>
+                    Publish<span className="hidden md:inline"> changes</span>
+                  </>
+                )}
               </Button>
             </>
           ) : null}
 
-          <Button variant="ghost" onClick={() => void signOut()} title="Sign out">
-            Sign out
+          <Button
+            variant="ghost"
+            icon="logout"
+            onClick={() => void signOut()}
+            aria-label="Sign out"
+            title="Sign out"
+            className="lg:[&>svg]:hidden"
+          >
+            <span className="hidden lg:inline">Sign out</span>
           </Button>
         </div>
       </div>

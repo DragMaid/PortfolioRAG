@@ -88,10 +88,6 @@ export interface JobFitReportDto {
     /**
      * 
      */
-    talkingPoints?: Array<string>;
-    /**
-     * 
-     */
     retrieval?: RetrievalTraceDto;
     /**
      * 
@@ -127,7 +123,6 @@ export function JobFitReportDtoFromJSONTyped(json: any, ignoreDiscriminator: boo
         'requirements': json['requirements'] == null ? undefined : ((json['requirements'] as Array<any>).map(RequirementAssessmentDtoFromJSON)),
         'strengths': json['strengths'] == null ? undefined : json['strengths'],
         'gaps': json['gaps'] == null ? undefined : json['gaps'],
-        'talkingPoints': json['talkingPoints'] == null ? undefined : json['talkingPoints'],
         'retrieval': json['retrieval'] == null ? undefined : RetrievalTraceDtoFromJSON(json['retrieval']),
         'usage': json['usage'] === undefined ? undefined : json['usage'] === null ? null : UsageDtoFromJSON(json['usage']),
     };
@@ -153,7 +148,6 @@ export function JobFitReportDtoToJSONTyped(value?: JobFitReportDto | null, ignor
         'requirements': value['requirements'] == null ? undefined : ((value['requirements'] as Array<any>).map(RequirementAssessmentDtoToJSON)),
         'strengths': value['strengths'],
         'gaps': value['gaps'],
-        'talkingPoints': value['talkingPoints'],
         'retrieval': RetrievalTraceDtoToJSON(value['retrieval']),
         'usage': UsageDtoToJSON(value['usage']),
     };

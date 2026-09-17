@@ -10,16 +10,21 @@ namespace Backend.Controllers;
 /// The account's own provider key, the ceilings around it, and the retrieval index it
 /// pays for.
 ///
-/// <c>[SessionOnly]</c> throughout, for the same reason the token cabinet is: this is a
-/// billable credential, and a leaked API token that could read or replace it would be a
-/// loss without a bound. Unlike the token cabinet the key can never be read back at all,
-/// by anything — see <see cref="Backend.Common.Security.SecretProtector"/>.
+/// Split in two by <c>[SessionOnly]</c>. Everything that touches the credential itself is
+/// session-only for the same reason the token cabinet is: this is a billable credential,
+/// and a leaked API token that could read or replace it would be a loss without a bound.
+/// Unlike the token cabinet the key can never be read back at all, by anything — see
+/// <see cref="Backend.Common.Security.SecretProtector"/>.
+///
+/// Running a job is not in that class. It cannot read, replace or remove the key, and what
+/// it can spend is already bounded by the account's monthly ceilings, so the three run
+/// endpoints below accept an API token with the write scope. That is what lets a script —
+/// or <c>tools/cover-letter</c> — drive the pipeline without a studio sign-in.
 /// </summary>
 [ApiController]
 [Route("api/llm")]
 [Produces("application/json")]
 [Authorize]
-[SessionOnly]
 public class LlmController : ControllerBase
 {
     private readonly ILlmCredentialService _credentials;
@@ -34,6 +39,7 @@ public class LlmController : ControllerBase
     /// what its keys look like. The choices for <c>PUT credential</c>'s <c>provider</c>.
     /// </summary>
     [HttpGet("providers")]
+    [SessionOnly]
     [ProducesResponseType(typeof(IReadOnlyList<LlmProviderDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -45,6 +51,7 @@ public class LlmController : ControllerBase
     /// been added.
     /// </summary>
     [HttpGet("credential")]
+    [SessionOnly]
     [ProducesResponseType(typeof(LlmCredentialDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -62,6 +69,7 @@ public class LlmController : ControllerBase
     /// provider first and is not stored at all if they reject it.
     /// </summary>
     [HttpPut("credential")]
+    [SessionOnly]
     [ProducesResponseType(typeof(LlmCredentialDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -74,6 +82,7 @@ public class LlmController : ControllerBase
 
     /// <summary>Asks the provider whether the stored key still works.</summary>
     [HttpPost("credential/validate")]
+    [SessionOnly]
     [ProducesResponseType(typeof(LlmCredentialDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -84,6 +93,7 @@ public class LlmController : ControllerBase
 
     /// <summary>Changes the model, the limits, and whether visitors see the button.</summary>
     [HttpPatch("credential")]
+    [SessionOnly]
     [ProducesResponseType(typeof(LlmCredentialDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -99,6 +109,7 @@ public class LlmController : ControllerBase
     /// nothing to forget.
     /// </summary>
     [HttpDelete("credential")]
+    [SessionOnly]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

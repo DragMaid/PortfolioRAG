@@ -687,7 +687,6 @@ public class JobFitTests
           ],
           "strengths": ["Storage internals"],
           "gaps": ["No mobile work"],
-          "talking_points": ["Ask about the repair path"],
           "retrieval": {
             "queries": ["rust production storage"],
             "passages_considered": 24,

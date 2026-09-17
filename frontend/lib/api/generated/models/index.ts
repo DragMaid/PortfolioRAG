@@ -43,6 +43,8 @@ export * from './RagIndexStateDto';
 export * from './RagJobDto';
 export * from './RagJobKind';
 export * from './RagJobStatus';
+export * from './RagSourceDto';
+export * from './RagSourceStatus';
 export * from './RagSourceType';
 export * from './ReferrerDto';
 export * from './RefreshTokenDto';

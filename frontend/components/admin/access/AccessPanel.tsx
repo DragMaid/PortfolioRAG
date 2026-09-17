@@ -42,7 +42,7 @@ export function AccessPanel() {
           <h1 className="font-serif text-2xl font-medium text-warm-black sm:text-3xl">
             Access & tokens
           </h1>
-          <p className="mt-0.5 max-w-2xl text-[13.5px] text-warm-slate">
+          <p className="mt-0.5 max-w-2xl text-sm text-warm-slate">
             Long-lived credentials for things that are not this browser — a deploy script, a
             cron job, a dashboard. Each one acts as you, so give out the narrowest that does
             the job and revoke it the moment it stops being needed.
@@ -68,7 +68,7 @@ export function AccessPanel() {
           title="API access tokens"
           description="Send one as “Authorization: Bearer pfl_…”. The list shows every token you have issued, including the dead ones, so a name you recognise is never a surprise."
           aside={
-            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[11px] font-medium text-warm-black">
+            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-[13px] font-medium text-warm-black">
               {tokens.activeCount} active
             </span>
           }
@@ -106,7 +106,7 @@ export function AccessPanel() {
           description="A token is not a second password. These stay in the studio however wide the token's scope, so that losing one is a bounded loss."
         />
 
-        <ul className="flex flex-col gap-2 text-[12.5px] leading-relaxed text-warm-slate">
+        <ul className="flex flex-col gap-2 text-[13.5px] leading-relaxed text-warm-slate">
           <Restriction>
             Issue, rotate or revoke a token — including itself. A token that could mint
             another would outlive its own revocation.
@@ -116,7 +116,7 @@ export function AccessPanel() {
           <Restriction>Close your account.</Restriction>
         </ul>
 
-        <p className="border-t border-warm-border/60 pt-3 font-mono text-[10.5px] leading-relaxed text-warm-slate">
+        <p className="border-t border-warm-border/60 pt-3 text-xs leading-relaxed text-warm-slate">
           A read-only token is refused anything but GET. Everything else a signed-in session
           can do, a read + write token can do.
         </p>

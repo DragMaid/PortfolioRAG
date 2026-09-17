@@ -13,6 +13,8 @@ from functools import lru_cache
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from rag.webchat.session import Browser
+
 
 class Settings(BaseSettings):
     """Configuration, read from ``RAG_*`` environment variables or a local ``.env``."""
@@ -152,6 +154,29 @@ class Settings(BaseSettings):
 
     request_timeout_seconds: float = 300.0
     max_retries: int = 3
+
+    # Local web chat, for development only
+    web_site: str | None = Field(
+        default=None,
+        description=(
+            "Set to a chat site — gemini, claude or chatgpt — and job-fit and cover-letter "
+            "jobs are answered by a signed-in browser conversation instead of the author's "
+            "stored key. Free, slow, unseeded and single-file: one browser profile serves "
+            "one job at a time, so run exactly one worker. Development only; leave unset in "
+            "a deployment, where it would put a browser in the request path. Sign in once "
+            "with `python -m rag.webchat login`. See rag.providers.web."
+        ),
+    )
+
+    web_browser: Browser = Field(
+        default="camoufox",
+        description="Browser for web_site. camoufox is the one that works headless.",
+    )
+
+    web_headless: bool = Field(
+        default=True,
+        description="Unset it to watch the conversation happen, or to sign in when prompted.",
+    )
 
     # Logging
     log_level: str = "INFO"

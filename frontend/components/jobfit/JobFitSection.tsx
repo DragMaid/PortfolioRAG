@@ -3,8 +3,10 @@
 import { useId, useState } from "react";
 import type { JobFitAvailabilityDto } from "@/lib/api/generated";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import { cn } from "@/lib/cn";
 import { useJobFit } from "@/lib/jobfit/useJobFit";
+import { JobDescriptionDropzone } from "./JobDescriptionDropzone";
 import { JobFitReport } from "./JobFitReport";
 
 const MINIMUM_CHARS = 120;
@@ -41,6 +43,8 @@ export function JobFitSection({
   const canSubmit =
     !fit.isBusy && !exhausted && trimmed.length >= MINIMUM_CHARS && !tooLong;
 
+  const maximum = availability.maxJobDescriptionChars ?? 20000;
+
   return (
     <section id="job-fit" className="scroll-mt-24">
       <SectionHeading
@@ -49,84 +53,86 @@ export function JobFitSection({
         className="mb-8"
       />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
-        <div className="flex flex-col gap-4">
-          <p className="text-[14px] leading-relaxed text-warm-slate">
-            Paste a job description and this will compare it against what {name} has
-            actually published here — the timeline, the write-ups, the profile — and say
-            which requirements are evidenced and which are not.
+      {/* In the same warm panel as the timeline and the works above it, so the one
+          interactive section reads as part of the portfolio rather than a form bolted on. */}
+      <SurfaceCard className="p-6 sm:p-10">
+      <form
+        className="grid gap-8 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-stretch lg:gap-12"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (canSubmit) void fit.submit(description);
+        }}
+      >
+        <div className="flex flex-col gap-5">
+          <p className="text-[15px] leading-relaxed text-warm-slate">
+            Paste a job description — or drop the file — and this will compare it against what{" "}
+            {name} has actually published here: the timeline, the write-ups, the profile. The
+            role and the company are read out of the posting, and it says which requirements
+            are evidenced and which are not.
           </p>
 
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (canSubmit) void fit.submit(description);
-            }}
-          >
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor={`${fieldId}-jd`}
-                className="font-mono text-[11px] tracking-wider text-warm-slate uppercase"
-              >
-                Job description
-              </label>
-              <textarea
-                id={`${fieldId}-jd`}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={10}
-                disabled={fit.isBusy}
-                placeholder="Paste the posting as it is, title included. The role and company are read out of it, and the benefits and company blurb are ignored."
-                className="resize-y rounded border border-warm-border bg-warm-surface px-3 py-2 text-[13.5px] leading-relaxed text-warm-black transition-colors placeholder:text-warm-slate/60 focus:border-warm-black focus:outline-none disabled:opacity-60"
-              />
-              <CharacterCount
-                length={trimmed.length}
-                minimum={MINIMUM_CHARS}
-                maximum={availability.maxJobDescriptionChars ?? 20000}
-              />
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className={cn(
+                "rounded-xl bg-warm-black px-5 py-3 text-sm font-medium text-warm-bg shadow-subtle transition-[background-color,opacity,transform] duration-150",
+                "hover:bg-black active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
+                "disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:bg-warm-black disabled:active:scale-100",
+              )}
+            >
+              {fit.isBusy ? "Reading the portfolio…" : "Check job fit"}
+            </button>
 
-            <div className="flex flex-wrap items-center gap-3">
+            {fit.state === "done" || fit.state === "error" ? (
               <button
-                type="submit"
-                disabled={!canSubmit}
-                className={cn(
-                  "rounded bg-warm-black px-4 py-2 font-mono text-[12px] tracking-wide text-warm-surface uppercase transition-colors",
-                  "hover:bg-warm-black/88 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
-                  "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-warm-black",
-                )}
+                type="button"
+                onClick={fit.reset}
+                className="text-sm text-warm-slate underline decoration-warm-border underline-offset-4 transition-colors hover:text-warm-black hover:decoration-warm-black"
               >
-                {fit.isBusy ? "Reading the portfolio…" : "Check job fit"}
+                Start over
               </button>
-
-              {fit.state === "done" || fit.state === "error" ? (
-                <button
-                  type="button"
-                  onClick={fit.reset}
-                  className="font-mono text-[11px] tracking-wider text-warm-slate uppercase underline underline-offset-4 hover:text-warm-black"
-                >
-                  Start over
-                </button>
-              ) : null}
-            </div>
-          </form>
+            ) : null}
+          </div>
 
           <Disclosure availability={availability} exhausted={exhausted} />
         </div>
 
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-col gap-4">
+          {fit.state === "error" && fit.error ? <Failure message={fit.error} /> : null}
+
           {fit.isBusy ? (
             <Progress elapsed={fit.elapsed} estimate={fit.estimatedSeconds} />
           ) : null}
 
-          {fit.state === "error" && fit.error ? <Failure message={fit.error} /> : null}
-
-          {fit.report ? <JobFitReport report={fit.report} /> : null}
-
-          {fit.state === "idle" ? <Placeholder /> : null}
+          {fit.report ? (
+            <JobFitReport report={fit.report} />
+          ) : fit.isBusy ? null : (
+            // The idle column is the input itself — a big field to paste into or drop a
+            // file on — rather than a placeholder describing a report that is not there yet.
+            <>
+              <label
+                htmlFor={`${fieldId}-jd`}
+                className="text-sm font-medium text-warm-black"
+              >
+                Job description
+              </label>
+              <JobDescriptionDropzone
+                id={`${fieldId}-jd`}
+                value={description}
+                onChange={setDescription}
+                disabled={fit.isBusy}
+                className="jobfit-arrival flex-1"
+                placeholder="Paste the requirements and responsibilities, or drop a .txt / .md file here. The benefits and company blurb are ignored, so there is no need to trim them out."
+                footer={
+                  <CharacterCount length={trimmed.length} minimum={MINIMUM_CHARS} maximum={maximum} />
+                }
+              />
+            </>
+          )}
         </div>
-      </div>
+      </form>
+      </SurfaceCard>
     </section>
   );
 }
@@ -142,7 +148,7 @@ function CharacterCount({
 }) {
   if (length === 0) {
     return (
-      <p className="font-mono text-[10.5px] text-warm-slate">
+      <p className="text-xs text-warm-slate">
         At least {minimum} characters — a few lines is not enough to read requirements out of.
       </p>
     );
@@ -150,7 +156,7 @@ function CharacterCount({
 
   if (length < minimum) {
     return (
-      <p className="font-mono text-[10.5px] text-warm-slate">
+      <p className="text-xs text-warm-slate">
         {minimum - length} more character{minimum - length === 1 ? "" : "s"} needed.
       </p>
     );
@@ -158,7 +164,7 @@ function CharacterCount({
 
   if (length > maximum) {
     return (
-      <p className="font-mono text-[10.5px] text-warm-danger">
+      <p className="text-xs text-warm-danger">
         {(length - maximum).toLocaleString()} characters over the limit. Paste the
         requirements rather than the whole page.
       </p>
@@ -166,7 +172,7 @@ function CharacterCount({
   }
 
   return (
-    <p className="font-mono text-[10.5px] text-warm-slate">
+    <p className="text-xs text-warm-slate">
       {length.toLocaleString()} / {maximum.toLocaleString()} characters.
     </p>
   );
@@ -188,7 +194,7 @@ function Disclosure({
   exhausted: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 border-t border-warm-border/60 pt-3 font-mono text-[10.5px] leading-relaxed text-warm-slate">
+    <div className="mt-auto flex flex-col gap-2 rounded-xl bg-warm-bg px-4 py-3.5 text-[13px] leading-relaxed text-warm-slate">
       <p>
         {exhausted ? (
           <span className="text-warm-danger">
@@ -197,8 +203,10 @@ function Disclosure({
           </span>
         ) : (
           <>
-            {availability.remainingToday} of {availability.dailyLimit} checks left today.
-            Each one is answered by a language model paid for by this portfolio&rsquo;s
+            <span className="font-mono text-xs text-warm-black tabular-nums">
+              {availability.remainingToday} of {availability.dailyLimit}
+            </span>{" "}
+            checks left today. Each one is answered by a language model paid for by this portfolio&rsquo;s
             owner.
           </>
         )}
@@ -227,7 +235,7 @@ function Progress({ elapsed, estimate }: { elapsed: number; estimate: number }) 
   return (
     <div
       role="status"
-      className="flex flex-col gap-3 rounded border border-warm-border bg-warm-sunken p-5"
+      className="flex flex-col gap-3 rounded-xl border border-warm-border bg-warm-bg p-5"
     >
       <div className="flex items-center justify-between font-mono text-[11px] tracking-wider text-warm-slate uppercase">
         <span>{stages[stage]}…</span>
@@ -243,7 +251,7 @@ function Progress({ elapsed, estimate }: { elapsed: number; estimate: number }) 
         />
       </div>
 
-      <p className="font-mono text-[10.5px] text-warm-slate">
+      <p className="text-xs text-warm-slate">
         {elapsed > estimate
           ? "Taking longer than usual. It is still running."
           : "This runs a language model over the portfolio; it is not instant."}
@@ -254,22 +262,11 @@ function Progress({ elapsed, estimate }: { elapsed: number; estimate: number }) 
 
 function Failure({ message }: { message: string }) {
   return (
-    <div className="rounded border border-warm-danger/25 bg-warm-danger-bg p-5">
-      <p className="font-mono text-[11px] tracking-wider text-warm-danger uppercase">
+    <div className="rounded-xl border border-warm-danger/25 bg-warm-danger-bg p-5">
+      <p className="text-sm font-medium text-warm-danger">
         Could not finish
       </p>
       <p className="mt-1.5 text-[13.5px] leading-relaxed text-warm-black">{message}</p>
-    </div>
-  );
-}
-
-function Placeholder() {
-  return (
-    <div className="rounded border border-dashed border-warm-border p-8 text-center">
-      <p className="text-[13.5px] leading-relaxed text-warm-slate">
-        The analysis will appear here: a score, what is evidenced, what is not, and the
-        passage behind every claim.
-      </p>
     </div>
   );
 }

@@ -20,7 +20,7 @@ export function Toggle({
     <div className="flex items-center gap-3 rounded border border-warm-border bg-warm-sunken px-3 py-1.5">
       <label
         htmlFor={id}
-        className="cursor-pointer font-mono text-[11px] tracking-wide text-warm-slate uppercase select-none"
+        className="cursor-pointer text-[13px] font-medium whitespace-nowrap text-warm-slate select-none"
       >
         {label}
       </label>

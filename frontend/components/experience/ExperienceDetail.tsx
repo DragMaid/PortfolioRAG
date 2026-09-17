@@ -1,61 +1,51 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CompanyMark } from "@/components/experience/CompanyMark";
 import type { ExperienceEntry } from "@/lib/types";
 
-type ExperienceDetailProps = {
-  entry: ExperienceEntry;
-  panelId: string;
-  /** Id of the tab currently driving this panel. */
-  labelledBy: string;
-};
-
-/** Expanded view of the selected role. */
-export function ExperienceDetail({
-  entry,
-  panelId,
-  labelledBy,
-}: ExperienceDetailProps) {
+/**
+ * The write-up of the role the thread's light is on, held beside the thread on desktop.
+ *
+ * Not a live region: it changes as the reader scrolls, and announcing every role they
+ * scroll past would talk over the page they are reading.
+ */
+export function ExperienceDetail({ entry, panelId }: { entry: ExperienceEntry; panelId: string }) {
   return (
     <div
       id={panelId}
-      role="tabpanel"
-      aria-labelledby={labelledBy}
-      tabIndex={-1}
-      /* Keying on the role restarts the entrance animation on every switch. */
-      key={entry.id}
-      className="mt-6 animate-fade-rise rounded-xl border border-warm-border bg-warm-bg/90 p-6 sm:p-7 md:mt-2"
+      role="region"
+      aria-label={`${entry.role || "Role"} at ${entry.company}`}
+      className="role-panel relative overflow-hidden rounded-3xl border border-warm-border bg-warm-surface"
     >
-      <div className="flex flex-col justify-between gap-3 border-b border-warm-border/70 pb-4 sm:flex-row sm:items-center">
-        <div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="rounded border border-warm-border bg-warm-surface px-2.5 py-1 font-mono text-xs font-semibold text-warm-black shadow-sm">
-              {entry.company}
-            </span>
-            <h3 className="font-serif text-lg font-medium text-warm-black sm:text-xl">
-              {entry.role}
-            </h3>
+      {/* Keyed, so each role develops in rather than its words changing in place. */}
+      <div key={entry.id} className="animate-role-develop p-8 xl:p-10">
+        <div className="flex items-center gap-4">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full border border-warm-border bg-warm-bg p-2.5 text-warm-black">
+            <CompanyMark company={entry.company} logoUrl={entry.logoUrl} />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-medium text-warm-black">{entry.company}</p>
+            {entry.team ? <p className="truncate text-sm text-warm-slate">{entry.team}</p> : null}
           </div>
-          {entry.team ? (
-            <p className="mt-1.5 font-mono text-xs text-warm-slate">{entry.team}</p>
-          ) : null}
         </div>
-        <span className="self-start rounded-lg border border-warm-border bg-warm-surface px-3 py-1.5 font-mono text-xs text-warm-slate shadow-sm sm:self-auto">
-          {entry.duration}
-        </span>
-      </div>
 
-      {/* The description is Markdown, so this is a list only if the author wrote one —
-          the fixed bullet list this replaced could not hold a paragraph or a link. */}
-      {entry.description ? (
-        <div className="mt-5">
-          <h4 className="mb-3 font-mono text-xs font-semibold uppercase tracking-wider text-warm-accent">
-            Architectural Highlights &amp; Systems Impact
-          </h4>
-          <div className="prose-studio">
+        <h3 className="mt-8 text-balance font-serif text-3xl leading-tight text-warm-black xl:text-4xl">
+          {entry.role || entry.company}
+        </h3>
+        {entry.duration ? (
+          <p className="mt-3 font-mono text-xs tabular-nums text-warm-slate">{entry.duration}</p>
+        ) : null}
+
+        {entry.description ? (
+          <div className="prose-studio mt-8 max-w-prose border-t border-warm-hairline pt-8">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.description}</ReactMarkdown>
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <p className="mt-8 border-t border-warm-hairline pt-8 text-sm text-warm-slate">
+            No write-up for this role yet.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

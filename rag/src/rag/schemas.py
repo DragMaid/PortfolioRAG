@@ -161,10 +161,6 @@ class Narrative(BaseModel):
         description="Up to four. What the posting asks for that the portfolio does not show."
     )
 
-    talking_points: list[str] = Field(
-        description="Up to four questions or topics worth raising in a first conversation."
-    )
-
 
 # ---------------------------------------------------------------------------
 # Cover letter
@@ -305,7 +301,6 @@ def build_report(
         ],
         "strengths": narrative.strengths,
         "gaps": narrative.gaps,
-        "talking_points": narrative.talking_points,
         "retrieval": {
             "queries": queries,
             "passages_considered": passages_considered,
