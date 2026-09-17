@@ -540,6 +540,10 @@ public class JobFitTests
         Assert.Equal("A clear match on the storage half.", publicView.Report!.Headline);
         Assert.Null(publicView.Report.Usage);
 
+        // Stripping the cost rebuilds the report; what the posting was read as must survive it.
+        Assert.Equal("Senior Backend Engineer", publicView.Report.RoleTitle);
+        Assert.Equal("Acme", publicView.Report.Company);
+
         harness.CurrentUser.AuthorId = author.Id;
         var ownerView = await harness.LlmCredentials.GetOwnJobAsync(job.Id);
         Assert.Equal(0.42m, ownerView.Report!.Usage!.CostUsd);
@@ -658,6 +662,8 @@ public class JobFitTests
 
     private const string SucceededReport = """
         {
+          "role_title": "Senior Backend Engineer",
+          "company": "Acme",
           "verdict": "promising",
           "score": 72,
           "headline": "A clear match on the storage half.",

@@ -139,6 +139,8 @@ public static class LlmMappingExtensions
         // DTOs are init only, so have to re-create it here 
         return new JobFitReportDto
         {
+            RoleTitle = report.RoleTitle,
+            Company = report.Company,
             Verdict = report.Verdict,
             Score = report.Score,
             Headline = report.Headline,

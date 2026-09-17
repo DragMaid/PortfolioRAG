@@ -41,37 +41,27 @@ public class RagJobDto
     public CoverLetterDto? CoverLetter { get; init; }
 }
 
-/// <summary>A job description to measure the portfolio against.</summary>
+/// <summary>
+/// A job description to measure the portfolio against. The posting is the whole request:
+/// the role and the company are read out of it, and come back on the report.
+/// </summary>
 public class JobFitRequestDto
 {
     /// <summary>
     /// The posting, pasted whole. Plain text or Markdown — the pipeline reads the
-    /// requirements out of it rather than expecting a particular shape.
+    /// requirements, role and company out of it rather than expecting a particular shape.
     /// </summary>
     [Required]
     [StringLength(20000, MinimumLength = 120)]
     public string JobDescription { get; init; } = string.Empty;
-
-    /// <summary>The role, when the paste did not include a title line.</summary>
-    [StringLength(200)]
-    public string? RoleTitle { get; init; }
-
-    [StringLength(200)]
-    public string? Company { get; init; }
 }
 
-/// <summary>A posting to write a cover letter for.</summary>
+/// <summary>A posting to write a cover letter for. The role and company are read out of it.</summary>
 public class CoverLetterRequestDto
 {
     [Required]
     [StringLength(20000, MinimumLength = 120)]
     public string JobDescription { get; init; } = string.Empty;
-
-    [StringLength(200)]
-    public string? RoleTitle { get; init; }
-
-    [StringLength(200)]
-    public string? Company { get; init; }
 
     /// <summary>Anything the author wants leaned on or left out — tone, a project to lead with.</summary>
     [StringLength(1000)]
@@ -84,8 +74,10 @@ public class CoverLetterDto
     /// <summary>The letter, in Markdown.</summary>
     public string Letter { get; init; } = string.Empty;
 
+    /// <summary>The role, as read out of the posting.</summary>
     public string RoleTitle { get; init; } = string.Empty;
 
+    /// <summary>The hiring company, as read out of the posting. Null when it names none.</summary>
     public string? Company { get; init; }
 
     /// <summary>The passages the letter leans on, resolved to what they came from.</summary>

@@ -190,7 +190,6 @@ public class RagIndexSchedulerTests
             " Senior Backend Engineer. We need somebody who has operated a distributed " +
             "storage system in production, writes Rust or Go, and is comfortable carrying " +
             "a pager for what they build.",
-        Company = "Acme",
         Notes = "Lead with the storage work."
     };
 
@@ -208,7 +207,10 @@ public class RagIndexSchedulerTests
 
         Assert.Equal(RagJobKind.CoverLetter, row.Kind);
         Assert.Contains("Lead with the storage work.", row.PayloadJson, StringComparison.Ordinal);
-        Assert.Contains("Acme", row.PayloadJson, StringComparison.Ordinal);
+
+        // The role and company are the worker's to read out of the posting, not the caller's.
+        Assert.DoesNotContain("role_title", row.PayloadJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"company\"", row.PayloadJson, StringComparison.Ordinal);
     }
 
     [Fact]
