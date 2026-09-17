@@ -9,7 +9,7 @@ Name | Type
 `builtAt` | Date
 `documentCount` | number
 `error` | string
-`pendingJob` | [RagJobDto](RagJobDto.md)
+`sources` | [Array&lt;RagSourceDto&gt;](RagSourceDto.md)
 
 ## Example
 
@@ -21,7 +21,7 @@ const example = {
   "builtAt": null,
   "documentCount": null,
   "error": null,
-  "pendingJob": null,
+  "sources": null,
 } satisfies RagIndexStateDto
 
 console.log(example)

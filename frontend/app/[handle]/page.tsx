@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { NavBar } from "@/components/layout/NavBar";
 import { JobFitSection } from "@/components/jobfit/JobFitSection";
 import { ProjectsSection } from "@/components/projects/ProjectsSection";
+import { Reveal } from "@/components/ui/Reveal";
 import {
   getAuthorByHandle,
   getJobFitAvailability,
@@ -52,7 +53,7 @@ export default async function AuthorPortfolio({ params }: PageProps<"/[handle]">
   // In parallel: neither depends on the other, and the availability check is a round trip
   // that would otherwise sit in series behind the project list for no reason.
   const [projects, jobFit] = await Promise.all([
-    getProjects(author.id),
+    getProjects(author.id, author.handle!),
     getJobFitAvailability(handle),
   ]);
 
@@ -61,9 +62,14 @@ export default async function AuthorPortfolio({ params }: PageProps<"/[handle]">
       <NavBar monogram={profile.monogram} handle={profile.handle} />
       <div className="mx-auto w-full max-w-6xl px-6 sm:px-8">
         <main className="space-y-24 py-12 md:space-y-32 md:py-20">
-          <AboutSection profile={profile} />
-          <ExperienceSection entries={experience} />
-          <ProjectsSection projects={projects} />
+          <AboutSection profile={profile} showJobFitCta={jobFit?.isEnabled ?? false} />
+          {/* The profile has its own arrival; everything after it rises in on scroll. */}
+          <Reveal>
+            <ExperienceSection entries={experience} />
+          </Reveal>
+          <Reveal>
+            <ProjectsSection projects={projects} />
+          </Reveal>
 
           {/*
            * Only when the owner has a working key and has chosen to show it. Both facts are
@@ -71,14 +77,18 @@ export default async function AuthorPortfolio({ params }: PageProps<"/[handle]">
            * nothing here to keep in step with them.
            */}
           {jobFit?.isEnabled ? (
-            <JobFitSection
-              handle={author.handle!}
-              name={profile.name}
-              availability={jobFit}
-            />
+            <Reveal>
+              <JobFitSection
+                handle={author.handle!}
+                name={profile.name}
+                availability={jobFit}
+              />
+            </Reveal>
           ) : null}
         </main>
-        <Footer profile={profile} />
+        <Reveal>
+          <Footer profile={profile} />
+        </Reveal>
       </div>
     </>
   );

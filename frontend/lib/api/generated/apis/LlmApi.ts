@@ -290,51 +290,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates request options for llmRebuildIndex without sending the request
-     */
-    async llmRebuildIndexRequestOpts(): Promise<runtime.RequestOpts> {
-        const queryParameters: any = {};
-
-        const headerParameters: runtime.HTTPHeaders = {};
-
-        if (this.configuration && this.configuration.accessToken) {
-            const token = this.configuration.accessToken;
-            const tokenString = await token("Bearer", []);
-
-            if (tokenString) {
-                headerParameters["Authorization"] = `Bearer ${tokenString}`;
-            }
-        }
-
-        let urlPath = `/api/llm/index/rebuild`;
-
-        return {
-            path: urlPath,
-            method: 'POST',
-            headers: headerParameters,
-            query: queryParameters,
-        };
-    }
-
-    /**
-     * Requires a signed-in session: an API token is refused here.
-     */
-    async llmRebuildIndexRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RagJobDto>> {
-        const requestOptions = await this.llmRebuildIndexRequestOpts();
-        const response = await this.request(requestOptions, initOverrides);
-
-        return new runtime.JSONApiResponse(response, (jsonValue) => RagJobDtoFromJSON(jsonValue));
-    }
-
-    /**
-     * Requires a signed-in session: an API token is refused here.
-     */
-    async llmRebuildIndex(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
-        const response = await this.llmRebuildIndexRaw(initOverrides);
-        return await response.value();
-    }
-
-    /**
      * Creates request options for llmRevalidate without sending the request
      */
     async llmRevalidateRequestOpts(): Promise<runtime.RequestOpts> {

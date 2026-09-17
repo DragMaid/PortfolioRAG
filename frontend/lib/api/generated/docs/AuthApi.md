@@ -1,6 +1,6 @@
 # AuthApi
 
-All URIs are relative to *http://localhost:5019*
+All URIs are relative to *http://localhost:5009*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|

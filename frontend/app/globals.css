@@ -19,8 +19,24 @@
   --color-warm-raised: #ede9e1;
   /* A hairline for dividers inside a panel, where warm-border reads too heavy. */
   --color-warm-hairline: #ebe8e1;
+  /*
+   * The accent, darkened until it holds 4.5:1 as text on every studio surface. The accent
+   * itself stays for icons and fills, where 3:1 is enough.
+   */
+  --color-warm-accent-ink: #6a604d;
 
   /* Published, saved, healthy. The only hue in the palette, and used sparingly. */
+  /*
+   * The portfolio's two lights. The career thread's lamp glow, a warm brass that is only ever
+   * light (a line, a bloom), never text; and the screen the selected works play on, a warm
+   * near-black with the page's own paper as its ink.
+   */
+  --color-thread-glow: #d4a95f;
+  --color-thread-core: #a8742a;
+  --color-marquee: #161412;
+  --color-marquee-ink: #f7f5f0;
+  --color-marquee-dim: #cbc5b9;
+
   --color-warm-success: #2e6b47;
   --color-warm-success-bg: #ebf4ee;
   /* Destructive actions — deleting a post, removing an asset. */
@@ -63,19 +79,19 @@
 }
 
 @keyframes flower-sway {
-  0%, 100% { transform: rotate(-2.5deg) translateY(0); }
-  50% { transform: rotate(2.5deg) translateY(-4px); }
+  0%, 100% { transform: rotate(-1deg) translateY(0); }
+  50% { transform: rotate(1deg) translateY(-2px); }
 }
 
 @keyframes flower-breathe {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+  50% { transform: scale(1.012); }
 }
 
 @keyframes hero-glide-left {
   0% {
     opacity: 0;
-    transform: translateX(64px);
+    transform: translateX(12px);
   }
   100% {
     opacity: 1;
@@ -86,22 +102,11 @@
 @keyframes hero-glide-right {
   0% {
     opacity: 0;
-    transform: translateX(-64px);
+    transform: translateX(-12px);
   }
   100% {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@keyframes seam-glow {
-  0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.4)); }
-  50% { opacity: 1; filter: drop-shadow(0 0 16px rgba(249, 115, 22, 0.7)); }
-}
-
-@keyframes path-dash {
-  to {
-    stroke-dashoffset: -40;
   }
 }
 
@@ -111,45 +116,670 @@
 }
 
 .animate-spin-cw-slow {
-  animation: spin-cw 45s linear infinite;
+  animation: spin-cw 120s linear infinite;
 }
 
 .animate-spin-cw-mid {
-  animation: spin-cw 28s linear infinite;
+  animation: spin-cw 80s linear infinite;
 }
 
 .animate-spin-ccw-slow {
-  animation: spin-ccw 38s linear infinite;
+  animation: spin-ccw 100s linear infinite;
 }
 
 .animate-spin-ccw-mid {
-  animation: spin-ccw 22s linear infinite;
+  animation: spin-ccw 64s linear infinite;
 }
 
 .animate-flower-sway {
-  animation: flower-sway 7s ease-in-out infinite;
+  animation: flower-sway 12s ease-in-out infinite;
   transform-origin: bottom center;
 }
 
 .animate-flower-breathe {
-  animation: flower-breathe 9s ease-in-out infinite;
+  animation: flower-breathe 14s ease-in-out infinite;
   transform-origin: center;
 }
 
+/*
+ * The landing hero's opening, in one sequence: the dark machinery world covers
+ * everything, then pulls back to its diagonal to make room for the creative one
+ * ("we handle the complex stuff" so "you express yourself"). The seam draws along
+ * the settled edge, the headlines arrive on either side, and the actions settle
+ * last. Each keyframe states only its start; the end is the element's own style,
+ * so the page is complete if the animation never runs.
+ */
+@keyframes worlds-part {
+  from { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+@keyframes seam-draw {
+  from { stroke-dashoffset: 1; }
+}
+
+@keyframes seam-sweep {
+  from { transform: scaleX(0); }
+}
+
+@keyframes dock-settle {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.animate-worlds-part {
+  animation: worlds-part 950ms cubic-bezier(0.7, 0, 0.2, 1) 120ms both;
+}
+
+.animate-seam-draw {
+  animation: seam-draw 650ms cubic-bezier(0.16, 1, 0.3, 1) 850ms both;
+}
+
+.animate-seam-sweep {
+  animation: seam-sweep 650ms cubic-bezier(0.16, 1, 0.3, 1) 850ms both;
+}
+
 .animate-hero-left {
-  animation: hero-glide-left 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: hero-glide-left 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
 }
 
 .animate-hero-right {
-  animation: hero-glide-right 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: hero-glide-right 800ms cubic-bezier(0.16, 1, 0.3, 1) 700ms both;
 }
 
-.animate-seam {
-  animation: seam-glow 4s ease-in-out infinite;
+.animate-dock-settle {
+  animation: dock-settle 600ms cubic-bezier(0.16, 1, 0.3, 1) 900ms both;
 }
 
-.animate-path-dash {
-  animation: path-dash 2s linear infinite;
+/* Loops the visitor can no longer see don't need to keep running. */
+[data-motion="paused"] svg * {
+  animation-play-state: paused;
+}
+
+/*
+ * Every scroll-driven animation below needs its section to use overflow: clip, not
+ * hidden. Hidden turns the section into a scroll container that never scrolls, and
+ * the timelines inside freeze part-way (the route line stopped at about half).
+ *
+ * The roadmap is a journey, so scroll is the clock: the traveled route draws as the
+ * map passes through the viewport, and each waypoint is marked reached as its card
+ * crosses the middle of the screen. Without scroll-driven animation support the
+ * route is simply shown complete.
+ */
+@keyframes route-travel {
+  from { stroke-dashoffset: 1; }
+}
+
+/*
+ * The map itself moves at a different depth from the stops on it: the grid drifts
+ * slower than the page and the contour lines slide sideways, so scrolling reads as
+ * travelling over terrain rather than past a flat backdrop.
+ */
+@keyframes map-drift {
+  from { transform: translateY(-6rem); }
+  to { transform: translateY(6rem); }
+}
+
+@keyframes contour-drift {
+  from { transform: translateX(-40px); }
+  to { transform: translateX(40px); }
+}
+
+/* Each stop on the journey arrives as it scrolls in; the photos trail their waypoint slightly. */
+@keyframes journey-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+}
+
+@keyframes waypoint-reach {
+  to {
+    background-color: var(--color-warm-black);
+    border-color: var(--color-warm-black);
+    color: var(--color-warm-surface);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .animate-route-travel {
+    animation: route-travel linear both;
+    animation-timeline: --route;
+    animation-range: entry 50% exit 50%;
+  }
+
+  .animate-map-drift,
+  .animate-contour-drift {
+    animation: map-drift linear both;
+    animation-timeline: --journey-map;
+    animation-range: cover 0% cover 100%;
+  }
+
+  .animate-contour-drift {
+    animation-name: contour-drift;
+  }
+
+  .animate-journey-arrive,
+  .animate-journey-arrive-late {
+    animation: journey-arrive cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+
+  .animate-journey-arrive-late {
+    animation-range: entry 15% entry 90%;
+  }
+
+  .animate-waypoint-reach {
+    animation: waypoint-reach linear both;
+    animation-timeline: view();
+    animation-range: cover 48% cover 52%;
+  }
+}
+
+/*
+ * A portfolio's arrival (/[handle]). One sequence, and only in the profile overview — the
+ * first thing a hiring manager reads — rather than an entrance on every section:
+ *
+ *   the portrait develops out of a blur, the name and headline are inked in top to bottom,
+ *   the card's accent edge sweeps across under them, the biography follows, and the job-fit
+ *   invitation settles last, once there is a person for it to be about.
+ *
+ * Every keyframe states only its start and fills backwards, so nothing is hidden if the
+ * animation never runs, and the masks exist only while it does.
+ */
+@keyframes portrait-develop {
+  from {
+    filter: blur(8px) grayscale(1);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes ink-in {
+  from {
+    mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+    mask-size: 100% 250%;
+    mask-repeat: no-repeat;
+    mask-position: 0 100%;
+  }
+  to {
+    mask-image: linear-gradient(to bottom, #000 40%, transparent 60%);
+    mask-size: 100% 250%;
+    mask-repeat: no-repeat;
+    mask-position: 0 0;
+  }
+}
+
+@keyframes edge-sweep {
+  from { transform: scaleX(0); }
+}
+
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes rule-draw {
+  from { clip-path: inset(0 100% 0 0); }
+}
+
+.animate-portrait-develop {
+  animation: portrait-develop 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-ink-in {
+  animation: ink-in 700ms cubic-bezier(0.33, 1, 0.68, 1) 80ms backwards;
+}
+
+.animate-ink-in-late {
+  animation: ink-in 1000ms cubic-bezier(0.33, 1, 0.68, 1) 180ms backwards;
+}
+
+.animate-edge-sweep {
+  animation: edge-sweep 1100ms cubic-bezier(0.16, 1, 0.3, 1) 250ms both;
+  transform-origin: left;
+}
+
+.animate-settle-in {
+  animation: settle-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both;
+}
+
+.animate-settle-in-last {
+  animation: settle-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 800ms both;
+}
+
+.animate-settle-in-last .animate-rule-draw {
+  animation: rule-draw 800ms cubic-bezier(0.65, 0, 0.35, 1) 800ms both;
+}
+
+/*
+ * The career thread (components/experience). A hairline rail runs through the centre of the
+ * nodes, and light travels down it to `--lit` (0–1, written by the section as the reader
+ * scrolls; 1 with no script or reduced motion). A node the light has reached lights up, and
+ * its card lifts off the page as paper would under a lamp.
+ */
+.thread {
+  --node: 3.5rem;
+  --rail-x: calc(var(--node) / 2);
+}
+
+.thread-rail,
+.thread-light {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--rail-x);
+  width: 2px;
+  translate: -50% 0;
+  border-radius: 2px;
+}
+
+.thread-rail {
+  background-image: linear-gradient(var(--color-warm-border) 55%, transparent 55%);
+  background-size: 2px 7px;
+}
+
+.thread-light {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--color-thread-glow) 25%, transparent),
+    var(--color-thread-glow) 70%,
+    var(--color-thread-core)
+  );
+  transform-origin: top;
+  transform: scaleY(var(--lit));
+  box-shadow: 0 0 10px 1px color-mix(in oklab, var(--color-thread-glow) 55%, transparent);
+}
+
+/* The leading edge of the light: a small bright bead with a soft bloom around it. */
+.thread-spark {
+  position: absolute;
+  top: calc(var(--lit) * 100%);
+  left: var(--rail-x);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: var(--color-thread-core);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--color-thread-glow) 35%, transparent),
+    0 0 18px 6px color-mix(in oklab, var(--color-thread-glow) 50%, transparent);
+  /* Spent once the light has run the whole thread. */
+  opacity: clamp(0, (1 - var(--lit)) * 40, 1);
+}
+
+.role-node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--node);
+  height: var(--node);
+  margin-top: 1.25rem;
+  border-radius: 9999px;
+  background: var(--color-warm-bg);
+  border: 1px solid var(--color-warm-border);
+  color: var(--color-warm-slate);
+  box-shadow: 0 1px 2px rgb(36 35 33 / 0.05);
+  transition:
+    border-color 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 600ms ease;
+}
+
+.role-node-mark {
+  display: flex;
+  width: 1.625rem;
+  height: 1.625rem;
+  filter: grayscale(1) opacity(0.55);
+  transition: filter 700ms ease;
+}
+
+.role[data-lit="true"] .role-node {
+  border-color: color-mix(in oklab, var(--color-thread-glow) 70%, var(--color-warm-black));
+  color: var(--color-warm-black);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--color-thread-glow) 22%, transparent),
+    0 6px 16px -4px color-mix(in oklab, var(--color-thread-glow) 70%, transparent);
+}
+
+.role[data-lit="true"] .role-node-mark {
+  filter: none;
+}
+
+/*
+ * The card is paper: a lit top edge, a contact shadow and a long soft one. It leans toward
+ * the pointer (--rx/--ry, set by RoleCard) and a sheen follows it (--mx/--my).
+ */
+.role-card {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 1px 2px rgb(36 35 33 / 0.04),
+    0 10px 24px -14px rgb(36 35 33 / 0.14);
+  transition:
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 600ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 400ms ease,
+    opacity 600ms ease;
+}
+
+/* Only while pointed at, so resting cards keep crisp, flat-rasterised text. */
+.role-card:hover {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+
+.role[data-lit="false"] .role-card {
+  opacity: 0.62;
+}
+
+.role[data-active="true"] .role-card {
+  border-color: color-mix(in oklab, var(--color-warm-black) 22%, var(--color-warm-border));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 2px 4px rgb(36 35 33 / 0.05),
+    0 28px 48px -22px rgb(36 35 33 / 0.28),
+    0 12px 30px -18px color-mix(in oklab, var(--color-thread-glow) 60%, transparent);
+}
+
+.role-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    22rem circle at var(--mx, 50%) var(--my, 0%),
+    rgb(255 255 255 / 0.85),
+    transparent 60%
+  );
+  mix-blend-mode: soft-light;
+  transition: opacity 400ms ease;
+}
+
+.role-card:hover .role-sheen {
+  opacity: 1;
+}
+
+.role-now {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: var(--color-thread-core);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-thread-glow) 35%, transparent);
+}
+
+/* The write-up beside the thread, lit from above where the light is. */
+.role-panel {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 2px 4px rgb(36 35 33 / 0.04),
+    0 40px 80px -40px rgb(36 35 33 / 0.22);
+  background-image: radial-gradient(
+    40rem 18rem at 12% -10%,
+    color-mix(in oklab, var(--color-thread-glow) 16%, transparent),
+    transparent 70%
+  );
+}
+
+@keyframes role-develop {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(8px);
+  }
+}
+
+.animate-role-develop {
+  animation: role-develop 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/*
+ * The selected-works screen (components/projects). The ambient light is a 32×18 canvas
+ * blown up and blurred into a glow; the screen's backdrops cross-fade, the title card is
+ * inked in, and a chosen poster morphs onto the screen through a view transition.
+ */
+.marquee-ambient {
+  filter: blur(56px) saturate(1.7);
+  opacity: 0.7;
+  transform: scale(0.94, 0.86);
+}
+
+.marquee {
+  box-shadow:
+    0 2px 4px rgb(21 20 18 / 0.1),
+    0 40px 80px -30px rgb(21 20 18 / 0.45);
+}
+
+.marquee-layer {
+  opacity: 0;
+  transform: scale(1.04);
+  filter: blur(8px);
+  transition:
+    opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1600ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.marquee-layer[data-active="true"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  z-index: 1;
+}
+
+/* During the morph the screen is already in its final state; the view transition animates it. */
+[data-morphing] .marquee-layer {
+  transition: none;
+}
+
+.marquee-scrim {
+  z-index: 2;
+  background: linear-gradient(to top, var(--color-marquee) 0%, transparent 45%);
+}
+
+@media (min-width: 64rem) {
+  .marquee-scrim {
+    background:
+      linear-gradient(
+        to right,
+        color-mix(in oklab, var(--color-marquee) 92%, transparent) 0%,
+        color-mix(in oklab, var(--color-marquee) 65%, transparent) 32%,
+        transparent 62%
+      ),
+      linear-gradient(to top, color-mix(in oklab, var(--color-marquee) 85%, transparent) 0%, transparent 55%);
+  }
+}
+
+.marquee-credit {
+  animation: settle-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
+}
+
+.marquee-title {
+  animation: ink-in 800ms cubic-bezier(0.33, 1, 0.68, 1) 120ms backwards;
+}
+
+.marquee-summary {
+  animation: settle-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
+}
+
+.marquee-actions {
+  animation: settle-in 700ms cubic-bezier(0.16, 1, 0.3, 1) 360ms both;
+}
+
+::view-transition-group(marquee-art) {
+  animation-duration: 720ms;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.1, 1);
+}
+
+::view-transition-old(marquee-art),
+::view-transition-new(marquee-art) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 720ms;
+}
+
+::view-transition-image-pair(marquee-art) {
+  isolation: auto;
+}
+
+/* The poster shelf. The shelf fades out at whichever edge has more films past it. */
+.shelf {
+  mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 3rem), transparent);
+}
+
+.poster {
+  box-shadow:
+    0 1px 2px rgb(21 20 18 / 0.08),
+    0 14px 28px -16px rgb(21 20 18 / 0.4);
+  transition:
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 400ms ease;
+}
+
+.poster-art {
+  transition:
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 500ms ease;
+}
+
+.poster-shade {
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--color-marquee) 94%, transparent) 0%,
+    color-mix(in oklab, var(--color-marquee) 55%, transparent) 38%,
+    transparent 70%
+  );
+}
+
+.poster:hover,
+.poster:focus-visible,
+.poster[data-active="true"] {
+  transform: translateY(-6px);
+  box-shadow:
+    0 2px 4px rgb(21 20 18 / 0.1),
+    0 26px 40px -18px rgb(21 20 18 / 0.55);
+}
+
+.poster:hover .poster-art,
+.poster[data-active="true"] .poster-art {
+  transform: scale(1.05);
+  filter: none;
+}
+
+/* The rest of the shelf is in the dark; the film on screen, and the one pointed at, are lit. */
+.poster:not([data-active="true"]):not(:hover):not(:focus-visible) .poster-art {
+  filter: saturate(0.5) brightness(0.62);
+}
+
+.poster[data-active="true"] {
+  outline: 2px solid var(--color-warm-black);
+  outline-offset: 4px;
+}
+
+/* Keyboard focus has to read differently from "on screen", which is also a ring. */
+.poster:focus-visible {
+  outline: 3px solid var(--color-warm-accent);
+  outline-offset: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-card,
+  .marquee-layer,
+  .poster,
+  .poster-art {
+    transition-duration: 1ms;
+  }
+
+  .role-card:hover {
+    transform: none;
+  }
+
+  .animate-role-develop,
+  .marquee-credit,
+  .marquee-title,
+  .marquee-summary,
+  .marquee-actions {
+    animation: none;
+  }
+}
+
+/*
+ * Sections below the profile rise into place as they are scrolled to (components/ui/Reveal):
+ * a long travel on a slow exponential ease, the heading first and the section's body after
+ * it, so each section arrives as a composed block rather than all at once.
+ */
+.reveal > * > * {
+  transition:
+    opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal[data-reveal="waiting"] > * > * {
+  opacity: 0;
+  transform: translateY(56px) scale(0.985);
+}
+
+.reveal[data-reveal="shown"] > * > :nth-child(2) {
+  transition-delay: 110ms;
+}
+
+.reveal[data-reveal="shown"] > * > :nth-child(3) {
+  transition-delay: 200ms;
+}
+
+.reveal[data-reveal="shown"] > * > :nth-child(n + 4) {
+  transition-delay: 280ms;
+}
+
+/*
+ * The carousel's countdown: fills over one autoplay interval, so a rotating preview says
+ * when it will move instead of changing under the reader. Duration comes from the component.
+ */
+@keyframes autoplay-progress {
+  from { transform: scaleX(0); }
+}
+
+.animate-autoplay-progress {
+  animation: autoplay-progress linear both;
+  transform-origin: left;
+}
+
+/*
+ * Arriving at the job-fit section from the profile's invitation: the field to paste into
+ * glows once, after the smooth scroll has landed, so the visitor sees where to start.
+ */
+@keyframes arrival-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(154 143 122 / 0); }
+  35% { box-shadow: 0 0 0 6px rgb(154 143 122 / 0.28); }
+}
+
+#job-fit:target .jobfit-arrival textarea {
+  animation: arrival-glow 1400ms cubic-bezier(0.33, 1, 0.68, 1) 900ms;
+}
+
+/* Terminal feedback: new output resolves in, a confirmation pops once. */
+@keyframes code-swap {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(3px);
+  }
+}
+
+@keyframes confirm {
+  from { transform: scale(0.6); }
+}
+
+.animate-code-swap {
+  animation: code-swap 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-confirm {
+  animation: confirm 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .animate-cursor {
@@ -158,6 +788,33 @@
 
 :root {
   color-scheme: light;
+}
+
+/*
+ * The studio is dense small text on sunken and raised grounds, where the site's slate
+ * drops below 4.5:1. It gets a deeper step of the same warm grey; the portfolio keeps its own.
+ */
+.studio-theme {
+  --color-warm-slate: #65615a;
+}
+
+/*
+ * A public portfolio's type (see app/[handle]/layout.tsx). The theme variables are redefined
+ * here rather than on :root, so `font-serif` and `font-mono` inside resolve to this set too.
+ */
+.portfolio-type {
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-sans);
+  font-feature-settings: normal;
+}
+
+/*
+ * Tabs of very different lengths toggle the scrollbar on and off, which shoved the whole
+ * studio sideways on every switch. Reserving the gutter keeps it still.
+ */
+html:has(.studio-theme) {
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -312,6 +969,41 @@ body {
   }
 }
 
+/* The same rules at reading size, for a post opened on its own page. */
+@layer components {
+  .prose-article {
+    & p,
+    & li {
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    & h1 {
+      font-size: 2rem;
+      margin-top: 1.75em;
+    }
+
+    & h2 {
+      font-size: 1.5rem;
+      margin-top: 1.5em;
+    }
+
+    & h3 {
+      font-size: 1.25rem;
+      margin-top: 1.25em;
+    }
+
+    & > :first-child {
+      margin-top: 0;
+    }
+  }
+}
+
+/* "Explore The Journey" glides down to the map instead of jumping. */
+html:has(#roadmap) {
+  scroll-behavior: smooth;
+}
+
 /*
  * Honour the OS "reduce motion" setting: kill the pulsing status dots, the
  * carousel's smooth scroll, and every transition rather than only damping them.
@@ -325,4 +1017,60 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /*
+   * The hero keeps its arrival as a plain fade, with no travel and no waiting on
+   * the curtain; the curtain, the seam and the scroll-drawn route are shown finished.
+   */
+  .animate-hero-left,
+  .animate-hero-right,
+  .animate-dock-settle {
+    animation: hero-fade 300ms ease-out both !important;
+  }
+
+  .animate-worlds-part,
+  .animate-seam-draw,
+  .animate-seam-sweep,
+  .animate-route-travel,
+  .animate-map-drift,
+  .animate-contour-drift,
+  .animate-journey-arrive,
+  .animate-journey-arrive-late,
+  .animate-code-swap {
+    animation: none !important;
+  }
+
+  /*
+   * The portfolio: the portrait and the text are simply there, the timeline is drawn, and
+   * the only motion left is a plain fade for the invitation and the arrival glow, which
+   * both say something rather than move something.
+   */
+  .animate-portrait-develop,
+  .animate-ink-in,
+  .animate-ink-in-late,
+  .animate-edge-sweep,
+  .animate-settle-in,
+  .animate-rule-draw,
+  .animate-timeline-rule,
+  .animate-timeline-node,
+  .animate-autoplay-progress {
+    animation: none !important;
+  }
+
+  .reveal > * > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-settle-in-last {
+    animation: hero-fade 400ms ease-out 200ms both !important;
+  }
+
+  #job-fit:target .jobfit-arrival textarea {
+    animation-duration: 1400ms !important;
+  }
+}
+
+@keyframes hero-fade {
+  from { opacity: 0; }
 }

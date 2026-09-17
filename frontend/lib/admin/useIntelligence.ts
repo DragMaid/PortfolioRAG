@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   RagJobKind,
   RagJobStatus,
+  RagSourceStatus,
   type LlmCredentialDto,
   type LlmProvider,
   type LlmProviderDto,
@@ -23,14 +24,10 @@ export type ExposureDraft = {
   model: string;
 };
 
-export type Busy =
-  | null
-  | "saving"
-  | "validating"
-  | "deleting"
-  | "rebuilding"
-  | "trying"
-  | "writing";
+export type Busy = null | "saving" | "validating" | "deleting" | "trying";
+
+/** How often the index table is re-read while anything in it is still waiting to settle. */
+const INDEX_POLL_MS = 3000;
 
 /**
  * The intelligence tab: the provider key, what it may cost, the index, and a trial run.
@@ -218,21 +215,6 @@ export function useIntelligence() {
   /* Jobs                                                                   */
   /* ---------------------------------------------------------------------- */
 
-  const rebuild = useCallback(async () => {
-    setBusy("rebuilding");
-
-    try {
-      const job = await llmApi.llmRebuildIndex();
-      setWatching(job.id ?? null);
-      setAttempt(0);
-      showToast("Rebuilding the index", "info");
-    } catch (error) {
-      await fail(error, "The rebuild could not be queued.");
-    } finally {
-      setBusy(null);
-    }
-  }, [fail, showToast]);
-
   const tryJobFit = useCallback(
     async (jobDescription: string) => {
       setBusy("trying");
@@ -254,28 +236,40 @@ export function useIntelligence() {
     [],
   );
 
-  const writeCoverLetter = useCallback(async (jobDescription: string, notes: string) => {
-    setBusy("writing");
-    setLetter(null);
-    setLetterError(null);
+  // The server keeps the index current on its own; this only re-reads the table while some
+  // source is still queued or indexing, so the statuses move without a refresh.
+  const indexPending = useMemo(
+    () =>
+      (credential?.index?.sources ?? []).some(
+        (source) =>
+          source.status === RagSourceStatus.Queued || source.status === RagSourceStatus.Indexing,
+      ),
+    [credential],
+  );
 
+  /**
+   * Re-reads the credential without touching the exposure draft. For background refreshes:
+   * the form may hold unsaved edits, and a re-read must not throw them away.
+   */
+  const refresh = useCallback(async () => {
     try {
-      const job = await llmApi.llmWriteCoverLetter({
-        coverLetterRequestDto: { jobDescription, notes: notes.trim() || undefined },
-      });
-
-      setLetter(job);
-      setWatching(job.id ?? null);
-      setAttempt(0);
-    } catch (error) {
-      setLetterError(await describeError(error, "The letter could not be started."));
-    } finally {
-      setBusy(null);
+      const next = await llmApi.llmGetCredential();
+      if (next) setCredential(next);
+    } catch {
+      // A missed refresh is retried on the next tick; the screen just lags a moment.
     }
   }, []);
 
-  // One poller for every kind of job — a rebuild, a trial analysis and a letter are the same
-  // row on the same queue, and the screen only lets one of them be in flight at a time.
+  useEffect(() => {
+    if (!indexPending || busy !== null) return;
+
+    const timer = setTimeout(() => void refresh(), INDEX_POLL_MS);
+    return () => clearTimeout(timer);
+    // `credential` so each refresh schedules the next: the pending flag alone stays true
+    // across refreshes and would not re-run this.
+  }, [busy, credential, indexPending, refresh]);
+
+  // Polls the trial analysis while it runs.
   useEffect(() => {
     if (watching === null) return;
 
@@ -340,7 +334,6 @@ export function useIntelligence() {
     saveKey,
     revalidate,
     remove,
-    rebuild,
     tryJobFit,
     trial,
     trialError,
@@ -350,7 +343,9 @@ export function useIntelligence() {
     letterError,
     clearLetter,
     isWorking: watching !== null,
+    indexPending,
     reload: load,
+    refresh,
   };
 }
 

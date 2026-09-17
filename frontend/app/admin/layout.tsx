@@ -8,5 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
-  return <AdminProviders>{children}</AdminProviders>;
+  return (
+    <AdminProviders>
+      {/* Scopes the studio's darker secondary text; see .studio-theme in globals.css. */}
+      <div className="studio-theme flex flex-1 flex-col">{children}</div>
+    </AdminProviders>
+  );
 }

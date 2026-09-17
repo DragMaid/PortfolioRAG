@@ -75,7 +75,7 @@ export function AssetManager({
         title="Project media & file assets"
         description="Diagrams, captures and stills referenced from this project's body."
         aside={
-          <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[11px] font-medium text-warm-black">
+          <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-[13px] font-medium text-warm-black">
             {media.length} {media.length === 1 ? "asset" : "assets"} • {formatBytes(totalBytes)}
           </span>
         }
@@ -118,13 +118,13 @@ export function AssetManager({
           </span>
         </div>
 
-        <p className="font-mono text-[11px] text-warm-slate">
+        <p className="text-[13px] text-warm-slate">
           Drag and drop images or video, or{" "}
           <button
             type="button"
             disabled={disabled || uploading}
             onClick={() => input.current?.click()}
-            className="font-medium text-warm-accent underline underline-offset-2 hover:text-warm-black disabled:cursor-not-allowed disabled:no-underline"
+            className="font-medium text-warm-accent-ink underline underline-offset-2 hover:text-warm-black disabled:cursor-not-allowed disabled:no-underline"
           >
             browse files
           </button>
@@ -146,7 +146,7 @@ export function AssetManager({
           ))}
         </ul>
       ) : (
-        <p className="rounded border border-dashed border-warm-border bg-warm-sunken/40 px-4 py-6 text-center font-mono text-[11px] text-warm-slate">
+        <p className="rounded border border-dashed border-warm-border bg-warm-sunken/40 px-4 py-6 text-center text-[13px] text-warm-slate">
           No files attached to this project yet.
         </p>
       )}
@@ -198,13 +198,13 @@ function AssetRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate font-mono text-[12.5px] font-semibold text-warm-black">
+            <span className="truncate text-[13.5px] font-semibold text-warm-black">
               {item.filename}
             </span>
             {kind ? <Badge tone="outline">{kind.label}</Badge> : null}
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-warm-slate">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-warm-slate">
             <span>{formatBytes(item.byteSize ?? 0)}</span>
             <span aria-hidden>•</span>
             <input
@@ -219,7 +219,7 @@ function AssetRow({
               maxLength={200}
               placeholder="What is this for?"
               aria-label={`Caption for ${item.filename}`}
-              className="min-w-40 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-warm-accent transition-colors placeholder:text-warm-slate/70 hover:border-warm-border focus:border-warm-black focus:bg-warm-surface focus:text-warm-black focus:outline-none"
+              className="min-w-40 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-warm-accent-ink transition-colors placeholder:text-warm-slate/70 hover:border-warm-border focus:border-warm-black focus:bg-warm-surface focus:text-warm-black focus:outline-none"
             />
           </div>
         </div>

@@ -173,7 +173,7 @@ function ExperienceCard({
             <span className="block truncate font-serif text-[15px] font-medium text-warm-black">
               {draft.company || "Untitled"}
             </span>
-            <span className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-[11px] text-warm-slate">
+            <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-warm-slate">
               <span className="truncate">{draft.role || "No role set"}</span>
               <span aria-hidden>•</span>
               <span>{formatRange(draft.startedOn, draft.endedOn)}</span>
@@ -204,7 +204,7 @@ function ExperienceCard({
                 disabled={busy}
                 maxLength={120}
                 onChange={(event) => update({ company: event.target.value })}
-                className="text-[13.5px]"
+                className="text-sm"
               />
             </Field>
 
@@ -216,7 +216,7 @@ function ExperienceCard({
                 maxLength={160}
                 placeholder="Senior Systems Engineer"
                 onChange={(event) => update({ role: event.target.value })}
-                className="text-[13.5px]"
+                className="text-sm"
               />
             </Field>
           </div>
@@ -233,7 +233,7 @@ function ExperienceCard({
               maxLength={200}
               placeholder="Edge Compute & Global Serverless Gateway"
               onChange={(event) => update({ team: event.target.value })}
-              className="text-[13.5px]"
+              className="text-sm"
             />
           </Field>
 
@@ -246,7 +246,7 @@ function ExperienceCard({
                 disabled={busy}
                 required
                 onChange={(event) => update({ startedOn: event.target.value })}
-                className="font-mono text-xs"
+                className="text-[13px]"
               />
             </Field>
 
@@ -262,7 +262,7 @@ function ExperienceCard({
                 disabled={busy}
                 min={draft.startedOn || undefined}
                 onChange={(event) => update({ endedOn: event.target.value })}
-                className="font-mono text-xs"
+                className="text-[13px]"
               />
             </Field>
           </div>
@@ -303,7 +303,7 @@ function ExperienceCard({
                   Clear logo
                 </Button>
               ) : (
-                <span className="font-mono text-[10.5px] text-warm-slate">
+                <span className="text-xs text-warm-slate">
                   Without one the timeline draws the company&apos;s initials.
                 </span>
               )}

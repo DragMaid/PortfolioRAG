@@ -39,23 +39,11 @@ export interface CreatePostDto {
     /**
      * 
      */
-    category?: string | null;
-    /**
-     * 
-     */
-    domain?: string | null;
-    /**
-     * 
-     */
     repoUrl?: string | null;
     /**
      * 
      */
     demoUrl?: string | null;
-    /**
-     * 
-     */
-    specUrl?: string | null;
 }
 
 /**
@@ -81,11 +69,8 @@ export function CreatePostDtoFromJSONTyped(json: any, ignoreDiscriminator: boole
         'slug': json['slug'] === undefined ? undefined : json['slug'] === null ? null : json['slug'],
         'summary': json['summary'] === undefined ? undefined : json['summary'] === null ? null : json['summary'],
         'body': json['body'],
-        'category': json['category'] === undefined ? undefined : json['category'] === null ? null : json['category'],
-        'domain': json['domain'] === undefined ? undefined : json['domain'] === null ? null : json['domain'],
         'repoUrl': json['repoUrl'] === undefined ? undefined : json['repoUrl'] === null ? null : json['repoUrl'],
         'demoUrl': json['demoUrl'] === undefined ? undefined : json['demoUrl'] === null ? null : json['demoUrl'],
-        'specUrl': json['specUrl'] === undefined ? undefined : json['specUrl'] === null ? null : json['specUrl'],
     };
 }
 
@@ -104,11 +89,8 @@ export function CreatePostDtoToJSONTyped(value?: CreatePostDto | null, ignoreDis
         'slug': value['slug'],
         'summary': value['summary'],
         'body': value['body'],
-        'category': value['category'],
-        'domain': value['domain'],
         'repoUrl': value['repoUrl'],
         'demoUrl': value['demoUrl'],
-        'specUrl': value['specUrl'],
     };
 }
 

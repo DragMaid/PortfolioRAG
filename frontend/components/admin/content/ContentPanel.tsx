@@ -20,15 +20,15 @@ export function ContentPanel({
           <h1 className="font-serif text-2xl font-medium text-warm-black sm:text-3xl">
             Projects & editor
           </h1>
-          <p className="mt-0.5 text-[13.5px] text-warm-slate">
+          <p className="mt-0.5 text-sm text-warm-slate">
             Write and publish the projects the portfolio lists, and manage the files each one embeds.
           </p>
         </div>
 
         {studio.baseline ? (
-          <div className="flex items-center gap-2 font-mono text-[11px] text-warm-slate">
-            <span>Open:</span>
-            <span className="rounded border border-warm-border bg-warm-surface px-2 py-0.5 font-medium text-warm-black">
+          <div className="flex min-w-0 max-w-full items-center gap-2 text-[13px] text-warm-slate">
+            <span className="shrink-0">Open:</span>
+            <span className="truncate rounded border border-warm-border bg-warm-surface px-2 py-0.5 font-mono text-xs text-warm-black">
               #{studio.baseline.id} / {studio.baseline.slug}
             </span>
           </div>

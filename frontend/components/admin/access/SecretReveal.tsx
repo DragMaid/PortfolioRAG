@@ -49,10 +49,10 @@ export function SecretReveal({
         <div className="flex items-start gap-2">
           <Icon name="verified" className="mt-0.5 text-[18px] text-warm-accent" />
           <div>
-            <h3 className="font-mono text-xs font-semibold tracking-wider text-warm-black uppercase">
+            <h3 className="text-[13px] font-semibold text-warm-black">
               {revealed.reason === "created" ? "Token issued" : "Token rotated"}
             </h3>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-warm-slate">
+            <p className="mt-1 text-[13.5px] leading-relaxed text-warm-slate">
               Copy <span className="font-medium text-warm-black">{revealed.token.name}</span> now.
               This is the only time it can be shown — the server keeps only a hash of it, so if
               you lose it the way back is to rotate the token again.
@@ -89,7 +89,7 @@ export function SecretReveal({
           value={revealed.secret}
           aria-label="The token secret"
           onFocus={(event) => event.currentTarget.select()}
-          className="min-w-0 flex-1 rounded border border-warm-border bg-warm-surface px-3 py-2 font-mono text-[12px] text-warm-black focus:border-warm-black focus:outline-none"
+          className="min-w-0 flex-1 rounded border border-warm-border bg-warm-surface px-3 py-2 font-mono text-[13.5px] text-warm-black focus:border-warm-black focus:outline-none"
         />
 
         <Button
@@ -102,7 +102,7 @@ export function SecretReveal({
         </Button>
       </div>
 
-      <p className="font-mono text-[10.5px] leading-relaxed text-warm-slate">
+      <p className="text-xs leading-relaxed text-warm-slate">
         Send it as{" "}
         <span className="text-warm-black">Authorization: Bearer {revealed.token.prefix}…</span>
       </p>

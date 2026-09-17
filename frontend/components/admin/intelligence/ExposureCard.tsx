@@ -56,7 +56,7 @@ export function ExposureCard({
         />
 
         {!usable ? (
-          <p className="text-[12.5px] text-warm-slate">
+          <p className="text-[13.5px] text-warm-slate">
             Confirm the key with the provider first.
           </p>
         ) : null}
@@ -126,7 +126,7 @@ export function ExposureCard({
             value={draft.model}
             onChange={(event) => onChange("model", event.target.value)}
             disabled={locked}
-            className="rounded border border-warm-border bg-warm-sunken px-3 py-2 font-mono text-[13px] text-warm-black focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60"
+            className="rounded border border-warm-border bg-warm-sunken px-3 py-2 font-mono text-sm text-warm-black focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60"
           >
             {(credential.availableModels ?? []).map((model) => (
               <option key={model} value={model}>
@@ -142,7 +142,7 @@ export function ExposureCard({
             value={draft.model}
             onChange={(event) => onChange("model", event.target.value)}
             disabled={locked}
-            className="font-mono text-[13px]"
+            className="font-mono text-sm"
           />
         </Field>
       )}
@@ -158,8 +158,8 @@ export function ExposureCard({
           Save
         </Button>
         {isDirty ? (
-          <span className="font-mono text-[11px] tracking-wider text-warm-accent uppercase">
-            unsaved
+          <span className="text-[13px] font-medium text-warm-accent-ink">
+            Unsaved changes
           </span>
         ) : null}
       </div>
@@ -180,7 +180,7 @@ function SpendMeter({ spent, budget }: { spent: number; budget: number }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between font-mono text-[11px] tracking-wider text-warm-slate uppercase">
+      <div className="flex items-baseline justify-between text-[13px] font-medium text-warm-slate">
         <span>This month</span>
         <span className={cn("tabular-nums", nearlyFull && "text-warm-danger")}>
           {formatUsd(spent)} / {formatUsd(budget)}
@@ -198,7 +198,7 @@ function SpendMeter({ spent, budget }: { spent: number; budget: number }) {
       </div>
 
       {fraction >= 1 ? (
-        <p className="font-mono text-[10.5px] text-warm-danger">
+        <p className="text-xs text-warm-danger">
           The budget is spent. Visitors are being turned away until the month turns over, or
           until you raise it.
         </p>

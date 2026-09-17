@@ -73,7 +73,7 @@ export function WeeklyChart({ daily }: { daily: DailyTrafficDto[] }) {
                   x={AXIS_X - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-warm-slate font-mono text-[10px]"
+                  className="fill-warm-slate text-xs"
                 >
                   {abbreviate(value)}
                 </text>
@@ -129,7 +129,7 @@ export function WeeklyChart({ daily }: { daily: DailyTrafficDto[] }) {
                   x={centre}
                   y={LABEL_Y}
                   textAnchor="middle"
-                  className="fill-warm-slate font-mono text-[11px]"
+                  className="fill-warm-slate text-[13px]"
                 >
                   {date ? formatChartDay(date) : ""}
                 </text>
@@ -143,7 +143,7 @@ export function WeeklyChart({ daily }: { daily: DailyTrafficDto[] }) {
                     x={0}
                     y={3}
                     textAnchor="middle"
-                    className="fill-warm-surface font-mono text-[10px]"
+                    className="fill-warm-surface text-xs"
                   >
                     {formatCount(reads)} reads · {formatCount(day.visitors ?? 0)} vis.
                   </text>

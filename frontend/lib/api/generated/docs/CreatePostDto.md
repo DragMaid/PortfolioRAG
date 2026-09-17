@@ -10,11 +10,8 @@ Name | Type
 `slug` | string
 `summary` | string
 `body` | string
-`category` | string
-`domain` | string
 `repoUrl` | string
 `demoUrl` | string
-`specUrl` | string
 
 ## Example
 
@@ -27,11 +24,8 @@ const example = {
   "slug": null,
   "summary": null,
   "body": null,
-  "category": null,
-  "domain": null,
   "repoUrl": null,
   "demoUrl": null,
-  "specUrl": null,
 } satisfies CreatePostDto
 
 console.log(example)

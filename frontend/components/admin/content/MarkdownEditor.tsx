@@ -47,7 +47,7 @@ export function MarkdownEditor({
           />
         </div>
 
-        <span className="hidden font-mono text-[11px] text-warm-slate sm:inline">
+        <span className="hidden text-[13px] text-warm-slate sm:inline">
           {value.length.toLocaleString("en-US")} characters
         </span>
       </div>
@@ -61,7 +61,7 @@ export function MarkdownEditor({
             rows={16}
             spellCheck
             aria-label="Project body, in Markdown"
-            className="w-full resize-y border-none bg-transparent p-0 font-mono text-[12.5px] leading-relaxed text-warm-black focus:outline-none disabled:cursor-not-allowed"
+            className="w-full resize-y border-none bg-transparent p-0 font-mono text-[13.5px] leading-relaxed text-warm-black focus:outline-none disabled:cursor-not-allowed"
           />
         </div>
       ) : (
@@ -71,7 +71,7 @@ export function MarkdownEditor({
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
             </div>
           ) : (
-            <p className="font-mono text-xs text-warm-slate">Nothing written yet.</p>
+            <p className="text-[13px] text-warm-slate">Nothing written yet.</p>
           )}
         </div>
       )}
@@ -97,7 +97,7 @@ function ModeTab({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1 rounded px-2.5 py-1 font-mono text-[11.5px] transition-colors",
+        "flex items-center gap-1 rounded px-2.5 py-1 text-[13px] transition-colors",
         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-warm-accent",
         active
           ? "bg-warm-surface font-medium text-warm-black shadow-sm"

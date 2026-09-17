@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { GearIllustration } from "./GearIllustration";
 import { FlowerIllustration } from "./FlowerIllustration";
 
 export function Hero() {
   const [activeSide, setActiveSide] = useState<"both" | "tech" | "creative">("both");
+  const sectionRef = useRef<HTMLElement>(null);
+  const [offscreen, setOffscreen] = useState(false);
+
+  /** The gears and the flower loop forever; stop them once the hero scrolls away. */
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new IntersectionObserver(([entry]) => setOffscreen(!entry.isIntersecting));
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   /**
    * Only fine pointers get the dim-the-other-world treatment. iPadOS fires
@@ -20,6 +31,8 @@ export function Hero() {
 
   return (
     <section
+      ref={sectionRef}
+      data-motion={offscreen ? "paused" : undefined}
       className="relative w-full overflow-hidden bg-[#0b0f19] min-h-[100svh] flex flex-col"
       aria-label="Hero: Where technical infrastructure meets creative expression"
     >
@@ -51,7 +64,7 @@ export function Hero() {
 
       {/* LEFT SIDE WORLD: Complexity & Technical Machinery (Clipped Overlay) */}
       <div
-        className={`absolute inset-0 z-20 bg-[#0c101c] text-white transition-opacity duration-700 [clip-path:polygon(0_0,100%_0,100%_48%,0_52%)] sm:[clip-path:polygon(0_0,56%_0,44%_100%,0_100%)] lg:[clip-path:polygon(0_0,58%_0,40%_100%,0_100%)] ${
+        className={`absolute inset-0 z-20 bg-[#0c101c] text-white transition-opacity duration-700 animate-worlds-part [clip-path:polygon(0_0,100%_0,100%_48%,0_52%)] sm:[clip-path:polygon(0_0,56%_0,44%_100%,0_100%)] lg:[clip-path:polygon(0_0,58%_0,40%_100%,0_100%)] ${
           activeSide === "creative" ? "opacity-40" : "opacity-100"
         }`}
         onPointerEnter={hoverOnly("tech")}
@@ -102,21 +115,21 @@ export function Hero() {
             </filter>
           </defs>
 
-          {/* Glowing boundary line — one pair per breakpoint, tracking the clip-path seam */}
+          {/* Boundary line — one pair per breakpoint, tracking the clip-path seam; it draws in once the worlds have parted */}
           <g className="lg:hidden">
-            <line x1="560" y1="0" x2="440" y2="1000" stroke="url(#seamGradient)" strokeWidth="2.5" className="animate-seam" />
-            <line x1="560" y1="0" x2="440" y2="1000" stroke="url(#seamGradient)" strokeWidth="8" opacity="0.3" filter="url(#seamGlowFilter)" />
+            <path d="M 560 0 L 440 1000" stroke="url(#seamGradient)" strokeWidth="2.5" pathLength={1} strokeDasharray="1 1" className="animate-seam-draw" />
+            <path d="M 560 0 L 440 1000" stroke="url(#seamGradient)" strokeWidth="8" opacity="0.3" filter="url(#seamGlowFilter)" pathLength={1} strokeDasharray="1 1" className="animate-seam-draw" />
           </g>
           <g className="hidden lg:block">
-            <line x1="580" y1="0" x2="400" y2="1000" stroke="url(#seamGradient)" strokeWidth="2.5" className="animate-seam" />
-            <line x1="580" y1="0" x2="400" y2="1000" stroke="url(#seamGradient)" strokeWidth="8" opacity="0.3" filter="url(#seamGlowFilter)" />
+            <path d="M 580 0 L 400 1000" stroke="url(#seamGradient)" strokeWidth="2.5" pathLength={1} strokeDasharray="1 1" className="animate-seam-draw" />
+            <path d="M 580 0 L 400 1000" stroke="url(#seamGradient)" strokeWidth="8" opacity="0.3" filter="url(#seamGlowFilter)" pathLength={1} strokeDasharray="1 1" className="animate-seam-draw" />
           </g>
         </svg>
       </div>
 
       {/* Mobile-only seam: a thin luminous rule along the horizontal band split */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-1/2 z-30 h-px sm:hidden bg-gradient-to-r from-cyan-400 via-white to-rose-400 opacity-80 rotate-[-2.3deg] origin-center"
+        className="pointer-events-none absolute inset-x-0 top-1/2 z-30 h-px sm:hidden bg-gradient-to-r from-cyan-400 via-white to-rose-400 opacity-80 rotate-[-2.3deg] origin-center animate-seam-sweep"
         aria-hidden="true"
       />
 
@@ -127,14 +140,14 @@ export function Hero() {
       <div className="relative z-40 flex-1 w-full max-w-7xl mx-auto px-6 pt-[4.5rem] grid grid-rows-2 gap-y-6 sm:block sm:p-0">
         {/* Technical half — pinned to the upper left of the diagonal on tablet+ */}
         <div className="flex flex-col justify-center sm:absolute sm:top-[32%] sm:-translate-y-1/2 sm:left-10 lg:left-16 sm:w-[40%]">
-          <div className="relative">
+          <div className="relative animate-hero-left">
             {/* Scrim: keeps the copy legible where the gears pass behind it */}
             <div
               className="pointer-events-none absolute -inset-x-8 -inset-y-10 hidden sm:block bg-[radial-gradient(ellipse_at_center,rgba(12,16,28,0.85),rgba(12,16,28,0.45)_55%,transparent_80%)] blur-md"
               aria-hidden="true"
             />
             <h1
-              className="relative text-[1.75rem] min-[380px]:text-[2rem] leading-[1.12] sm:text-4xl md:text-5xl xl:text-6xl font-sans font-bold tracking-tight text-white animate-hero-left"
+              className="relative text-[1.75rem] min-[380px]:text-[2rem] leading-[1.12] sm:text-4xl md:text-5xl xl:text-6xl font-sans font-bold tracking-tight text-white"
               style={{ textWrap: "balance" }}
             >
               We handle the complex stuff
@@ -148,14 +161,14 @@ export function Hero() {
 
         {/* Creative half — pinned to the lower right of the diagonal on tablet+ */}
         <div className="flex flex-col justify-center sm:absolute sm:top-[58%] sm:-translate-y-1/2 sm:right-10 lg:right-16 sm:w-[40%] lg:w-[38%]">
-          <div className="relative">
+          <div className="relative animate-hero-right">
             {/* Scrim: keeps the copy legible where the flower passes behind it */}
             <div
               className="pointer-events-none absolute -inset-x-8 -inset-y-10 hidden sm:block bg-[radial-gradient(ellipse_at_center,rgba(251,249,244,0.92),rgba(251,249,244,0.6)_55%,transparent_80%)] blur-md"
               aria-hidden="true"
             />
             <h2
-              className="relative text-[1.75rem] min-[380px]:text-[2rem] leading-[1.12] sm:text-4xl md:text-5xl xl:text-6xl font-serif font-normal tracking-tight text-[#1c1917] animate-hero-right"
+              className="relative text-[1.75rem] min-[380px]:text-[2rem] leading-[1.12] sm:text-4xl md:text-5xl xl:text-6xl font-serif font-normal tracking-tight text-[#1c1917]"
               style={{ textWrap: "balance" }}
             >
               You express yourself to the fullest
@@ -173,7 +186,7 @@ export function Hero() {
       {/* ACTION DOCK — in flow at the foot on phones, floated over the  */}
       {/* seam on tablet and up. The primary CTA carries the weight.     */}
       {/* ------------------------------------------------------------- */}
-      <div className="relative z-50 w-full px-6 pb-8 sm:px-0 sm:pb-0 sm:absolute sm:top-[82%] sm:left-1/2 sm:w-auto sm:max-w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div className="relative z-50 w-full px-6 pb-8 sm:px-0 sm:pb-0 animate-dock-settle sm:absolute sm:top-[82%] sm:left-1/2 sm:w-auto sm:max-w-full sm:-translate-x-1/2 sm:-translate-y-1/2">
         {/* Halo that pulls the eye to the dock */}
         <div
           className="pointer-events-none absolute -inset-4 sm:-inset-10 rounded-[3rem] bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.22),rgba(99,102,241,0.08),transparent_70%)] sm:bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.35),rgba(99,102,241,0.12),transparent_70%)] blur-2xl"
@@ -183,17 +196,17 @@ export function Hero() {
         <div className="relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-3xl sm:rounded-full bg-white/95 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-2 shadow-2xl backdrop-blur-md">
           <Link
             href="/admin"
-            className="group relative flex items-center justify-center gap-2 rounded-2xl sm:rounded-full px-6 py-4 sm:py-3.5 min-h-[52px] text-base sm:text-[0.95rem] font-bold tracking-tight text-white bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-[0_8px_24px_-6px_rgba(56,189,248,0.7)] ring-1 ring-inset ring-white/25 transition-all duration-200 hover:shadow-[0_12px_32px_-6px_rgba(56,189,248,0.9)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 whitespace-nowrap"
+            className="group relative flex items-center justify-center gap-2 rounded-2xl sm:rounded-full px-6 py-4 sm:py-3.5 min-h-[52px] text-base sm:text-[0.95rem] font-medium tracking-tight text-white bg-slate-900 hover:bg-slate-700 dark:text-slate-900 dark:bg-slate-100 dark:hover:bg-white transition-colors duration-200 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900 whitespace-nowrap"
           >
             <span>Start Building Free</span>
             <svg
-              className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1"
+              className="w-4 h-4 shrink-0 transition-transform duration-300 ease-out group-hover:translate-x-0.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 12h14m0 0l-6-6m6 6l-6 6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14m0 0l-6-6m6 6l-6 6" />
             </svg>
           </Link>
 

@@ -46,7 +46,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
             maxLength={150}
             placeholder="Staff Systems & Distributed Infrastructure"
             onChange={(event) => onChange({ title: event.target.value })}
-            className="text-[13.5px]"
+            className="text-sm"
           />
         </Field>
       </div>
@@ -64,7 +64,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
           pattern="[a-z0-9]+(-[a-z0-9]+)*"
           placeholder="ada-lovelace"
           onChange={(event) => onChange({ handle: event.target.value })}
-          className="font-mono text-xs"
+          className="font-mono text-[13px]"
         />
       </Field>
 
@@ -80,7 +80,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
           disabled={disabled}
           maxLength={256}
           onChange={(event) => onChange({ email: event.target.value })}
-          className="font-mono text-xs"
+          className="font-mono text-[13px]"
         />
       </Field>
 
@@ -97,7 +97,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
             maxLength={120}
             placeholder="San Francisco, CA (Hybrid)"
             onChange={(event) => onChange({ location: event.target.value })}
-            className="text-[13.5px]"
+            className="text-sm"
           />
         </Field>
 
@@ -113,7 +113,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
             maxLength={160}
             placeholder="Open for Staff roles & select advisory"
             onChange={(event) => onChange({ availability: event.target.value })}
-            className="text-[13.5px]"
+            className="text-sm"
           />
         </Field>
 
@@ -131,7 +131,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
           maxLength={160}
           placeholder="Primary focus: Systems / C++ / Rust"
           onChange={(event) => onChange({ focus: event.target.value })}
-          className="text-[13.5px]"
+          className="text-sm"
         />
       </Field>
 
@@ -178,7 +178,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
             disabled={disabled}
             maxLength={500}
             onChange={(event) => onChange({ footerBio: event.target.value })}
-            className="text-[13px]"
+            className="text-sm"
           />
         </Field>
 
@@ -193,7 +193,7 @@ export function IdentityEditor({ draft, disabled, onChange }: IdentityEditorProp
             disabled={disabled}
             maxLength={500}
             onChange={(event) => onChange({ contactPitch: event.target.value })}
-            className="text-[13px]"
+            className="text-sm"
           />
         </Field>
       </div>

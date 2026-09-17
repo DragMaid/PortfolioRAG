@@ -65,6 +65,8 @@ docs/RagIndexStateDto.md
 docs/RagJobDto.md
 docs/RagJobKind.md
 docs/RagJobStatus.md
+docs/RagSourceDto.md
+docs/RagSourceStatus.md
 docs/RagSourceType.md
 docs/ReferrerDto.md
 docs/RefreshTokenDto.md
@@ -124,6 +126,8 @@ models/RagIndexStateDto.ts
 models/RagJobDto.ts
 models/RagJobKind.ts
 models/RagJobStatus.ts
+models/RagSourceDto.ts
+models/RagSourceStatus.ts
 models/RagSourceType.ts
 models/ReferrerDto.ts
 models/RefreshTokenDto.ts

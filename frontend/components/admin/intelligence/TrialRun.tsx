@@ -52,7 +52,7 @@ export function TrialRun({
         description="Run a real posting against your own portfolio and read exactly what a visitor would get. This spends your key and counts against the monthly budget."
         aside={
           usage ? (
-            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[10.5px] text-warm-slate">
+            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-xs text-warm-slate">
               {usage}
             </span>
           ) : null
@@ -77,7 +77,7 @@ export function TrialRun({
           onChange={(event) => setDescription(event.target.value)}
           disabled={running}
           placeholder="Paste a posting you would actually want to be measured against."
-          className="text-[13px] leading-relaxed"
+          className="text-sm leading-relaxed"
         />
       </Field>
 
@@ -98,15 +98,15 @@ export function TrialRun({
           </Button>
         ) : null}
 
-        {mine ? (
-          <span className="font-mono text-[11px] text-warm-slate">
+        {running ? (
+          <span className="text-[13px] text-warm-slate">
             Reads the posting, searches the portfolio, weighs the evidence. Around a minute.
           </span>
         ) : null}
       </div>
 
       {error ? (
-        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[12.5px] leading-relaxed text-warm-danger">
+        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[13.5px] leading-relaxed text-warm-danger">
           {error}
         </p>
       ) : null}

@@ -255,7 +255,7 @@ export async function getAuthor(id: number): Promise<AuthorDto | null> {
  * one author. What makes a post a project is the thumbnail and the trailer it cannot be
  * published without, which is what the section renders.
  */
-export const getProjects = cache(async (authorId?: number): Promise<Project[]> => {
+export const getProjects = cache(async (authorId: number, handle: string): Promise<Project[]> => {
   let posts: PostSummaryDto[];
 
   try {
@@ -274,7 +274,7 @@ export const getProjects = cache(async (authorId?: number): Promise<Project[]> =
   }
 
   return posts
-    .map(toProject)
+    .map((post) => toProject(post, handle))
     .filter((project): project is Project => project !== null)
     .map((project, position) => ({
       ...project,
@@ -291,7 +291,7 @@ export const getProjects = cache(async (authorId?: number): Promise<Project[]> =
  * in that state by something other than the API. Skipping it beats rendering a card with
  * a hole where the picture goes.
  */
-function toProject(post: PostSummaryDto): Project | null {
+function toProject(post: PostSummaryDto, handle: string): Project | null {
   const thumbnailUrl = apiUrl(post.thumbnail?.url);
   const trailerUrl = apiUrl(post.trailer?.url);
 
@@ -300,17 +300,15 @@ function toProject(post: PostSummaryDto): Project | null {
   return {
     index: "00",
     slug: post.slug,
+    href: postHref(handle, post.slug),
     title: post.title?.trim() || "Untitled project",
     summary: post.summary?.trim() ?? "",
-    category: post.category?.trim() ?? "",
-    domain: post.domain?.trim() ?? "",
     year: post.publishedAt ? String(post.publishedAt.getFullYear()) : "",
     thumbnailUrl,
     trailer: { url: trailerUrl, isVideo: isVideo(post.trailer) },
     links: {
       repo: post.repoUrl?.trim() || null,
       demo: post.demoUrl?.trim() || null,
-      spec: post.specUrl?.trim() || null,
     },
   };
 }
@@ -341,6 +339,26 @@ export async function getPost(slug: string): Promise<PostDto | null> {
     return null;
   }
 }
+
+/** The reader-facing address of a published post. */
+export function postHref(handle: string, slug: string): string {
+  return `/${encodeURIComponent(handle)}/posts/${encodeURIComponent(slug)}`;
+}
+
+/**
+ * A published post at an author's handle, or null when there is no such post *under that
+ * author*. Slugs are unique across accounts, so without the ownership check any handle
+ * would serve any post and every write-up would have one canonical page per account.
+ */
+export const getPublishedPost = cache(
+  async (handle: string, slug: string): Promise<{ author: AuthorDto; post: PostDto } | null> => {
+    const [author, post] = await Promise.all([getAuthorByHandle(handle), getPost(slug)]);
+
+    if (!author?.id || !post || post.author?.id !== author.id) return null;
+
+    return { author, post };
+  },
+);
 
 export function formatDate(date: Date | null | undefined): string {
   if (!date) return "";

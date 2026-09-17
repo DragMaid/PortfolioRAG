@@ -41,7 +41,7 @@ export function ProfilePanel({ profile }: { profile: ReturnType<typeof useProfil
           <h1 className="font-serif text-2xl font-medium text-warm-black sm:text-3xl">
             Profile & presence
           </h1>
-          <p className="mt-0.5 text-[13.5px] text-warm-slate">
+          <p className="mt-0.5 text-sm text-warm-slate">
             Who the portfolio says you are: the copy on the landing page, your picture, your
             timeline, and how people reach you.
           </p>

@@ -16,13 +16,8 @@ export type Draft = {
   summary: string;
   body: string;
   isFeatured: boolean;
-  /** The kicker beside the ordinal on the card — "VECTOR CORE". */
-  category: string;
-  /** The line in the card footer — "Vector Storage". */
-  domain: string;
   repoUrl: string;
   demoUrl: string;
-  specUrl: string;
 };
 
 /** How many posts the registry loads. Well past what one portfolio holds. */
@@ -164,11 +159,8 @@ export function useStudio() {
             summary: draft.summary.trim() || undefined,
             body: draft.body,
             isFeatured: draft.isFeatured,
-            category: draft.category.trim() || undefined,
-            domain: draft.domain.trim() || undefined,
             repoUrl: draft.repoUrl.trim() || undefined,
             demoUrl: draft.demoUrl.trim() || undefined,
-            specUrl: draft.specUrl.trim() || undefined,
           },
         });
 
@@ -242,7 +234,6 @@ export function useStudio() {
       const created = await adminPostsApi.adminPostsCreate({
         createPostDto: {
           title: "Untitled project",
-          summary: "A one-line pitch for this project.",
           body: "# Untitled project\n\nStart writing.\n",
         },
       });
@@ -450,11 +441,8 @@ function toDraft(post: PostDto): Draft {
     summary: post.summary ?? "",
     body: post.body ?? "",
     isFeatured: post.isFeatured ?? false,
-    category: post.category ?? "",
-    domain: post.domain ?? "",
     repoUrl: post.repoUrl ?? "",
     demoUrl: post.demoUrl ?? "",
-    specUrl: post.specUrl ?? "",
   };
 }
 

@@ -72,6 +72,22 @@ export function ChevronRightIcon(props: IconProps) {
   );
 }
 
+export function ArrowDownIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden {...strokeProps} {...props}>
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </svg>
+  );
+}
+
+export function ArrowUpRightIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden {...strokeProps} {...props}>
+      <path d="M7 17L17 7M8 7h9v9" />
+    </svg>
+  );
+}
+
 export function PauseIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden fill="currentColor" {...props}>

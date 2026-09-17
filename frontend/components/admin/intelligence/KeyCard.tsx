@@ -75,7 +75,7 @@ export function KeyCard({
       ) : null}
 
       {credential?.validationError ? (
-        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[12.5px] leading-relaxed text-warm-danger">
+        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[13.5px] leading-relaxed text-warm-danger">
           {credential.validationError}
         </p>
       ) : null}
@@ -108,7 +108,7 @@ export function KeyCard({
               onChange={(event) => setChosen(event.target.value as LlmProvider)}
               disabled={locked || providers.length === 0}
               required
-              className="rounded border border-warm-border bg-warm-sunken px-3 py-2 text-[13px] text-warm-black focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60"
+              className="rounded border border-warm-border bg-warm-sunken px-3 py-2 text-sm text-warm-black focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60"
             >
               {provider === null ? (
                 <option value="" disabled>
@@ -140,7 +140,7 @@ export function KeyCard({
               onChange={(event) => setApiKey(event.target.value)}
               placeholder={selected?.keyPlaceholder ?? "Choose a provider first"}
               disabled={locked}
-              className="font-mono text-[13px]"
+              className="font-mono text-sm"
             />
           </Field>
 
@@ -209,7 +209,7 @@ export function KeyCard({
       )}
 
       {confirming && !showForm ? (
-        <p className="text-[12.5px] leading-relaxed text-warm-slate">
+        <p className="text-[13.5px] leading-relaxed text-warm-slate">
           Removing the key also cancels anything queued against it and deletes the passages
           it indexed. Your posts and timeline are untouched; the index is rebuilt from them
           the next time you add a key.
@@ -226,8 +226,8 @@ function KeyStatus({ credential }: { credential: LlmCredentialDto }) {
     <span
       className={
         usable
-          ? "rounded border border-warm-success/30 bg-warm-success-bg px-2 py-0.5 font-mono text-[11px] font-medium text-warm-success"
-          : "rounded border border-warm-danger/25 bg-warm-danger-bg px-2 py-0.5 font-mono text-[11px] font-medium text-warm-danger"
+          ? "rounded border border-warm-success/30 bg-warm-success-bg px-2 py-0.5 text-[13px] font-medium text-warm-success"
+          : "rounded border border-warm-danger/25 bg-warm-danger-bg px-2 py-0.5 text-[13px] font-medium text-warm-danger"
       }
     >
       {usable ? "verified" : "not verified"}
@@ -238,10 +238,10 @@ function KeyStatus({ credential }: { credential: LlmCredentialDto }) {
 function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="font-mono text-[10.5px] tracking-wider text-warm-slate uppercase">
+      <dt className="text-[13px] font-medium text-warm-slate">
         {label}
       </dt>
-      <dd className={mono ? "font-mono text-[12.5px] text-warm-black" : "text-[13px] text-warm-black"}>
+      <dd className={mono ? "font-mono text-[13.5px] text-warm-black" : "text-sm text-warm-black"}>
         {value || "—"}
       </dd>
     </div>

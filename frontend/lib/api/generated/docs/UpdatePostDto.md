@@ -11,11 +11,8 @@ Name | Type
 `summary` | string
 `body` | string
 `isFeatured` | boolean
-`category` | string
-`domain` | string
 `repoUrl` | string
 `demoUrl` | string
-`specUrl` | string
 
 ## Example
 
@@ -29,11 +26,8 @@ const example = {
   "summary": null,
   "body": null,
   "isFeatured": null,
-  "category": null,
-  "domain": null,
   "repoUrl": null,
   "demoUrl": null,
-  "specUrl": null,
 } satisfies UpdatePostDto
 
 console.log(example)

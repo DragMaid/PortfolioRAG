@@ -95,7 +95,7 @@ export function AvatarPicker({
         ) : null}
       </div>
 
-      <p className="font-mono text-[10.5px] leading-relaxed text-warm-slate">
+      <p className="text-xs leading-relaxed text-warm-slate">
         Drop a picture here, or browse. PNG, JPEG, GIF or WebP — it is scaled and
         re-encoded on the way in.
       </p>
