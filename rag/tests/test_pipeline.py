@@ -109,6 +109,7 @@ REQUIREMENTS = [
 
 ANALYSIS = PostingAnalysis(
     role_title="Staff Engineer, Storage",
+    company="Acme",
     seniority="staff",
     requirements=REQUIREMENTS,
 )
@@ -222,6 +223,8 @@ def test_a_grounded_report_is_assembled_in_the_shape_the_api_reads(indexed, sett
 
     # snake_case throughout, which is what LlmMappingExtensions.WorkerJson reads.
     assert set(report) >= {
+        "role_title",
+        "company",
         "verdict",
         "score",
         "headline",
@@ -235,6 +238,8 @@ def test_a_grounded_report_is_assembled_in_the_shape_the_api_reads(indexed, sett
     }
 
     assert report["headline"] == NARRATIVE.headline
+    assert report["role_title"] == ANALYSIS.role_title
+    assert report["company"] == ANALYSIS.company
     assert len(report["requirements"]) == 3
     assert report["retrieval"]["citations_rejected"] == 0
     assert report["retrieval"]["passages_cited"] == 1
@@ -410,7 +415,9 @@ def test_a_posting_with_no_requirements_fails_rather_than_scoring_zero(indexed, 
     """Zero requirements would score 0 and read as a damning verdict on the author."""
     conn, author_id, embedder = indexed
 
-    empty = PostingAnalysis(role_title="Unclear", seniority="unclear", requirements=[])
+    empty = PostingAnalysis(
+        role_title="Unclear", company=None, seniority="unclear", requirements=[]
+    )
 
     with pytest.raises(PipelineError, match="No requirements"):
         run(
@@ -529,7 +536,6 @@ def test_a_cover_letter_keeps_only_citations_to_passages_it_was_shown(indexed, s
         author_id,
         CoverLetterRequest(
             job_description="A posting long enough to be worth reading. " * 6,
-            company="Acme",
             notes="Lead with storage.",
         ),
     )
@@ -537,7 +543,8 @@ def test_a_cover_letter_keeps_only_citations_to_passages_it_was_shown(indexed, s
     report = outcome.report
 
     assert report["letter"].startswith("Dear hiring team")
-    assert report["company"] == "Acme"
+    # Both read out of the posting rather than supplied by the caller.
+    assert report["company"] == ANALYSIS.company
     assert report["role_title"] == ANALYSIS.role_title
     assert [source["document_id"] for source in report["sources"]] == [shown.document_id]
     assert report["sources"][0]["source_type"] in {"profile", "experience", "post"}
