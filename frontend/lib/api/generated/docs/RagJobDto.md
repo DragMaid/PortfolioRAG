@@ -14,6 +14,7 @@ Name | Type
 `error` | string
 `estimatedSeconds` | number
 `report` | [JobFitReportDto](JobFitReportDto.md)
+`coverLetter` | [CoverLetterDto](CoverLetterDto.md)
 
 ## Example
 
@@ -30,6 +31,7 @@ const example = {
   "error": null,
   "estimatedSeconds": null,
   "report": null,
+  "coverLetter": null,
 } satisfies RagJobDto
 
 console.log(example)

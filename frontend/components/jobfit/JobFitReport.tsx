@@ -139,6 +139,13 @@ function ScoreHeader({ report }: { report: JobFitReportDto }) {
         <p className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
           {verdict.label}
         </p>
+        {/* Nobody typed the role in, so what the posting was read as is shown for checking. */}
+        {report.roleTitle ? (
+          <p className="mt-0.5 text-[12.5px] text-warm-slate">
+            {report.roleTitle}
+            {report.company ? ` at ${report.company}` : null}
+          </p>
+        ) : null}
         <h2 className="mt-1 font-serif text-xl leading-snug font-medium text-warm-black">
           {report.headline}
         </h2>

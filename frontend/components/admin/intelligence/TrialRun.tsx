@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { RagJobDto } from "@/lib/api/generated";
 import type { Busy } from "@/lib/admin/useIntelligence";
 import { JobFitReport } from "@/components/jobfit/JobFitReport";
-import { formatUsage } from "@/lib/jobfit/report";
+import { formatUsage, isPending } from "@/lib/jobfit/report";
 import { Button } from "../ui/Button";
 import { Field, TextArea } from "../ui/Field";
 import { Panel, PanelHeader } from "../ui/Panel";
@@ -40,6 +40,8 @@ export function TrialRun({
 
   const trimmed = description.trim();
   const running = busy === "trying" || isWorking;
+  // Another job (a letter, a rebuild) is what is running, not this one.
+  const mine = busy === "trying" || (isWorking && isPending(trial));
   const usage = trial ? formatUsage(trial) : null;
 
   return (
@@ -84,10 +86,10 @@ export function TrialRun({
           variant="primary"
           icon="sparkle"
           onClick={() => onRun(description)}
-          busy={running}
+          busy={mine}
           disabled={running || trimmed.length < MINIMUM_CHARS}
         >
-          {running ? "Running" : "Run the analysis"}
+          {mine ? "Running" : "Run the analysis"}
         </Button>
 
         {trial || error ? (
@@ -96,7 +98,7 @@ export function TrialRun({
           </Button>
         ) : null}
 
-        {running ? (
+        {mine ? (
           <span className="font-mono text-[11px] text-warm-slate">
             Reads the posting, searches the portfolio, weighs the evidence. Around a minute.
           </span>

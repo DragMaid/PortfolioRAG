@@ -8,11 +8,11 @@ All URIs are relative to *http://localhost:5019*
 | [**llmGetCredential**](LlmApi.md#llmgetcredential) | **GET** /api/llm/credential |  |
 | [**llmGetJob**](LlmApi.md#llmgetjob) | **GET** /api/llm/jobs/{id} |  |
 | [**llmGetProviders**](LlmApi.md#llmgetproviders) | **GET** /api/llm/providers |  |
-| [**llmRebuildIndex**](LlmApi.md#llmrebuildindex) | **POST** /api/llm/index/rebuild |  |
 | [**llmRevalidate**](LlmApi.md#llmrevalidate) | **POST** /api/llm/credential/validate |  |
 | [**llmSaveCredential**](LlmApi.md#llmsavecredential) | **PUT** /api/llm/credential |  |
 | [**llmTryJobFit**](LlmApi.md#llmtryjobfit) | **POST** /api/llm/job-fit |  |
 | [**llmUpdateSettings**](LlmApi.md#llmupdatesettings) | **PATCH** /api/llm/credential |  |
+| [**llmWriteCoverLetter**](LlmApi.md#llmwritecoverletter) | **POST** /api/llm/cover-letter |  |
 
 
 
@@ -282,72 +282,6 @@ This endpoint does not need any parameter.
 | **200** |  |  -  |
 | **401** |  |  -  |
 | **403** |  |  -  |
-
-[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
-
-
-## llmRebuildIndex
-
-> RagJobDto llmRebuildIndex()
-
-
-
-Requires a signed-in session: an API token is refused here.
-
-### Example
-
-```ts
-import {
-  Configuration,
-  LlmApi,
-} from '';
-import type { LlmRebuildIndexRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // Configure HTTP bearer authorization: Bearer
-    accessToken: "YOUR BEARER TOKEN",
-  });
-  const api = new LlmApi(config);
-
-  try {
-    const data = await api.llmRebuildIndex();
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
-
-### Parameters
-
-This endpoint does not need any parameter.
-
-### Return type
-
-[**RagJobDto**](RagJobDto.md)
-
-### Authorization
-
-[Bearer](../README.md#Bearer)
-
-### HTTP request headers
-
-- **Content-Type**: Not defined
-- **Accept**: `application/json`
-
-
-### HTTP response details
-| Status code | Description | Response headers |
-|-------------|-------------|------------------|
-| **202** |  |  -  |
-| **401** |  |  -  |
-| **403** |  |  -  |
-| **404** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -642,6 +576,83 @@ example().catch(console.error);
 | **401** |  |  -  |
 | **403** |  |  -  |
 | **404** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmWriteCoverLetter
+
+> RagJobDto llmWriteCoverLetter(coverLetterRequestDto)
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmWriteCoverLetterRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  const body = {
+    // CoverLetterRequestDto
+    coverLetterRequestDto: ...,
+  } satisfies LlmWriteCoverLetterRequest;
+
+  try {
+    const data = await api.llmWriteCoverLetter(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **coverLetterRequestDto** | [CoverLetterRequestDto](CoverLetterRequestDto.md) |  | |
+
+### Return type
+
+[**RagJobDto**](RagJobDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **202** |  |  -  |
+| **400** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+| **404** |  |  -  |
+| **409** |  |  -  |
+| **413** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

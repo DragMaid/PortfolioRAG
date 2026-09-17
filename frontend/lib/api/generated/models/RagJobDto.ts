@@ -35,6 +35,13 @@ import {
     JobFitReportDtoToJSON,
     JobFitReportDtoToJSONTyped,
 } from './JobFitReportDto';
+import type { CoverLetterDto } from './CoverLetterDto';
+import {
+    CoverLetterDtoFromJSON,
+    CoverLetterDtoFromJSONTyped,
+    CoverLetterDtoToJSON,
+    CoverLetterDtoToJSONTyped,
+} from './CoverLetterDto';
 
 /**
  * 
@@ -74,6 +81,10 @@ export interface RagJobDto {
      * 
      */
     report?: JobFitReportDto | null;
+    /**
+     * 
+     */
+    coverLetter?: CoverLetterDto | null;
 }
 
 
@@ -103,6 +114,7 @@ export function RagJobDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'error': json['error'] === undefined ? undefined : json['error'] === null ? null : json['error'],
         'estimatedSeconds': json['estimatedSeconds'] == null ? undefined : json['estimatedSeconds'],
         'report': json['report'] === undefined ? undefined : json['report'] === null ? null : JobFitReportDtoFromJSON(json['report']),
+        'coverLetter': json['coverLetter'] === undefined ? undefined : json['coverLetter'] === null ? null : CoverLetterDtoFromJSON(json['coverLetter']),
     };
 }
 
@@ -125,6 +137,7 @@ export function RagJobDtoToJSONTyped(value?: RagJobDto | null, ignoreDiscriminat
         'error': value['error'],
         'estimatedSeconds': value['estimatedSeconds'],
         'report': JobFitReportDtoToJSON(value['report']),
+        'coverLetter': CoverLetterDtoToJSON(value['coverLetter']),
     };
 }
 

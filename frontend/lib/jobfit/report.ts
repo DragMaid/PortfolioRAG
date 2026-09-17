@@ -89,7 +89,7 @@ export function confidenceNote(requirement: RequirementAssessmentDto): string | 
 
 /** "18,400 in · 2,100 out · $0.14" — the studio's cost line. Never shown to visitors. */
 export function formatUsage(job: RagJobDto): string | null {
-  const usage = job.report?.usage;
+  const usage = job.report?.usage ?? job.coverLetter?.usage;
   if (!usage) return null;
 
   const tokens = new Intl.NumberFormat("en-US");

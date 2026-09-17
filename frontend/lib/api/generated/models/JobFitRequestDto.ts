@@ -24,14 +24,6 @@ export interface JobFitRequestDto {
      * 
      */
     jobDescription: string;
-    /**
-     * 
-     */
-    roleTitle?: string | null;
-    /**
-     * 
-     */
-    company?: string | null;
 }
 
 /**
@@ -53,8 +45,6 @@ export function JobFitRequestDtoFromJSONTyped(json: any, ignoreDiscriminator: bo
     return {
         
         'jobDescription': json['jobDescription'],
-        'roleTitle': json['roleTitle'] === undefined ? undefined : json['roleTitle'] === null ? null : json['roleTitle'],
-        'company': json['company'] === undefined ? undefined : json['company'] === null ? null : json['company'],
     };
 }
 
@@ -70,8 +60,6 @@ export function JobFitRequestDtoToJSONTyped(value?: JobFitRequestDto | null, ign
     return {
         
         'jobDescription': value['jobDescription'],
-        'roleTitle': value['roleTitle'],
-        'company': value['company'],
     };
 }
 

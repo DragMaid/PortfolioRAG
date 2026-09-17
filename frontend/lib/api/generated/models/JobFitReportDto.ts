@@ -52,6 +52,14 @@ export interface JobFitReportDto {
     /**
      * 
      */
+    roleTitle?: string;
+    /**
+     * 
+     */
+    company?: string | null;
+    /**
+     * 
+     */
     verdict?: JobFitVerdict;
     /**
      * 
@@ -110,6 +118,8 @@ export function JobFitReportDtoFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
+        'roleTitle': json['roleTitle'] == null ? undefined : json['roleTitle'],
+        'company': json['company'] === undefined ? undefined : json['company'] === null ? null : json['company'],
         'verdict': json['verdict'] == null ? undefined : JobFitVerdictFromJSON(json['verdict']),
         'score': json['score'] == null ? undefined : json['score'],
         'headline': json['headline'] == null ? undefined : json['headline'],
@@ -134,6 +144,8 @@ export function JobFitReportDtoToJSONTyped(value?: JobFitReportDto | null, ignor
 
     return {
         
+        'roleTitle': value['roleTitle'],
+        'company': value['company'],
         'verdict': JobFitVerdictToJSON(value['verdict']),
         'score': value['score'],
         'headline': value['headline'],

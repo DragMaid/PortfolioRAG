@@ -23,7 +23,14 @@ export type ExposureDraft = {
   model: string;
 };
 
-export type Busy = null | "saving" | "validating" | "deleting" | "rebuilding" | "trying";
+export type Busy =
+  | null
+  | "saving"
+  | "validating"
+  | "deleting"
+  | "rebuilding"
+  | "trying"
+  | "writing";
 
 /**
  * The intelligence tab: the provider key, what it may cost, the index, and a trial run.
@@ -51,6 +58,8 @@ export function useIntelligence() {
   // same queue, polled the same way.
   const [trial, setTrial] = useState<RagJobDto | null>(null);
   const [trialError, setTrialError] = useState<string | null>(null);
+  const [letter, setLetter] = useState<RagJobDto | null>(null);
+  const [letterError, setLetterError] = useState<string | null>(null);
   const [watching, setWatching] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -156,6 +165,7 @@ export function useIntelligence() {
       await llmApi.llmDeleteCredential();
       adopt(null);
       setTrial(null);
+      setLetter(null);
       showToast("Key removed, along with the index it built", "info");
     } catch (error) {
       await fail(error, "The key could not be removed.");
@@ -244,8 +254,28 @@ export function useIntelligence() {
     [],
   );
 
-  // One poller for both kinds of job — an index rebuild and a trial analysis are the same
-  // row on the same queue, and only one of them is ever in flight from this screen.
+  const writeCoverLetter = useCallback(async (jobDescription: string, notes: string) => {
+    setBusy("writing");
+    setLetter(null);
+    setLetterError(null);
+
+    try {
+      const job = await llmApi.llmWriteCoverLetter({
+        coverLetterRequestDto: { jobDescription, notes: notes.trim() || undefined },
+      });
+
+      setLetter(job);
+      setWatching(job.id ?? null);
+      setAttempt(0);
+    } catch (error) {
+      setLetterError(await describeError(error, "The letter could not be started."));
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  // One poller for every kind of job — a rebuild, a trial analysis and a letter are the same
+  // row on the same queue, and the screen only lets one of them be in flight at a time.
   useEffect(() => {
     if (watching === null) return;
 
@@ -257,6 +287,7 @@ export function useIntelligence() {
         if (!live) return;
 
         if (job.kind === RagJobKind.JobFit) setTrial(job);
+        if (job.kind === RagJobKind.CoverLetter) setLetter(job);
 
         if (isPending(job)) {
           setAttempt((value) => value + 1);
@@ -266,7 +297,9 @@ export function useIntelligence() {
         setWatching(null);
 
         if (job.status === RagJobStatus.Failed) {
-          setTrialError(job.error ?? "The job failed.");
+          const message = job.error ?? "The job failed.";
+          if (job.kind === RagJobKind.CoverLetter) setLetterError(message);
+          else setTrialError(message);
         }
 
         // The index count and the month's spend both moved, so the panel is re-read rather
@@ -290,6 +323,11 @@ export function useIntelligence() {
     setTrialError(null);
   }, []);
 
+  const clearLetter = useCallback(() => {
+    setLetter(null);
+    setLetterError(null);
+  }, []);
+
   return {
     state,
     busy,
@@ -307,6 +345,10 @@ export function useIntelligence() {
     trial,
     trialError,
     clearTrial,
+    writeCoverLetter,
+    letter,
+    letterError,
+    clearLetter,
     isWorking: watching !== null,
     reload: load,
   };

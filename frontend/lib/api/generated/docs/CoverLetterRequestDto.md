@@ -1,5 +1,5 @@
 
-# JobFitRequestDto
+# CoverLetterRequestDto
 
 
 ## Properties
@@ -7,16 +7,18 @@
 Name | Type
 ------------ | -------------
 `jobDescription` | string
+`notes` | string
 
 ## Example
 
 ```typescript
-import type { JobFitRequestDto } from ''
+import type { CoverLetterRequestDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
   "jobDescription": null,
-} satisfies JobFitRequestDto
+  "notes": null,
+} satisfies CoverLetterRequestDto
 
 console.log(example)
 
@@ -25,7 +27,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as JobFitRequestDto
+const exampleParsed = JSON.parse(exampleJSON) as CoverLetterRequestDto
 console.log(exampleParsed)
 ```
 

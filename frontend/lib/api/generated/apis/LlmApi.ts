@@ -15,6 +15,11 @@
 
 import * as runtime from '../runtime';
 import {
+    type CoverLetterRequestDto,
+    CoverLetterRequestDtoFromJSON,
+    CoverLetterRequestDtoToJSON,
+} from '../models/CoverLetterRequestDto';
+import {
     type JobFitRequestDto,
     JobFitRequestDtoFromJSON,
     JobFitRequestDtoToJSON,
@@ -76,6 +81,13 @@ export interface LlmUpdateSettingsRequest {
      * 
      */
     updateLlmSettingsDto: UpdateLlmSettingsDto;
+}
+
+export interface LlmWriteCoverLetterRequest {
+    /**
+     * 
+     */
+    coverLetterRequestDto: CoverLetterRequestDto;
 }
 
 /**
@@ -529,6 +541,61 @@ export class LlmApi extends runtime.BaseAPI {
      */
     async llmUpdateSettings(requestParameters: LlmUpdateSettingsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LlmCredentialDto> {
         const response = await this.llmUpdateSettingsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for llmWriteCoverLetter without sending the request
+     */
+    async llmWriteCoverLetterRequestOpts(requestParameters: LlmWriteCoverLetterRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['coverLetterRequestDto'] == null) {
+            throw new runtime.RequiredError(
+                'coverLetterRequestDto',
+                'Required parameter "coverLetterRequestDto" was null or undefined when calling llmWriteCoverLetter().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/llm/cover-letter`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CoverLetterRequestDtoToJSON(requestParameters['coverLetterRequestDto']),
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async llmWriteCoverLetterRaw(requestParameters: LlmWriteCoverLetterRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RagJobDto>> {
+        const requestOptions = await this.llmWriteCoverLetterRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RagJobDtoFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async llmWriteCoverLetter(requestParameters: LlmWriteCoverLetterRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
+        const response = await this.llmWriteCoverLetterRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

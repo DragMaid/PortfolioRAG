@@ -82,7 +82,9 @@ export function useJobFit(handle: string) {
   }, [state]);
 
   const submit = useCallback(
-    async (jobDescription: string, roleTitle?: string, company?: string) => {
+    // The posting is the whole request: the role and company are read out of it, and come
+    // back on the report.
+    async (jobDescription: string) => {
       setState("submitting");
       setError(null);
       setJob(null);
@@ -93,11 +95,7 @@ export function useJobFit(handle: string) {
       try {
         const started = await jobFitApi.jobFitSubmit({
           handle,
-          jobFitRequestDto: {
-            jobDescription,
-            roleTitle: roleTitle?.trim() || undefined,
-            company: company?.trim() || undefined,
-          },
+          jobFitRequestDto: { jobDescription },
         });
 
         setJob(started);
