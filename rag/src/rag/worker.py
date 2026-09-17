@@ -216,11 +216,7 @@ class Worker:
         outcome = pipeline.run(
             conn,
             job.author_id,
-            JobFitRequest(
-                job_description=job.payload.get("job_description", ""),
-                role_title=job.payload.get("role_title"),
-                company=job.payload.get("company"),
-            ),
+            JobFitRequest(job_description=job.payload.get("job_description", "")),
         )
 
         return outcome.report, outcome.usage
@@ -246,8 +242,6 @@ class Worker:
             job.author_id,
             CoverLetterRequest(
                 job_description=job.payload.get("job_description", ""),
-                role_title=job.payload.get("role_title"),
-                company=job.payload.get("company"),
                 notes=job.payload.get("notes"),
             ),
         )

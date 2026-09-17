@@ -26,6 +26,10 @@ Rules:
   "a plus", and "or similar" are not.
 - Skip benefits, company description, equal-opportunity statements, salary and application
   instructions. They are not requirements.
+- Nobody tells you the role or the company separately; read both out of the posting. The role
+  title is the title alone ("Staff Engineer, Storage"), not the company, location or
+  employment type. The company is the employer hiring for the role, or null when the posting
+  does not name one. A recruiting agency posting on someone's behalf is not the company.
 - The search query is the most important field and is not the requirement restated. Write
   what the *evidence* would look like in somebody's portfolio: for "experience operating
   services at scale", write "operated production service scaling incidents on-call", not
@@ -33,7 +37,6 @@ Rules:
 """
 
 EXTRACT_USER = """\
-{role_line}{company_line}
 Job posting:
 
 <posting>
@@ -87,9 +90,7 @@ Passages retrieved from the portfolio:
 {passages}\
 """
 
-ASSESS_PROMPT = ChatPromptTemplate.from_messages(
-    [("system", ASSESS_SYSTEM), ("user", ASSESS_USER)]
-)
+ASSESS_PROMPT = ChatPromptTemplate.from_messages([("system", ASSESS_SYSTEM), ("user", ASSESS_USER)])
 
 
 # ---------------------------------------------------------------------------

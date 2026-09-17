@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class CoverLetterRequest:
     job_description: str
-    role_title: str | None = None
-    company: str | None = None
     notes: str | None = None
 
 
@@ -40,13 +38,8 @@ class CoverLetterPipeline(JobFitPipeline):
     def write(self, conn: Connection, author_id: int, request: CoverLetterRequest) -> JobFitOutcome:
         started = time.monotonic()
 
-        analysis = self._extract(
-            JobFitRequest(
-                job_description=request.job_description,
-                role_title=request.role_title,
-                company=request.company,
-            )
-        )
+        # The role and company come from here too; see PostingAnalysis.
+        analysis = self._extract(JobFitRequest(job_description=request.job_description))
 
         if not analysis.requirements:
             raise PipelineError(
@@ -79,9 +72,9 @@ class CoverLetterPipeline(JobFitPipeline):
             chain,
             {
                 "author_name": author["Name"] if author else "",
-                "role_title": request.role_title or analysis.role_title,
+                "role_title": analysis.role_title,
                 "seniority": analysis.seniority,
-                "company_line": f"Company: {request.company}\n" if request.company else "",
+                "company_line": f"Company: {analysis.company}\n" if analysis.company else "",
                 "notes_block": f"\nAuthor's notes:\n{request.notes}\n" if request.notes else "",
                 "requirement_list": prompts.render_requirements(analysis.requirements),
                 "passages": prompts.render_passages(passages),
@@ -113,8 +106,8 @@ class CoverLetterPipeline(JobFitPipeline):
 
         report = build_cover_letter(
             letter=letter,
-            role_title=request.role_title or analysis.role_title,
-            company=request.company,
+            role_title=analysis.role_title,
+            company=analysis.company,
             sources=[
                 {
                     "document_id": passage.document_id,
