@@ -11,6 +11,11 @@ full run              also runs the whole pipeline on each case and grades the o
                       real money against a real key, so it says what it will cost and asks
                       before it spends anything.
 
+``--local SITE``      the full run, with a signed-in chat web app (gemini, claude, chatgpt)
+                      in a browser standing in for the stored key — see rag.providers.web.
+                      Headless by default; sign in once with ``python -m rag.webchat login``.
+                      Browser conversations and error captures go into the run directory.
+
 Every run is written to ``eval/reports/<run id>/`` with the metadata needed to compare it
 with another — see ``eval.reporting``.
 
@@ -47,8 +52,10 @@ from rag.embeddings import get_embedder
 from rag.logging_setup import configure_logging
 from rag.pipeline import JobFitPipeline, JobFitRequest
 from rag.providers import get_provider
+from rag.providers.web import WebProvider
 from rag.retrieval import Passage, retrieve
 from rag.settings import Settings, get_settings
+from rag.webchat import BROWSERS, SITES, WebChatError
 
 from . import fixture, reporting
 from .judge import JUDGE_PROMPT, JudgeVerdict, grade, structural_checks
@@ -72,11 +79,11 @@ class CaseResult:
     judge: JudgeVerdict | None = None
     expectation_failures: list[str] = field(default_factory=list)
     error: str | None = None
-    # What the report files need beyond the verdict: the searches that were run, where they
-    # landed, which stage a failure happened in, and what the case cost.
     queries: list[str] = field(default_factory=list)
     retrieved_sources: list[str] = field(default_factory=list)
     failed_stage: str | None = None
+    error_artifacts: str | None = None
+    exception: BaseException | None = field(default=None, repr=False)
     usage: dict[str, Any] | None = None
     duration_ms: int = 0
 
@@ -98,8 +105,7 @@ def load_cases() -> list[dict[str, Any]]:
 
 
 def source_key(passage: Passage) -> str:
-    """How ``relevant_sources`` in the dataset names a passage's origin.
-    """
+    """How ``relevant_sources`` in the dataset names a passage's origin."""
     metadata = passage.metadata or {}
 
     if passage.source_type == SourceType.PROFILE:
@@ -253,6 +259,26 @@ def main(argv: list[str] | None = None) -> int:
             "model output is only as repeatable as the provider allows."
         ),
     )
+    parser.add_argument(
+        "--local",
+        choices=sorted(SITES),
+        metavar="SITE",
+        help=(
+            "Run the full pipeline through a signed-in chat web app instead of the stored "
+            f"provider key: one of {', '.join(sorted(SITES))}. Free, slow, and unseeded."
+        ),
+    )
+    parser.add_argument(
+        "--browser",
+        choices=BROWSERS,
+        default="camoufox",
+        help="Browser for --local (default camoufox, which is the one that works headless).",
+    )
+    parser.add_argument(
+        "--headed",
+        action="store_true",
+        help="Show the --local browser window, and wait for a sign-in if one is needed.",
+    )
     parser.add_argument("--json", action="store_true", help="Machine-readable output.")
     parser.add_argument(
         "--yes",
@@ -271,6 +297,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Hide the progress bar. It is hidden anyway when stderr is not a terminal.",
     )
     args = parser.parse_args(argv)
+
+    if args.local and args.retrieval_only:
+        parser.error("--local chooses the model for a full run; --retrieval-only uses none.")
 
     if args.container and args.author_id is not None:
         parser.error("--container starts an empty database; --author-id has nothing to read.")
@@ -311,7 +340,12 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
         print("No cases selected.", file=sys.stderr)
         return 2
 
-    if not args.retrieval_only and not args.yes and not _confirm(len(cases), args.judge):
+    if (
+        not args.retrieval_only
+        and not args.local
+        and not args.yes
+        and not _confirm(len(cases), args.judge)
+    ):
         return 1
 
     uses_fixture = args.author_id is None
@@ -336,6 +370,11 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
             "author_id": args.author_id,
             "uses_fixture": uses_fixture,
             "container": args.container,
+            "local": (
+                {"site": args.local, "browser": args.browser, "headless": not args.headed}
+                if args.local
+                else None
+            ),
             "seed": args.seed,
             "python_hash_seed": os.environ.get("PYTHONHASHSEED"),
         },
@@ -381,6 +420,7 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
         writer.write_run(run)
 
     pipeline: JobFitPipeline | None = None
+    web: WebProvider | None = None
 
     try:
         pool = get_pool(settings)
@@ -402,7 +442,37 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
             progress.stage("indexing portfolio")
             indexing.ensure(conn, settings, embedder, author_id, force=True)
 
-            if not args.retrieval_only:
+            if args.local:
+                progress.stage(f"opening {args.local} in {args.browser}")
+                web = WebProvider(
+                    browser=args.browser,
+                    headless=not args.headed,
+                    login_timeout=600 if args.headed else 60,
+                    log=progress.write,
+                )
+                # Opened now so a signed-out profile fails the run here, not once per case.
+                web.session(args.local)
+                pipeline = JobFitPipeline(
+                    settings=settings,
+                    provider=web,
+                    embedder=embedder,
+                    api_key="",
+                    model=args.local,
+                )
+                run["provider"] = {
+                    "name": web.name,
+                    "model": args.local,
+                    "seeded": False,
+                    "browser": args.browser,
+                    "headless": not args.headed,
+                    "usage_estimated": True,
+                }
+                progress.write(
+                    f"note: {args.local} runs in a browser — no seed, and token counts are "
+                    "estimates."
+                )
+
+            elif not args.retrieval_only:
                 progress.stage("loading provider credential")
                 credential = load_credential(
                     conn,
@@ -440,6 +510,9 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
             writer = reporting.RunWriter(args.output_dir, run["run_id"])
             writer.write_run(run)
 
+            if web is not None:
+                web.set_output_dir(writer.directory / "browser")
+
             for number, case in enumerate(cases, start=1):
                 progress.begin(
                     f"[{number}/{len(cases)}] {case['id']}",
@@ -466,6 +539,12 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
 
                 progress.note_result(result, args.retrieval_only)
 
+                # A signed-out session or a usage cap fails every remaining case the same
+                # way, one slow timeout at a time. Stop with what has been measured.
+                if (fatal := _fatal_browser_error(result)) is not None:
+                    progress.write(f"stopping: {fatal}")
+                    raise fatal
+
             if uses_fixture:
                 fixture.purge(conn)
 
@@ -473,6 +552,14 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
         progress.close()
         finish("interrupted", None)
         raise
+    except WebChatError as error:
+        # Expected when a profile is signed out or capped: say what to do, not a traceback.
+        progress.close()
+        finish("aborted", 1)
+        print(f"{type(error).__name__}: {error}", file=sys.stderr)
+        if writer is not None:
+            print(f"Partial report written to {writer.directory}", file=sys.stderr)
+        return 1
     except BaseException:
         progress.close()
         finish("error", None)
@@ -480,6 +567,8 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
     finally:
         progress.close()
         close_pool()
+        if web is not None:
+            web.close()
 
     exit_code = _exit_code(results, args.retrieval_only)
 
@@ -667,6 +756,12 @@ def _run_case(
 
     except Exception as error:  # the suite reports a broken case rather than stopping
         result.error = f"{type(error).__name__}: {error}"
+        result.exception = error
+
+        if (browser_error := _browser_error(error)) is not None:
+            result.error = f"{type(browser_error).__name__}: {browser_error.message}"
+            if browser_error.artifacts is not None:
+                result.error_artifacts = str(browser_error.artifacts)
 
     finally:
         result.duration_ms = int((time.monotonic() - started) * 1000)
@@ -675,6 +770,21 @@ def _run_case(
             result.usage = reporting.usage_between(usage_before, pipeline.usage)
 
     return result
+
+
+def _browser_error(error: BaseException | None) -> WebChatError | None:
+    """The browser failure behind ``error``, if any. The pipeline wraps its stage failures,
+    so the cause chain is walked rather than the top-level type checked."""
+    while error is not None:
+        if isinstance(error, WebChatError):
+            return error
+        error = error.__cause__ or error.__context__
+    return None
+
+
+def _fatal_browser_error(result: CaseResult) -> WebChatError | None:
+    error = _browser_error(result.exception)
+    return error if error is not None and error.fatal else None
 
 
 def _distinct_sources(passages: list[Passage]) -> list[str]:
@@ -776,6 +886,7 @@ def _case_file(result: CaseResult, case: dict[str, Any], cutoff: int) -> dict[st
         "duration_ms": result.duration_ms,
         "error": result.error,
         "failed_stage": result.failed_stage,
+        "error_artifacts": result.error_artifacts,
         "input": {
             "job_description": case["job_description"],
             "relevant_sources": case["relevant_sources"],

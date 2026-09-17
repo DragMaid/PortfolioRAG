@@ -13,3 +13,5 @@ __pycache__/
 
 # Eval run output. Each run is its own directory; keep the ones worth keeping elsewhere.
 eval/reports/
+
+.webchat/
