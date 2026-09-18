@@ -5,19 +5,14 @@ description = "Retrieval pipeline for the portfolio: indexes an author's work an
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    # Orchestration. langchain-core alone — the monolithic `langchain` package pulls in a
-    # world of integrations this service does not use, and the pieces here (LCEL, the
-    # splitters, one chat integration) are the whole of the dependency.
     "langchain-core>=1.6.2",
     "langchain-anthropic>=1.7.2",
     "langchain-text-splitters>=1.1.2",
-    # Embeddings, on the CPU, with no key and no torch. See rag.embeddings.
     "fastembed>=0.8.0",
     "psycopg[binary,pool]>=3.3.5",
     "pydantic>=2",
     "pydantic-settings>=2.15.0",
     "tenacity>=9.1.4",
-    # Unseals the provider keys the API stored. Must agree with SecretProtector.
     "cryptography>=46.0.5",
     "beautifulsoup4>=4.15.0",
     "langchain-openai>=1.6.2",
@@ -31,7 +26,6 @@ dependencies = [
 ]
 
 [project.scripts]
-# The three things this package is ever asked to do.
 rag-worker = "rag.cli:worker"
 rag-index = "rag.cli:index"
 rag-eval = "rag.cli:evaluate"

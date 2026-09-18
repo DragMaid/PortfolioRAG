@@ -1,0 +1,437 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portfolio RAG, locally</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1d1b18;
+        --muted: #6b665e;
+        --bg: #faf8f4;
+        --line: #d9d3c8;
+        --field: #fff;
+        --error: #a3332a;
+        --ok: #2f6b3a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #ece8e1;
+          --muted: #a39d93;
+          --bg: #171614;
+          --line: #3a3732;
+          --field: #201e1b;
+          --error: #e07a70;
+          --ok: #7cc48a;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0 auto;
+        max-width: 780px;
+        padding: 24px 16px 64px;
+        font: 14px/1.5 system-ui, sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+      }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 12px; }
+      h3 { font-size: 13px; margin: 16px 0 6px; }
+      section { border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin-top: 16px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+      input, textarea {
+        width: 100%;
+        padding: 7px 9px;
+        font: inherit;
+        color: inherit;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      textarea { resize: vertical; }
+      button { margin-top: 12px; padding: 7px 14px; font: inherit; cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.55; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .error { color: var(--error); white-space: pre-wrap; }
+      .ok { color: var(--ok); }
+      .prose { white-space: pre-wrap; border-left: 3px solid var(--line); padding-left: 12px; }
+      .score { font-size: 28px; font-weight: 600; }
+      .tabs { display: flex; gap: 8px; margin-bottom: 4px; }
+      .tabs button { margin: 0; }
+      .tabs button[aria-pressed="true"] { border-color: var(--fg); font-weight: 600; }
+      .stages { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+      .stages li {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 1px 8px;
+      }
+      .stages li[data-state="done"] { color: var(--ok); border-color: var(--ok); }
+      .stages li[data-state="now"] { color: var(--fg); border-color: var(--fg); }
+      ul.bullets { margin: 4px 0; padding-left: 20px; }
+      .requirement { border-top: 1px solid var(--line); padding: 8px 0; }
+      .status { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+      blockquote {
+        margin: 4px 0 0;
+        padding-left: 10px;
+        border-left: 2px solid var(--line);
+        font-style: italic;
+        color: var(--muted);
+      }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <h1>Portfolio RAG, locally</h1>
+    <p class="muted" id="intro">Loading…</p>
+
+    <section>
+      <h2>1. Your API token</h2>
+      <div id="signed-out">
+        <label for="token">API token — the <code>pfl_…</code> kind, from the studio's access tab</label>
+        <input id="token" type="password" autocomplete="off" placeholder="pfl_…" />
+        <button id="use-token">Use this token</button>
+      </div>
+      <div id="signed-in" hidden>
+        <p>Using token <strong id="who"></strong>. <button id="forget">Forget it</button></p>
+      </div>
+      <p id="auth-status" class="error"></p>
+      <p class="muted">
+        It is used for one thing: asking the API for the passages a search turns up. The
+        posting itself never goes there — reading it, judging it and writing it up all
+        happen in the browser this service drives. Nothing is billed, and no provider key is
+        involved.
+      </p>
+    </section>
+
+    <section id="run-section" hidden>
+      <h2>2. Run it</h2>
+      <div class="tabs">
+        <button id="tab-fit" aria-pressed="true">Job fit</button>
+        <button id="tab-letter" aria-pressed="false">Cover letter</button>
+      </div>
+
+      <label for="jd">Job description — the role and company are read out of it</label>
+      <textarea id="jd" rows="10"></textarea>
+
+      <div id="notes-field" hidden>
+        <label for="notes">Notes (optional) — anything to lean on or leave out</label>
+        <textarea id="notes" rows="2" maxlength="1000"></textarea>
+      </div>
+
+      <button id="run">Run it</button>
+      <p id="run-status" class="muted"></p>
+      <ul class="stages" id="stages" hidden></ul>
+    </section>
+
+    <section id="fit-result" hidden>
+      <h2>Report</h2>
+      <p><span class="score" id="fit-score"></span> <span class="muted">/ 100 ·</span> <strong id="fit-verdict"></strong></p>
+      <p class="muted" id="fit-role"></p>
+      <p><strong id="fit-headline"></strong></p>
+      <div id="fit-summary" class="prose"></div>
+      <h3>Strengths</h3>
+      <ul class="bullets" id="fit-strengths"></ul>
+      <h3>Gaps</h3>
+      <ul class="bullets" id="fit-gaps"></ul>
+      <h3>Requirements</h3>
+      <div id="fit-requirements"></div>
+      <p class="muted" id="fit-retrieval"></p>
+      <p class="muted" id="fit-usage"></p>
+      <button id="fit-save">Save the JSON</button>
+    </section>
+
+    <section id="letter-result" hidden>
+      <h2>Letter</h2>
+      <p class="muted" id="letter-role"></p>
+      <div id="letter" class="prose"></div>
+      <p class="muted" id="letter-sources"></p>
+      <p class="muted" id="letter-usage"></p>
+      <button id="letter-copy">Copy</button>
+    </section>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const TOKEN_KEY = "rag-local.token";
+
+      // The stages the pipeline reports, in the order it runs them. Listed here so the page
+      // can show what has not happened yet as well as what has.
+      const FIT_STAGES = ["extract", "retrieve", "assess", "verify", "narrate"];
+      const LETTER_STAGES = ["extract", "write"];
+
+      let config = null;
+      let kind = "job-fit";
+      let report = null;
+
+      const storage = {
+        get(key) { try { return sessionStorage.getItem(key); } catch { return null; } },
+        set(key, value) { try { sessionStorage.setItem(key, value); } catch {} },
+        remove(key) { try { sessionStorage.removeItem(key); } catch {} },
+      };
+
+      function show(element, message, kindName) {
+        element.textContent = message;
+        element.className = kindName || "muted";
+      }
+
+      /** One call to this service. Its errors are already one readable line. */
+      async function local(method, path, body) {
+        const headers = { Accept: "application/json" };
+        const token = storage.get(TOKEN_KEY);
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (body !== undefined) headers["Content-Type"] = "application/json";
+
+        const response = await fetch(path, {
+          method,
+          headers,
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+
+        const text = await response.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch {}
+
+        if (!response.ok) {
+          const detail = data?.detail;
+          throw new Error(
+            typeof detail === "string" ? detail : `The local service answered ${response.status}.`,
+          );
+        }
+        return data;
+      }
+
+      async function loadConfig() {
+        try {
+          config = await local("GET", "/api/config");
+          $("intro").textContent =
+            `Passages come from ${config.api}. Every model call happens in ${config.site}, ` +
+            `in ${config.browser}${config.headless ? " (headless)" : ""}, signed in as you. ` +
+            `Nothing is billed.`;
+        } catch (error) {
+          show($("intro"), error.message, "error");
+        }
+      }
+
+      function remembered(token) {
+        $("who").textContent = `${token.slice(0, 12)}…`;
+        $("signed-out").hidden = true;
+        $("signed-in").hidden = false;
+        $("run-section").hidden = false;
+      }
+
+      function forgotten() {
+        storage.remove(TOKEN_KEY);
+        $("signed-out").hidden = false;
+        $("signed-in").hidden = true;
+        $("run-section").hidden = true;
+      }
+
+      $("use-token").addEventListener("click", () => {
+        const token = $("token").value.trim();
+        show($("auth-status"), "");
+
+        if (!token.startsWith("pfl_")) {
+          show(
+            $("auth-status"),
+            "That does not look like an API token — they begin with pfl_ and are issued in " +
+              "the studio's access tab.",
+            "error",
+          );
+          return;
+        }
+
+        storage.set(TOKEN_KEY, token);
+        $("token").value = "";
+        remembered(token);
+      });
+
+      $("forget").addEventListener("click", () => {
+        forgotten();
+        show($("auth-status"), "");
+      });
+
+      function selectKind(next) {
+        kind = next;
+        $("tab-fit").setAttribute("aria-pressed", String(next === "job-fit"));
+        $("tab-letter").setAttribute("aria-pressed", String(next === "cover-letter"));
+        $("notes-field").hidden = next !== "cover-letter";
+        $("run").textContent = next === "job-fit" ? "Run the analysis" : "Write the letter";
+      }
+
+      $("tab-fit").addEventListener("click", () => selectKind("job-fit"));
+      $("tab-letter").addEventListener("click", () => selectKind("cover-letter"));
+
+      function renderStages(run) {
+        const expected = run.kind === "job-fit" ? FIT_STAGES : LETTER_STAGES;
+        const seen = new Set(run.stages || []);
+
+        $("stages").replaceChildren(
+          ...expected.map((name) => {
+            const item = document.createElement("li");
+            item.textContent = name;
+            item.dataset.state =
+              run.stage === name ? "now" : seen.has(name) ? "done" : "waiting";
+            return item;
+          }),
+        );
+        $("stages").hidden = false;
+      }
+
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      $("run").addEventListener("click", async () => {
+        const button = $("run");
+        button.disabled = true;
+        $("fit-result").hidden = true;
+        $("letter-result").hidden = true;
+        report = null;
+
+        try {
+          let run = await local("POST", "/api/runs", {
+            kind,
+            jobDescription: $("jd").value,
+            notes: $("notes").value || null,
+          });
+
+          while (run.status === "running") {
+            renderStages(run);
+            show($("run-status"), `${run.stage}… ${run.elapsed}s — this is a browser typing, so it is not quick.`);
+            await sleep(1500);
+            run = await local("GET", `/api/runs/${run.id}`);
+          }
+
+          renderStages(run);
+
+          if (run.status !== "succeeded") {
+            show($("run-status"), run.error || "The run failed.", "error");
+            return;
+          }
+
+          report = run.report;
+          if (run.kind === "job-fit") renderReport(run.report);
+          else renderLetter(run.report);
+
+          show($("run-status"), `Done in ${run.elapsed}s.`, "ok");
+        } catch (error) {
+          show($("run-status"), error.message, "error");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      function bullets(element, items, empty) {
+        element.replaceChildren();
+        if (!items || items.length === 0) {
+          const li = document.createElement("li");
+          li.className = "muted";
+          li.textContent = empty;
+          element.append(li);
+          return;
+        }
+        for (const item of items) {
+          const li = document.createElement("li");
+          li.textContent = item;
+          element.append(li);
+        }
+      }
+
+      function usageLine(usage) {
+        if (!usage) return "";
+        const cost = Number(usage.cost_usd || 0);
+        return (
+          `${usage.provider} ${usage.model} · ~${usage.input_tokens} in · ~${usage.output_tokens} out · ` +
+          `${cost === 0 ? "no charge" : `$${cost.toFixed(4)}`} · ${Math.round(usage.duration_ms / 1000)}s ` +
+          `(token counts are estimates — a chat site reports none)`
+        );
+      }
+
+      // The worker writes snake_case for the .NET side to read; a local run never goes
+      // through the API, so the report arrives in exactly that shape.
+      function renderReport(data) {
+        $("fit-score").textContent = data.score;
+        $("fit-verdict").textContent = data.verdict;
+        $("fit-role").textContent =
+          `Read as: ${data.role_title || "an unnamed role"}${data.company ? ` at ${data.company}` : ""}`;
+        $("fit-headline").textContent = data.headline;
+        $("fit-summary").textContent = data.summary;
+
+        bullets($("fit-strengths"), data.strengths, "Nothing lines up with this posting.");
+        bullets($("fit-gaps"), data.gaps, "Nothing the posting asks for is unevidenced.");
+
+        $("fit-requirements").replaceChildren();
+        for (const requirement of data.requirements || []) {
+          const block = document.createElement("div");
+          block.className = "requirement";
+
+          const heading = document.createElement("p");
+          const status = document.createElement("span");
+          status.className = "status";
+          status.textContent = `${requirement.status}${requirement.is_essential ? "" : " · nice to have"} `;
+          heading.append(status, document.createTextNode(requirement.requirement));
+
+          const rationale = document.createElement("p");
+          rationale.className = "muted";
+          rationale.textContent = requirement.rationale;
+
+          block.append(heading, rationale);
+
+          for (const evidence of requirement.evidence || []) {
+            const quote = document.createElement("blockquote");
+            quote.textContent = `“${evidence.quote}” — ${evidence.source_label}`;
+            block.append(quote);
+          }
+
+          $("fit-requirements").append(block);
+        }
+
+        const retrieval = data.retrieval;
+        $("fit-retrieval").textContent = retrieval
+          ? `Read ${retrieval.passages_considered} passages across ${(retrieval.queries || []).length} searches, ` +
+            `cited ${retrieval.passages_cited}, rejected ${retrieval.citations_rejected} citations.`
+          : "";
+        $("fit-usage").textContent = usageLine(data.usage);
+        $("fit-result").hidden = false;
+      }
+
+      function renderLetter(data) {
+        $("letter-role").textContent =
+          `Read as: ${data.role_title || "an unnamed role"}${data.company ? ` at ${data.company}` : ""}`;
+        $("letter").textContent = data.letter;
+        const sources = (data.sources || []).map((s) => `${s.source_type}: ${s.source_label}`);
+        $("letter-sources").textContent = sources.length
+          ? `Drawn from — ${sources.join(" · ")}`
+          : "Cited no passages.";
+        $("letter-usage").textContent = usageLine(data.usage);
+        $("letter-result").hidden = false;
+      }
+
+      $("fit-save").addEventListener("click", () => {
+        if (!report) return;
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `job-fit-${new Date().toISOString().slice(0, 19).replaceAll(":", "")}.json`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      });
+
+      $("letter-copy").addEventListener("click", async () => {
+        if (!report) return;
+        try {
+          await navigator.clipboard.writeText(report.letter || "");
+          show($("letter-usage"), "Copied.", "ok");
+        } catch {
+          show($("letter-usage"), "The clipboard is not available here.", "error");
+        }
+      });
+
+      selectKind("job-fit");
+      const stored = storage.get(TOKEN_KEY);
+      if (stored) remembered(stored);
+      loadConfig();
+    </script>
+  </body>
+</html>
