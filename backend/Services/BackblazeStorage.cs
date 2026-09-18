@@ -20,6 +20,7 @@ public class BackblazeStorage : IObjectStorage
     private readonly ResiliencePipeline _retryPipeline;
 
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
+    private AuthorizeAccountResponse? _authorization;
     private string? _bucketId;
     private Uri? _downloadUrl;
 
@@ -205,12 +206,29 @@ public class BackblazeStorage : IObjectStorage
     public async Task<IReadOnlyList<string>> GetPermittedBucketNamesAsync(
         CancellationToken cancellationToken = default)
     {
+        var authorization = await AuthorizeAsync(cancellationToken);
+
+        // A restricted key may only list its own bucket, and the authorization already names it.
+        if (authorization.Allowed?.BucketName is { } restrictedTo)
+            return [restrictedTo];
+
+        var request = new ListBucketsRequest(authorization.AccountId);
+
         var results = await _retryPipeline.ExecuteAsync(
-            async _ => (await _client.Buckets.ListAsync()).EnsureSuccessStatusCode(),
+            async _ => (await _client.Buckets.ListAsync(request, ListingCacheTtl)).EnsureSuccessStatusCode(),
             cancellationToken);
 
         return results.Response.Buckets.Select(bucket => bucket.BucketName).ToList();
     }
+
+    /// <summary>
+    /// Authorizes once and keeps the response for its account id, key restrictions and
+    /// download host. The client renews the token itself; none of these change with it.
+    /// </summary>
+    private async Task<AuthorizeAccountResponse> AuthorizeAsync(CancellationToken cancellationToken) =>
+        _authorization ??= await _retryPipeline.ExecuteAsync(
+            async _ => await _client.ConnectAsync(),
+            cancellationToken);
 
     /// <summary>
     /// Authorizes the account, then resolves the configured bucket name against the buckets
@@ -228,20 +246,31 @@ public class BackblazeStorage : IObjectStorage
             if (_bucketId is not null)
                 return _bucketId;
 
-            var authorization = await _retryPipeline.ExecuteAsync(
-                async _ => await _client.ConnectAsync(),
-                cancellationToken);
+            var authorization = await AuthorizeAsync(cancellationToken);
 
-            // A bucket-restricted key sees exactly its own bucket here, which is what makes
-            // this both an existence check and a permission check in one call.
+            // A key restricted to another bucket would be refused by the listing below with a
+            // bare 401, so name the mismatch here while the reason is still known.
+            var restrictedTo = authorization.Allowed?.BucketName;
+            if (restrictedTo is not null
+                && !string.Equals(restrictedTo, _options.BucketName, StringComparison.Ordinal))
+            {
+                throw new NotConfiguredException(
+                    $"Backblaze application key is restricted to bucket '{restrictedTo}', " +
+                    $"but '{_options.BucketName}' is configured.");
+            }
+
+            // A bucket-restricted key must name its bucket or B2 answers 401, which the client
+            // reports as "Invalid or expired token". Filtering by name works for any key.
+            var request = new ListBucketsRequest(authorization.AccountId)
+            {
+                BucketName = _options.BucketName
+            };
+
             var results = await _retryPipeline.ExecuteAsync(
-                async _ => (await _client.Buckets.ListAsync()).EnsureSuccessStatusCode(),
+                async _ => (await _client.Buckets.ListAsync(request, ListingCacheTtl)).EnsureSuccessStatusCode(),
                 cancellationToken);
 
-            var permitted = results.Response.Buckets;
-
-            // Check for all the bucketnames to see if one match the configured target
-            var bucket = permitted
+            var bucket = results.Response.Buckets
                 .FirstOrDefault(candidate => string.Equals(
                     candidate.BucketName,
                     _options.BucketName,
@@ -250,9 +279,7 @@ public class BackblazeStorage : IObjectStorage
             if (bucket is null)
             {
                 throw new NotConfiguredException(
-                    $"Backblaze bucket '{_options.BucketName}' does not exist or this application key " +
-                    $"cannot see it. The key is permitted to use: " +
-                    $"{(permitted.Count == 0 ? "no buckets at all" : string.Join(", ", permitted.Select(b => b.BucketName)))}.");
+                    $"Backblaze bucket '{_options.BucketName}' does not exist in this account.");
             }
 
             _downloadUrl = ResolveDownloadUrl(authorization);
