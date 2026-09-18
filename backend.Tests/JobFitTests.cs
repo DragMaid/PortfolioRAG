@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Backend.Common.Exceptions;
 using Backend.Models.DTOs.Llm;
 using Backend.Models.Entities;
@@ -209,7 +210,7 @@ public class JobFitTests
     }
 
     [Fact]
-    public async Task DeletingTheKeyCancelsQueuedWorkAndDropsTheIndex()
+    public async Task DeletingTheKeyCancelsGenerationButKeepsTheIndex()
     {
         await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("author@example.com");
@@ -230,13 +231,21 @@ public class JobFitTests
         });
         await harness.Context.SaveChangesAsync();
 
+        var fit = await harness.LlmCredentials.TryJobFitAsync(Posting());
+
         await harness.LlmCredentials.DeleteAsync();
 
         Assert.Empty(await harness.Context.LlmCredentials.ToListAsync());
-        Assert.Empty(await harness.Context.RagDocuments.ToListAsync());
+
+        Assert.NotEmpty(await harness.Context.RagDocuments.ToListAsync());
+
+        var jobs = await harness.Context.RagJobs.AsNoTracking().ToListAsync();
+
+        // Indexing jobs are still kept
+        Assert.Equal(RagJobStatus.Cancelled, jobs.Single(j => j.Id == fit.Id).Status);
         Assert.All(
-            await harness.Context.RagJobs.AsNoTracking().ToListAsync(),
-            job => Assert.Equal(RagJobStatus.Cancelled, job.Status));
+            jobs.Where(j => j.Kind == RagJobKind.Index),
+            job => Assert.Equal(RagJobStatus.Queued, job.Status));
     }
 
     [Fact]
@@ -247,6 +256,65 @@ public class JobFitTests
         harness.CurrentUser.AuthorId = author.Id;
 
         await harness.LlmCredentials.DeleteAsync();
+    }
+
+    [Fact]
+    public async Task ASearchNeedsNoProviderKey()
+    {
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        var job = await harness.LlmCredentials.RetrieveAsync(new RetrievalRequestDto
+        {
+            Queries = ["  built a replication layer  ", "   ", "storage engine internals"]
+        });
+
+        Assert.Equal(RagJobKind.Retrieval, job.Kind);
+        Assert.Equal(RagJobStatus.Queued, job.Status);
+        Assert.Empty(await harness.Context.LlmCredentials.ToListAsync());
+
+        var queued = await harness.Context.RagJobs.AsNoTracking().SingleAsync(j => j.Id == job.Id);
+        var payload = JsonSerializer.Deserialize<JsonElement>(queued.PayloadJson);
+        var queries = payload.GetProperty("queries").EnumerateArray().Select(q => q.GetString()).ToList();
+
+        Assert.Equal(["built a replication layer", "storage engine internals"], queries);
+    }
+
+    [Fact]
+    public async Task ASearchWithNothingToSearchForIsRefused()
+    {
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => harness.LlmCredentials.RetrieveAsync(new RetrievalRequestDto { Queries = ["   "] }));
+    }
+
+    [Fact]
+    public async Task ASearchDoesNotCountAgainstTheMonthlyBudget()
+    {
+        // It has no provider call to bill, so it must not consume an account's allowance —
+        // otherwise a local pipeline would eat the ceiling meant for paid analyses.
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        await harness.LlmCredentials.SaveAsync(Save());
+        await harness.LlmCredentials.UpdateSettingsAsync(new UpdateLlmSettingsDto
+        {
+            IsPublicFitEnabled = false,
+            DailyVisitorLimit = 1,
+            MonthlyAccountLimit = 1,
+            MonthlyBudgetUsd = 0.0001m
+        });
+
+        await harness.LlmCredentials.RetrieveAsync(new RetrievalRequestDto { Queries = ["anything"] });
+
+        var credential = await harness.LlmCredentials.GetAsync();
+        Assert.Equal(0m, credential!.MonthlySpendUsd);
+        Assert.Equal(0, credential.MonthlyRequestCount);
     }
 
     /* ---------------------------------------------------------------------- */
