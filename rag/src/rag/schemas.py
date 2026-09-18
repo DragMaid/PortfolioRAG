@@ -289,6 +289,29 @@ _SOURCE_NAMES = {
 _SOURCE_TYPES = {name: source_type for source_type, name in _SOURCE_NAMES.items()}
 
 
+def build_findings(findings: list[VerifiedFinding]) -> list[dict[str, Any]]:
+    """Verified findings as the report's ``requirements`` list."""
+    return [
+        {
+            "requirement": finding.requirement,
+            "is_essential": finding.is_essential,
+            "status": finding.status,
+            "confidence": round(finding.confidence, 3),
+            "rationale": finding.rationale,
+            "evidence": [
+                {
+                    "document_id": evidence.document_id,
+                    "source_type": _SOURCE_NAMES.get(evidence.source_type, "post"),
+                    "source_label": evidence.source_label,
+                    "quote": evidence.quote,
+                }
+                for evidence in finding.evidence
+            ],
+        }
+        for finding in findings
+    ]
+
+
 def build_report(
     *,
     role_title: str,
@@ -316,25 +339,7 @@ def build_report(
         "score": score,
         "headline": narrative.headline,
         "summary": narrative.summary,
-        "requirements": [
-            {
-                "requirement": finding.requirement,
-                "is_essential": finding.is_essential,
-                "status": finding.status,
-                "confidence": round(finding.confidence, 3),
-                "rationale": finding.rationale,
-                "evidence": [
-                    {
-                        "document_id": evidence.document_id,
-                        "source_type": _SOURCE_NAMES.get(evidence.source_type, "post"),
-                        "source_label": evidence.source_label,
-                        "quote": evidence.quote,
-                    }
-                    for evidence in finding.evidence
-                ],
-            }
-            for finding in findings
-        ],
+        "requirements": build_findings(findings),
         "strengths": narrative.strengths,
         "gaps": narrative.gaps,
         "retrieval": {

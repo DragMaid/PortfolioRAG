@@ -42,11 +42,16 @@ from .schemas import (
     ExtractedRequirement,
     Narrative,
     PostingAnalysis,
+    build_findings,
     build_report,
+    build_retrieval,
 )
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
+
+StageCallback = Callable[[str], None]
+OutputCallback = Callable[[str, dict[str, Any]], None]
 
 
 class PipelineError(RuntimeError):
@@ -110,15 +115,19 @@ class JobFitPipeline:
         self,
         retriever: Retriever,
         request: JobFitRequest,
-        on_stage: Callable[[str], None] | None = None,
+        on_stage: StageCallback | None = None,
+        on_output: OutputCallback | None = None,
     ) -> JobFitOutcome:
-        """Runs the six stages. ``on_stage`` is told each stage's name as it starts, for a
-        caller that wants to show progress; the worker passes nothing."""
+        """Runs the six stages. ``on_stage`` is told each stage's name as it starts, and
+        ``on_output`` each stage's result as plain JSON once it finishes, for a caller that
+        wants to show progress; the worker passes neither."""
         stage = on_stage or (lambda _: None)
+        output = on_output or (lambda _stage, _data: None)
         started = time.monotonic()
 
         stage("extract")
         analysis = self._extract(request)
+        output("extract", analysis.model_dump(mode="json"))
 
         if not analysis.requirements:
             raise PipelineError(
@@ -130,6 +139,7 @@ class JobFitPipeline:
 
         stage("retrieve")
         passages = retriever.search(queries)
+        output("retrieve", retrieved(retriever, queries, passages))
 
         if not passages:
             raise PipelineError(
@@ -139,6 +149,7 @@ class JobFitPipeline:
 
         stage("assess")
         assessment = self._assess(analysis, passages)
+        output("assess", assessment.model_dump(mode="json"))
 
         essential = {
             requirement.requirement: requirement.is_essential
@@ -151,9 +162,21 @@ class JobFitPipeline:
         value = scoring.score(verification.findings)
         verdict = scoring.verdict(verification.findings, value)
         counts = scoring.summarize(verification.findings)
+        output(
+            "verify",
+            {
+                "findings": build_findings(verification.findings),
+                "rejected": verification.rejected,
+                "cited_document_ids": sorted(verification.cited_document_ids),
+                "score": value,
+                "verdict": verdict,
+                "counts": counts,
+            },
+        )
 
         stage("narrate")
         narrative = self._narrate(analysis, verification.findings, value, verdict, counts)
+        output("narrate", narrative.model_dump(mode="json"))
 
         duration_ms = int((time.monotonic() - started) * 1000)
 
@@ -310,6 +333,15 @@ class JobFitPipeline:
             output_tokens=output_tokens,
             cost_usd=cost,
         )
+
+
+def retrieved(retriever: Retriever, queries: list[str], passages: list[Passage]) -> dict[str, Any]:
+    """What a search turned up, in the same shape the worker writes for a retrieval job."""
+    return build_retrieval(
+        author_name=getattr(retriever, "author_name", ""),
+        queries=queries,
+        passages=passages,
+    )
 
 
 def requirement_queries(requirements: list[ExtractedRequirement]) -> list[str]:
