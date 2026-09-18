@@ -16,8 +16,9 @@ Two honest limits, which the eval records rather than hides:
   still show relative load, and the cost is zero because no key is billed.
 
 Not registered in the provider registry: a stored credential can never select it, so no
-author's key can put a browser in the request path. The worker will drive one only when it
-is told to by name, with ``RAG_WEB_SITE`` — a local switch, left unset in a deployment.
+author's key can put a browser in a deployed worker's request path. The one thing that does
+drive a browser is ``rag.local`` — a service the author runs on their own machine, against
+their own sign-ins.
 """
 
 from __future__ import annotations

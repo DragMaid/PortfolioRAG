@@ -16,11 +16,9 @@ import logging
 import time
 from dataclasses import dataclass
 
-from psycopg import Connection
-
-from . import prompts, retrieval
-from .db import fetch_one
+from . import prompts
 from .pipeline import JobFitOutcome, JobFitPipeline, JobFitRequest, PipelineError
+from .retrieval import Retriever
 from .schemas import CoverLetter, build_cover_letter, source_name
 
 logger = logging.getLogger(__name__)
@@ -35,7 +33,7 @@ class CoverLetterRequest:
 class CoverLetterPipeline(JobFitPipeline):
     """Shares the analysis' models, extraction, retrieval settings and cost accounting."""
 
-    def write(self, conn: Connection, author_id: int, request: CoverLetterRequest) -> JobFitOutcome:
+    def write(self, retriever: Retriever, request: CoverLetterRequest) -> JobFitOutcome:
         started = time.monotonic()
 
         # The role and company come from here too; see PostingAnalysis.
@@ -47,16 +45,8 @@ class CoverLetterPipeline(JobFitPipeline):
                 "and responsibilities rather than the company description."
             )
 
-        passages = retrieval.retrieve(
-            conn,
-            self.embedder,
-            author_id,
-            [requirement.search_query for requirement in analysis.requirements],
-            dense_k=self.settings.dense_k,
-            sparse_k=self.settings.sparse_k,
-            rrf_k=self.settings.rrf_k,
-            limit=self.settings.context_passages,
-            diversity_lambda=self.settings.mmr_lambda,
+        passages = retriever.search(
+            [requirement.search_query for requirement in analysis.requirements]
         )
 
         if not passages:
@@ -65,13 +55,12 @@ class CoverLetterPipeline(JobFitPipeline):
                 "letter from."
             )
 
-        author = fetch_one(conn, 'SELECT "Name" FROM "Authors" WHERE "Id" = %s', (author_id,))
         chain = prompts.COVER_LETTER_PROMPT | self.provider.structured(self._reasoner, CoverLetter)
 
         result: CoverLetter = self._invoke(
             chain,
             {
-                "author_name": author["Name"] if author else "",
+                "author_name": retriever.author_name,
                 "role_title": analysis.role_title,
                 "seniority": analysis.seniority,
                 "company_line": f"Company: {analysis.company}\n" if analysis.company else "",
@@ -96,7 +85,6 @@ class CoverLetterPipeline(JobFitPipeline):
         logger.info(
             "Cover letter written.",
             extra={
-                "author_id": author_id,
                 "passages": len(passages),
                 "cited": len(cited),
                 "rejected": rejected,

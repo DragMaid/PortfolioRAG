@@ -31,13 +31,12 @@ from decimal import Decimal
 from typing import Any
 
 from langchain_core.messages import AIMessage
-from psycopg import Connection
 
-from . import citations, prompts, retrieval, scoring
-from .embeddings import Embedder
+from . import citations, prompts, scoring
 from .providers import ChatProvider
 from .providers.web import WebProvider
 from .queue import Usage
+from .retrieval import Passage, Retriever
 from .schemas import (
     Assessment,
     ExtractedRequirement,
@@ -75,13 +74,11 @@ class JobFitPipeline:
         *,
         settings: Settings,
         provider: ChatProvider | WebProvider,
-        embedder: Embedder,
         api_key: str,
         model: str,
     ):
         self.settings = settings
         self.provider = provider
-        self.embedder = embedder
         self.model_name = model
 
         # Two models used for requirement extraction, and reasoning for job fit
@@ -111,8 +108,7 @@ class JobFitPipeline:
 
     def run(
         self,
-        conn: Connection,
-        author_id: int,
+        retriever: Retriever,
         request: JobFitRequest,
         on_stage: Callable[[str], None] | None = None,
     ) -> JobFitOutcome:
@@ -133,17 +129,7 @@ class JobFitPipeline:
         queries = [requirement.search_query for requirement in analysis.requirements]
 
         stage("retrieve")
-        passages = retrieval.retrieve(
-            conn,
-            self.embedder,
-            author_id,
-            queries,
-            dense_k=self.settings.dense_k,
-            sparse_k=self.settings.sparse_k,
-            rrf_k=self.settings.rrf_k,
-            limit=self.settings.context_passages,
-            diversity_lambda=self.settings.mmr_lambda,
-        )
+        passages = retriever.search(queries)
 
         if not passages:
             raise PipelineError(
@@ -174,7 +160,6 @@ class JobFitPipeline:
         logger.info(
             "Analysis complete.",
             extra={
-                "author_id": author_id,
                 "requirements": len(analysis.requirements),
                 "passages": len(passages),
                 "cited": len(verification.cited_document_ids),
@@ -224,7 +209,7 @@ class JobFitPipeline:
             stage="extract",
         )
 
-    def _assess(self, analysis: PostingAnalysis, passages: list[retrieval.Passage]) -> Assessment:
+    def _assess(self, analysis: PostingAnalysis, passages: list[Passage]) -> Assessment:
         chain = prompts.ASSESS_PROMPT | self.provider.structured(self._reasoner, Assessment)
 
         return self._invoke(

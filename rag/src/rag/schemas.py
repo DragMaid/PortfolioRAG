@@ -216,6 +216,40 @@ def build_cover_letter(
 
 
 # ---------------------------------------------------------------------------
+# Retrieval
+# ---------------------------------------------------------------------------
+
+
+def build_retrieval(
+    *,
+    author_name: str,
+    queries: list[str],
+    passages: list[Any],
+) -> dict[str, Any]:
+    """The JSON the API reads back as a ``RetrievalResultDto``.
+
+    Everything a pipeline needs to reason and to cite, and nothing else: no embeddings —
+    diversification already happened here, and the vectors are large and useless downstream.
+    """
+    return {
+        "author_name": author_name,
+        "queries": queries,
+        "passages": [
+            {
+                "document_id": passage.document_id,
+                "source_type": source_name(passage.source_type),
+                "source_label": passage.source_label,
+                "chunk_index": passage.chunk_index,
+                "content": passage.content,
+                "score": passage.score,
+                "matched_queries": passage.matched_queries,
+            }
+            for passage in passages
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Verified
 # ---------------------------------------------------------------------------
 
@@ -251,6 +285,8 @@ _SOURCE_NAMES = {
     SourceType.EXPERIENCE: "experience",
     SourceType.POST: "post",
 }
+
+_SOURCE_TYPES = {name: source_type for source_type, name in _SOURCE_NAMES.items()}
 
 
 def build_report(
@@ -322,3 +358,7 @@ def build_report(
 
 def source_name(source_type: SourceType) -> str:
     return _SOURCE_NAMES.get(source_type, "post")
+
+
+def source_type(name: str) -> SourceType:
+    return _SOURCE_TYPES.get(name.strip().lower(), SourceType.POST)

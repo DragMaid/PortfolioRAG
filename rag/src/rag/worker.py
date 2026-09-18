@@ -15,21 +15,20 @@ import logging
 import signal
 import time
 from types import FrameType
-from typing import Any
 
 import psycopg
 
 from . import credentials, indexing, queue
 from .cover_letter import CoverLetterPipeline, CoverLetterRequest
-from .credentials import Credential
 from .crypto import decode_encryption_key
 from .db import assert_embedding_column, close_pool, get_pool
 from .embeddings import Embedder, get_embedder
 from .pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from .providers import get_provider
-from .providers.base import ChatProvider
 from .providers.registry import UnknownProviderError
 from .queue import Job, Usage
+from .retrieval import DatabaseRetriever
+from .schemas import build_retrieval
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -44,7 +43,6 @@ class Worker:
         self._encryption_key = decode_encryption_key(settings.encryption_key.get_secret_value())
         self._embedder: Embedder | None = None
         self._pipeline: JobFitPipeline | None = None
-        self._web: Any | None = None
 
     def prepare(self) -> None:
         """Everything that must be true before a job is claimed.
@@ -96,7 +94,6 @@ class Worker:
                     queue.wait_for_work(listener, self.settings.poll_interval_seconds)
         finally:
             listener.close()
-            self.close()
             close_pool()
             logger.info("Worker stopped.")
 
@@ -149,17 +146,20 @@ class Worker:
         # means a second bill.
         try:
             with pool.connection() as conn:
-                if job.kind == queue.JobKind.INDEX:
-                    result, usage = self._run_index(conn, job)
 
-                elif job.kind == queue.JobKind.JOB_FIT:
-                    result, usage = self._run_job_fit(conn, job)
+                # NOTE: No base case as it should be caught by the enum
+                match job.kind:
+                    case queue.JobKind.INDEX:
+                        result, usage = self._run_index(conn, job)
 
-                elif job.kind == queue.JobKind.COVER_LETTER:
-                    result, usage = self._run_cover_letter(conn, job)
+                    case queue.JobKind.JOB_FIT:
+                        result, usage = self._run_job_fit(conn, job)
 
-                else:
-                    raise PipelineError(f"Unknown job kind {job.kind}.")
+                    case queue.JobKind.COVER_LETTER:
+                        result, usage = self._run_cover_letter(conn, job)
+
+                    case queue.JobKind.RETRIEVAL:
+                        result, usage = self._run_retrieval(conn, job)
 
                 queue.succeed(conn, job, result, usage)
 
@@ -200,61 +200,46 @@ class Worker:
         # Indexing costs no provider tokens
         return result.as_dict(), Usage()
 
-    def _resolve_provider(self, credential: Credential) -> tuple[ChatProvider, str, str]:
-        """Which provider answers this job, with the key and model to call it with.
+    def _run_retrieval(self, conn, job: Job) -> tuple[dict, Usage]:
+        """Searches the index and hands the passages back. No model, no key, no bill.
 
-        Normally the author's stored credential. When ``RAG_WEB_SITE`` is set the call is
-        made in a signed-in browser conversation instead, which costs nothing and needs no
-        key — a development affordance, and the reason the credential is still loaded and
-        still has to be usable: nothing about the account's consent or its ceilings is
-        skipped, only the bill.
+        The only job kind that does not load a credential, because it never calls a
+        provider: this is the half of the pipeline that needs the index, split off so the
+        other half can run somewhere else entirely — see ``rag.local``.
         """
-        site = (self.settings.web_site or "").strip().lower()
+        queries = [str(query) for query in job.payload.get("queries", []) if str(query).strip()]
 
-        if not site:
-            return get_provider(credential.provider), credential.api_key, credential.model
+        if not queries:
+            raise PipelineError("A retrieval job needs at least one query.")
 
-        return self._web_provider(site), "", site
+        # Ensure index freshness and re-index if required
+        indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
 
-    def _web_provider(self, site: str) -> ChatProvider:
-        # Imported here rather than at the top: this pulls in a browser stack that a normal
-        # deployment never touches.
-        from .providers.web import SITES, WebProvider
+        retriever = DatabaseRetriever(
+            conn=conn,
+            embedder=self._require_embedder(),
+            settings=self.settings,
+            author_id=job.author_id,
+        )
 
-        # An UnknownProviderError rather than a PipelineError: a misconfigured site name
-        # will not repair itself, so the job fails once instead of three times.
-        if site not in SITES:
-            raise UnknownProviderError(
-                f"RAG_WEB_SITE is '{site}', which is not a site this build knows: "
-                f"{', '.join(sorted(SITES))}."
+        passages = retriever.search(queries)
+
+        if not passages:
+            raise PipelineError(
+                "Nothing is indexed for this portfolio yet, so there is nothing to search."
             )
 
-        if self._web is None:
-            logger.warning(
-                "Answering through a browser conversation, not a provider key.",
-                extra={"site": site, "browser": self.settings.web_browser},
-            )
-            self._web = WebProvider(
-                browser=self.settings.web_browser,
-                headless=self.settings.web_headless,
-                login_timeout=60 if self.settings.web_headless else 600,
-                log=lambda message: logger.info(message),
-            )
-            # Opened now so a signed-out profile fails the first job with a clear error
-            # rather than part-way through a stage.
-            self._web.session(site)
+        result = build_retrieval(
+            author_name=retriever.author_name,
+            queries=queries,
+            passages=passages,
+        )
 
-        return self._web
-
-    def close(self) -> None:
-        """Releases anything held between jobs. Only the browser, when one was opened."""
-        if self._web is not None:
-            self._web.close()
-            self._web = None
+        return result, Usage()
 
     def _run_job_fit(self, conn, job: Job) -> tuple[dict, Usage]:
         credential = credentials.load(conn, job.author_id, self._encryption_key)
-        provider, api_key, model = self._resolve_provider(credential)
+        provider = get_provider(credential.provider)
 
         # Making sure that embeddings are up to date via hash (no force)
         indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
@@ -262,17 +247,20 @@ class Worker:
         pipeline = JobFitPipeline(
             settings=self.settings,
             provider=provider,
-            embedder=self._require_embedder(),
-            api_key=api_key,
-            model=model,
+            api_key=credential.api_key,
+            model=credential.model,
         )
 
         # Kept so a failure part-way through can still report its spend. See _spent.
         self._pipeline = pipeline
 
         outcome = pipeline.run(
-            conn,
-            job.author_id,
+            DatabaseRetriever(
+                conn=conn,
+                embedder=self._require_embedder(),
+                settings=self.settings,
+                author_id=job.author_id,
+            ),
             JobFitRequest(job_description=job.payload.get("job_description", "")),
         )
 
@@ -280,23 +268,26 @@ class Worker:
 
     def _run_cover_letter(self, conn, job: Job) -> tuple[dict, Usage]:
         credential = credentials.load(conn, job.author_id, self._encryption_key)
-        provider, api_key, model = self._resolve_provider(credential)
+        provider = get_provider(credential.provider)
 
         indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
 
         pipeline = CoverLetterPipeline(
             settings=self.settings,
             provider=provider,
-            embedder=self._require_embedder(),
-            api_key=api_key,
-            model=model,
+            api_key=credential.api_key,
+            model=credential.model,
         )
 
         self._pipeline = pipeline
 
         outcome = pipeline.write(
-            conn,
-            job.author_id,
+            DatabaseRetriever(
+                conn=conn,
+                embedder=self._require_embedder(),
+                settings=self.settings,
+                author_id=job.author_id,
+            ),
             CoverLetterRequest(
                 job_description=job.payload.get("job_description", ""),
                 notes=job.payload.get("notes"),

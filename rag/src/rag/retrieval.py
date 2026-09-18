@@ -12,13 +12,13 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from psycopg import Connection
 
 from rag.corpus import SourceType
 
-from .db import fetch_all
+from .db import fetch_all, fetch_one
 from .embeddings import Embedder
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def sparse_search(
     limit: int,
 ) -> list[Passage]:
     """Keyword matches, ranked by ``ts_rank_cd`` over the generated tsvector."""
-    # NOTE: to_tsvector('english', query) - turns query into stemmed lexemes 
+    # NOTE: to_tsvector('english', query) - turns query into stemmed lexemes
     # (example: run, running, ran -> run)
     # NOTE: tsvector_to_array() - turn above into array of words
     # NOTE: array_to_string(..., ' | ') - joins the words with | (the OR operator)
@@ -349,3 +349,46 @@ def _cosine(left: list[float], right: list[float]) -> float:
         return 0.0
 
     return dot / (left_norm * right_norm)
+
+
+class Retriever(Protocol):
+    """The corpus, as a pipeline sees it."""
+
+    @property
+    def author_name(self) -> str:
+        """Who the portfolio belongs to. Only the cover letter needs it."""
+        ...
+
+    def search(self, queries: list[str]) -> list[Passage]:
+        """The passages these searches turn up, fused and diversified."""
+        ...
+
+
+@dataclass(slots=True)
+class DatabaseRetriever:
+    """The index in the same database, searched in process. What the worker uses."""
+
+    conn: Connection
+    embedder: Embedder
+    settings: Any
+    author_id: int
+
+    @property
+    def author_name(self) -> str:
+        row = fetch_one(
+            self.conn, 'SELECT "Name" FROM "Authors" WHERE "Id" = %s', (self.author_id,)
+        )
+        return row["Name"] if row else ""
+
+    def search(self, queries: list[str]) -> list[Passage]:
+        return retrieve(
+            self.conn,
+            self.embedder,
+            self.author_id,
+            queries,
+            dense_k=self.settings.dense_k,
+            sparse_k=self.settings.sparse_k,
+            rrf_k=self.settings.rrf_k,
+            limit=self.settings.context_passages,
+            diversity_lambda=self.settings.mmr_lambda,
+        )

@@ -53,7 +53,7 @@ from rag.logging_setup import configure_logging
 from rag.pipeline import JobFitPipeline, JobFitRequest
 from rag.providers import get_provider
 from rag.providers.web import WebProvider
-from rag.retrieval import Passage, retrieve
+from rag.retrieval import DatabaseRetriever, Passage, retrieve
 from rag.settings import Settings, get_settings
 from rag.webchat import BROWSERS, SITES, WebChatError
 
@@ -455,7 +455,6 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
                 pipeline = JobFitPipeline(
                     settings=settings,
                     provider=web,
-                    embedder=embedder,
                     api_key="",
                     model=args.local,
                 )
@@ -482,7 +481,6 @@ def _evaluate(args: argparse.Namespace, argv: list[str] | None, settings: Settin
                 pipeline = JobFitPipeline(
                     settings=settings,
                     provider=get_provider(credential.provider),
-                    embedder=embedder,
                     api_key=credential.api_key,
                     model=credential.model,
                 )
@@ -738,8 +736,9 @@ def _run_case(
         result.retrieved_sources = _distinct_sources(passages)
 
         outcome = pipeline.run(
-            conn,
-            author_id,
+            DatabaseRetriever(
+                conn=conn, embedder=embedder, settings=settings, author_id=author_id
+            ),
             JobFitRequest(job_description=case["job_description"]),
             on_stage=lambda name: stage(f"pipeline: {name}"),
         )

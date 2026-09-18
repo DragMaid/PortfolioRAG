@@ -34,6 +34,7 @@ class JobKind(IntEnum):
     INDEX = 0
     JOB_FIT = 1
     COVER_LETTER = 2
+    RETRIEVAL = 3
 
 
 @dataclass(frozen=True, slots=True)
