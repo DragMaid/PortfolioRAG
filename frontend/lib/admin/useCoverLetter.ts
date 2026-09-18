@@ -7,8 +7,6 @@ import { describeError, llmApi } from "./client";
 
 export type CoverLetterInput = {
   jobDescription: string;
-  roleTitle: string;
-  company: string;
   notes: string;
 };
 
@@ -85,8 +83,6 @@ export function useCoverLetter(onFinished?: () => void) {
       const started = await llmApi.llmWriteCoverLetter({
         coverLetterRequestDto: {
           jobDescription: input.jobDescription.trim(),
-          roleTitle: input.roleTitle.trim() || undefined,
-          company: input.company.trim() || undefined,
           notes: input.notes.trim() || undefined,
         },
       });

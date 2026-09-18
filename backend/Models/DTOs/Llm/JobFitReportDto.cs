@@ -63,9 +63,6 @@ public class JobFitReportDto
     /// </summary>
     public IReadOnlyList<string> Gaps { get; init; } = Array.Empty<string>();
 
-    /// <summary>What to raise in a first conversation, drawn from the matches above.</summary>
-    public IReadOnlyList<string> TalkingPoints { get; init; } = Array.Empty<string>();
-
     public RetrievalTraceDto Retrieval { get; init; } = new();
 
     /// <summary>

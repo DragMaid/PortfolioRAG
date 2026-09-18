@@ -27,6 +27,8 @@ from .pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from .providers import get_provider
 from .providers.registry import UnknownProviderError
 from .queue import Job, Usage
+from .retrieval import DatabaseRetriever
+from .schemas import build_retrieval
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -144,17 +146,20 @@ class Worker:
         # means a second bill.
         try:
             with pool.connection() as conn:
-                if job.kind == queue.JobKind.INDEX:
-                    result, usage = self._run_index(conn, job)
 
-                elif job.kind == queue.JobKind.JOB_FIT:
-                    result, usage = self._run_job_fit(conn, job)
+                # NOTE: No base case as it should be caught by the enum
+                match job.kind:
+                    case queue.JobKind.INDEX:
+                        result, usage = self._run_index(conn, job)
 
-                elif job.kind == queue.JobKind.COVER_LETTER:
-                    result, usage = self._run_cover_letter(conn, job)
+                    case queue.JobKind.JOB_FIT:
+                        result, usage = self._run_job_fit(conn, job)
 
-                else:
-                    raise PipelineError(f"Unknown job kind {job.kind}.")
+                    case queue.JobKind.COVER_LETTER:
+                        result, usage = self._run_cover_letter(conn, job)
+
+                    case queue.JobKind.RETRIEVAL:
+                        result, usage = self._run_retrieval(conn, job)
 
                 queue.succeed(conn, job, result, usage)
 
@@ -195,6 +200,43 @@ class Worker:
         # Indexing costs no provider tokens
         return result.as_dict(), Usage()
 
+    def _run_retrieval(self, conn, job: Job) -> tuple[dict, Usage]:
+        """Searches the index and hands the passages back. No model, no key, no bill.
+
+        The only job kind that does not load a credential, because it never calls a
+        provider: this is the half of the pipeline that needs the index, split off so the
+        other half can run somewhere else entirely — see ``rag.local``.
+        """
+        queries = [str(query) for query in job.payload.get("queries", []) if str(query).strip()]
+
+        if not queries:
+            raise PipelineError("A retrieval job needs at least one query.")
+
+        # Ensure index freshness and re-index if required
+        indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
+
+        retriever = DatabaseRetriever(
+            conn=conn,
+            embedder=self._require_embedder(),
+            settings=self.settings,
+            author_id=job.author_id,
+        )
+
+        passages = retriever.search(queries)
+
+        if not passages:
+            raise PipelineError(
+                "Nothing is indexed for this portfolio yet, so there is nothing to search."
+            )
+
+        result = build_retrieval(
+            author_name=retriever.author_name,
+            queries=queries,
+            passages=passages,
+        )
+
+        return result, Usage()
+
     def _run_job_fit(self, conn, job: Job) -> tuple[dict, Usage]:
         credential = credentials.load(conn, job.author_id, self._encryption_key)
         provider = get_provider(credential.provider)
@@ -205,7 +247,6 @@ class Worker:
         pipeline = JobFitPipeline(
             settings=self.settings,
             provider=provider,
-            embedder=self._require_embedder(),
             api_key=credential.api_key,
             model=credential.model,
         )
@@ -214,8 +255,12 @@ class Worker:
         self._pipeline = pipeline
 
         outcome = pipeline.run(
-            conn,
-            job.author_id,
+            DatabaseRetriever(
+                conn=conn,
+                embedder=self._require_embedder(),
+                settings=self.settings,
+                author_id=job.author_id,
+            ),
             JobFitRequest(job_description=job.payload.get("job_description", "")),
         )
 
@@ -230,7 +275,6 @@ class Worker:
         pipeline = CoverLetterPipeline(
             settings=self.settings,
             provider=provider,
-            embedder=self._require_embedder(),
             api_key=credential.api_key,
             model=credential.model,
         )
@@ -238,8 +282,12 @@ class Worker:
         self._pipeline = pipeline
 
         outcome = pipeline.write(
-            conn,
-            job.author_id,
+            DatabaseRetriever(
+                conn=conn,
+                embedder=self._require_embedder(),
+                settings=self.settings,
+                author_id=job.author_id,
+            ),
             CoverLetterRequest(
                 job_description=job.payload.get("job_description", ""),
                 notes=job.payload.get("notes"),

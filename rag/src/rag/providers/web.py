@@ -15,8 +15,10 @@ Two honest limits, which the eval records rather than hides:
 * no usage metadata. Token counts are estimated at four characters a token so the reports
   still show relative load, and the cost is zero because no key is billed.
 
-Not registered in the provider registry: a stored credential can never select it, so the
-worker cannot end up driving a browser.
+Not registered in the provider registry: a stored credential can never select it, so no
+author's key can put a browser in a deployed worker's request path. The one thing that does
+drive a browser is ``rag.local`` — a service the author runs on their own machine, against
+their own sign-ins.
 """
 
 from __future__ import annotations

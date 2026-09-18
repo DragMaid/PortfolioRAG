@@ -16,11 +16,17 @@ import logging
 import time
 from dataclasses import dataclass
 
-from psycopg import Connection
-
-from . import prompts, retrieval
-from .db import fetch_one
-from .pipeline import JobFitOutcome, JobFitPipeline, JobFitRequest, PipelineError
+from . import prompts
+from .pipeline import (
+    JobFitOutcome,
+    JobFitPipeline,
+    JobFitRequest,
+    OutputCallback,
+    PipelineError,
+    StageCallback,
+    retrieved,
+)
+from .retrieval import Retriever
 from .schemas import CoverLetter, build_cover_letter, source_name
 
 logger = logging.getLogger(__name__)
@@ -35,11 +41,22 @@ class CoverLetterRequest:
 class CoverLetterPipeline(JobFitPipeline):
     """Shares the analysis' models, extraction, retrieval settings and cost accounting."""
 
-    def write(self, conn: Connection, author_id: int, request: CoverLetterRequest) -> JobFitOutcome:
+    def write(
+        self,
+        retriever: Retriever,
+        request: CoverLetterRequest,
+        on_stage: StageCallback | None = None,
+        on_output: OutputCallback | None = None,
+    ) -> JobFitOutcome:
+        """Runs the three stages; the callbacks are as for :meth:`JobFitPipeline.run`."""
+        stage = on_stage or (lambda _: None)
+        output = on_output or (lambda _stage, _data: None)
         started = time.monotonic()
 
         # The role and company come from here too; see PostingAnalysis.
+        stage("extract")
         analysis = self._extract(JobFitRequest(job_description=request.job_description))
+        output("extract", analysis.model_dump(mode="json"))
 
         if not analysis.requirements:
             raise PipelineError(
@@ -47,17 +64,11 @@ class CoverLetterPipeline(JobFitPipeline):
                 "and responsibilities rather than the company description."
             )
 
-        passages = retrieval.retrieve(
-            conn,
-            self.embedder,
-            author_id,
-            [requirement.search_query for requirement in analysis.requirements],
-            dense_k=self.settings.dense_k,
-            sparse_k=self.settings.sparse_k,
-            rrf_k=self.settings.rrf_k,
-            limit=self.settings.context_passages,
-            diversity_lambda=self.settings.mmr_lambda,
-        )
+        queries = [requirement.search_query for requirement in analysis.requirements]
+
+        stage("retrieve")
+        passages = retriever.search(queries)
+        output("retrieve", retrieved(retriever, queries, passages))
 
         if not passages:
             raise PipelineError(
@@ -65,13 +76,13 @@ class CoverLetterPipeline(JobFitPipeline):
                 "letter from."
             )
 
-        author = fetch_one(conn, 'SELECT "Name" FROM "Authors" WHERE "Id" = %s', (author_id,))
+        stage("write")
         chain = prompts.COVER_LETTER_PROMPT | self.provider.structured(self._reasoner, CoverLetter)
 
         result: CoverLetter = self._invoke(
             chain,
             {
-                "author_name": author["Name"] if author else "",
+                "author_name": retriever.author_name,
                 "role_title": analysis.role_title,
                 "seniority": analysis.seniority,
                 "company_line": f"Company: {analysis.company}\n" if analysis.company else "",
@@ -82,6 +93,8 @@ class CoverLetterPipeline(JobFitPipeline):
             CoverLetter,
             stage="write",
         )
+
+        output("write", result.model_dump(mode="json"))
 
         letter = result.letter.strip()
         if not letter:
@@ -96,7 +109,6 @@ class CoverLetterPipeline(JobFitPipeline):
         logger.info(
             "Cover letter written.",
             extra={
-                "author_id": author_id,
                 "passages": len(passages),
                 "cited": len(cited),
                 "rejected": rejected,

@@ -184,12 +184,13 @@ public class RagRepository : IRagRepository
             .Where(j => j.AuthorId == authorId && j.CreatedAt >= since)
             .SumAsync(j => (decimal?)j.CostUsd, cancellationToken) ?? 0m;
 
-    public Task<int> CancelPendingJobsAsync(
+    public Task<int> CancelPendingGenerationJobsAsync(
         int authorId,
         DateTimeOffset now,
         CancellationToken cancellationToken = default) =>
         _context.RagJobs
             .Where(j => j.AuthorId == authorId &&
+                        (j.Kind == RagJobKind.JobFit || j.Kind == RagJobKind.CoverLetter) &&
                         (j.Status == RagJobStatus.Queued || j.Status == RagJobStatus.Running))
             .ExecuteUpdateAsync(
                 setters => setters

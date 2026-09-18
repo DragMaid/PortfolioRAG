@@ -5,7 +5,9 @@ bge-small-en-v1.5 through fastembed's ONNX runtime: 384 dimensions (~90MB)
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from fastembed import TextEmbedding
 
@@ -15,6 +17,30 @@ logger = logging.getLogger(__name__)
 # Applied to before the search queries and never to passages
 _QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
+# src/rag/embeddings.py -> the project root: rag/ in a checkout, /app in the image.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def cache_dir() -> Path:
+    """Where the model's files live between processes.
+
+    fastembed's own default is ``$TMPDIR/fastembed_cache``, which a reboot clears, so the
+    model is fetched again. Instead, in order:
+
+    1. ``FASTEMBED_CACHE_PATH`` — what the Dockerfile sets, and warms the model into.
+    2. ``<project>/.cache/fastembed`` — the same place, relative to a checkout, so a worker
+       run outside its container keeps the model beside the code (it is gitignored).
+    3. ``$XDG_CACHE_HOME/fastembed`` — for an install that is not a checkout at all.
+    """
+    if configured := os.getenv("FASTEMBED_CACHE_PATH"):
+        return Path(configured)
+
+    if (_PROJECT_ROOT / "pyproject.toml").is_file():
+        return _PROJECT_ROOT / ".cache" / "fastembed"
+
+    xdg = os.getenv("XDG_CACHE_HOME") or Path.home() / ".cache"
+    return Path(xdg) / "fastembed"
+
 
 class Embedder:
     """The embedding model, loaded once per process."""
@@ -23,9 +49,11 @@ class Embedder:
         self.model_name = model_name
         self.batch_size = batch_size
 
-        logger.info("Loading the embedding model.", extra={"model": model_name})
-        # NOTE: this thing also caches the embeddings after docker image build 
-        self._model = TextEmbedding(model_name=model_name)
+        cache = cache_dir()
+        logger.info(
+            "Loading the embedding model.", extra={"model": model_name, "cache": str(cache)}
+        )
+        self._model = TextEmbedding(model_name=model_name, cache_dir=str(cache))
         # NOTE: this run embed small sample, iter and extract first embed to get dimension
         self.dimensions = len(next(iter(self._model.embed(["dimension probe"]))))
 
@@ -41,10 +69,7 @@ class Embedder:
         if not texts:
             return []
 
-        return [
-            vector.tolist()
-            for vector in self._model.embed(texts, batch_size=self.batch_size)
-        ]
+        return [vector.tolist() for vector in self._model.embed(texts, batch_size=self.batch_size)]
 
     def embed_query(self, text: str) -> list[float]:
         """A vector for something being searched for. Instruction-prefixed."""
@@ -57,8 +82,7 @@ class Embedder:
         prefixed = [f"{_QUERY_INSTRUCTION}{text}" for text in texts]
 
         return [
-            vector.tolist()
-            for vector in self._model.embed(prefixed, batch_size=self.batch_size)
+            vector.tolist() for vector in self._model.embed(prefixed, batch_size=self.batch_size)
         ]
 
 

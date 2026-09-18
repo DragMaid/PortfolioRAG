@@ -14,7 +14,7 @@ const EXPIRIES: { label: string; days: number | null }[] = [
   { label: "Never", days: null },
 ];
 
-const EMPTY: TokenDraft = { name: "", scope: ApiTokenScope.Read, expiresInDays: 90 };
+const EMPTY: TokenDraft = { name: "", scope: ApiTokenScope.Write, expiresInDays: 90 };
 
 /**
  * Issues a token.
@@ -25,10 +25,10 @@ const EMPTY: TokenDraft = { name: "", scope: ApiTokenScope.Read, expiresInDays: 
  */
 export function IssueTokenForm({
   busy,
-  onCreate,
+  onCreateAction,
 }: {
   busy: boolean;
-  onCreate: (draft: TokenDraft) => Promise<boolean>;
+  onCreateAction: (draft: TokenDraft) => Promise<boolean>;
 }) {
   const ids = useId();
   const [draft, setDraft] = useState<TokenDraft>(EMPTY);
@@ -40,7 +40,7 @@ export function IssueTokenForm({
 
     // Only clears on success: a name the API rejected as a duplicate is the one thing the
     // author needs in front of them to change it.
-    if (await onCreate(draft)) setDraft(EMPTY);
+    if (await onCreateAction(draft)) setDraft(EMPTY);
   }
 
   return (
@@ -87,8 +87,8 @@ export function IssueTokenForm({
           }
           className="rounded border border-warm-border bg-warm-sunken px-3 py-2 text-[13.5px] text-warm-black transition-colors focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <option value={ApiTokenScope.Read}>Read only</option>
           <option value={ApiTokenScope.Write}>Read + write</option>
+          <option value={ApiTokenScope.Read}>Read only</option>
         </select>
       </Field>
 

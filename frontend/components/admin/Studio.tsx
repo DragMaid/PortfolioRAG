@@ -35,9 +35,6 @@ export function Studio() {
         post={studio.baseline}
         isDirty={tab === "content" ? studio.isDirty : tab === "profile" ? profile.isDirty : false}
         busy={studio.busy}
-        // NOTE: the bar's three actions all act on the open post, so they are hidden on the
-        // tabs that save themselves. Showing a greyed-out "Publish" over a screen that has
-        // nothing to publish would only ask to be clicked.
         showPostActions={tab === "content"}
         selfSavingLabel={SELF_SAVING_LABELS[tab] ?? "Saved"}
         publishBlockers={studio.publishBlockers}

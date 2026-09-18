@@ -161,10 +161,6 @@ class Narrative(BaseModel):
         description="Up to four. What the posting asks for that the portfolio does not show."
     )
 
-    talking_points: list[str] = Field(
-        description="Up to four questions or topics worth raising in a first conversation."
-    )
-
 
 # ---------------------------------------------------------------------------
 # Cover letter
@@ -220,6 +216,40 @@ def build_cover_letter(
 
 
 # ---------------------------------------------------------------------------
+# Retrieval
+# ---------------------------------------------------------------------------
+
+
+def build_retrieval(
+    *,
+    author_name: str,
+    queries: list[str],
+    passages: list[Any],
+) -> dict[str, Any]:
+    """The JSON the API reads back as a ``RetrievalResultDto``.
+
+    Everything a pipeline needs to reason and to cite, and nothing else: no embeddings —
+    diversification already happened here, and the vectors are large and useless downstream.
+    """
+    return {
+        "author_name": author_name,
+        "queries": queries,
+        "passages": [
+            {
+                "document_id": passage.document_id,
+                "source_type": source_name(passage.source_type),
+                "source_label": passage.source_label,
+                "chunk_index": passage.chunk_index,
+                "content": passage.content,
+                "score": passage.score,
+                "matched_queries": passage.matched_queries,
+            }
+            for passage in passages
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Verified
 # ---------------------------------------------------------------------------
 
@@ -256,6 +286,31 @@ _SOURCE_NAMES = {
     SourceType.POST: "post",
 }
 
+_SOURCE_TYPES = {name: source_type for source_type, name in _SOURCE_NAMES.items()}
+
+
+def build_findings(findings: list[VerifiedFinding]) -> list[dict[str, Any]]:
+    """Verified findings as the report's ``requirements`` list."""
+    return [
+        {
+            "requirement": finding.requirement,
+            "is_essential": finding.is_essential,
+            "status": finding.status,
+            "confidence": round(finding.confidence, 3),
+            "rationale": finding.rationale,
+            "evidence": [
+                {
+                    "document_id": evidence.document_id,
+                    "source_type": _SOURCE_NAMES.get(evidence.source_type, "post"),
+                    "source_label": evidence.source_label,
+                    "quote": evidence.quote,
+                }
+                for evidence in finding.evidence
+            ],
+        }
+        for finding in findings
+    ]
+
 
 def build_report(
     *,
@@ -284,28 +339,9 @@ def build_report(
         "score": score,
         "headline": narrative.headline,
         "summary": narrative.summary,
-        "requirements": [
-            {
-                "requirement": finding.requirement,
-                "is_essential": finding.is_essential,
-                "status": finding.status,
-                "confidence": round(finding.confidence, 3),
-                "rationale": finding.rationale,
-                "evidence": [
-                    {
-                        "document_id": evidence.document_id,
-                        "source_type": _SOURCE_NAMES.get(evidence.source_type, "post"),
-                        "source_label": evidence.source_label,
-                        "quote": evidence.quote,
-                    }
-                    for evidence in finding.evidence
-                ],
-            }
-            for finding in findings
-        ],
+        "requirements": build_findings(findings),
         "strengths": narrative.strengths,
         "gaps": narrative.gaps,
-        "talking_points": narrative.talking_points,
         "retrieval": {
             "queries": queries,
             "passages_considered": passages_considered,
@@ -327,3 +363,7 @@ def build_report(
 
 def source_name(source_type: SourceType) -> str:
     return _SOURCE_NAMES.get(source_type, "post")
+
+
+def source_type(name: str) -> SourceType:
+    return _SOURCE_TYPES.get(name.strip().lower(), SourceType.POST)

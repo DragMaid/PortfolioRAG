@@ -198,12 +198,10 @@ public class LlmCredentialService : ILlmCredentialService
         var now = _timeProvider.GetUtcNow();
 
         _rag.RemoveCredential(credential);
-        await _rag.CancelPendingJobsAsync(authorId, now, cancellationToken);
-        await _rag.DeleteDocumentsAsync(authorId, cancellationToken);
-        await _rag.DeleteSourcesAsync(authorId, cancellationToken);
+        await _rag.CancelPendingGenerationJobsAsync(authorId, now, cancellationToken);
         await _rag.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Author {AuthorId} removed their provider key and index.", authorId);
+        _logger.LogInformation("Author {AuthorId} removed their provider key.", authorId);
     }
 
     public async Task<RagJobDto> TryJobFitAsync(
@@ -273,6 +271,47 @@ public class LlmCredentialService : ILlmCredentialService
             Kind = RagJobKind.CoverLetter,
             Status = RagJobStatus.Queued,
             PayloadJson = payload,
+            AvailableAt = now,
+            CreatedAt = now
+        };
+
+        await _rag.AddJobAsync(job, cancellationToken);
+        await _rag.SaveChangesAsync(cancellationToken);
+        await _rag.NotifyQueueAsync(cancellationToken);
+
+        return job.ToDto(includeUsage: true);
+    }
+
+    public async Task<RagJobDto> RetrieveAsync(
+        RetrievalRequestDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var authorId = _currentUser.RequireAuthorId();
+
+        // NOTE: no credential, no budget check, no monthly count
+        var queries = dto.Queries
+            .Select(query => query?.Trim() ?? string.Empty)
+            .Where(query => query.Length > 0)
+            .Take(RetrievalRequestDto.MaximumQueries)
+            .Select(query => query.Length > RetrievalRequestDto.MaximumQueryChars
+                ? query[..RetrievalRequestDto.MaximumQueryChars]
+                : query)
+            .ToList();
+
+        if (queries.Count == 0)
+            throw new ValidationException("Give at least one search to run.");
+
+        var now = _timeProvider.GetUtcNow();
+
+        var job = new RagJob
+        {
+            Id = Guid.NewGuid(),
+            AuthorId = authorId,
+            Kind = RagJobKind.Retrieval,
+            Status = RagJobStatus.Queued,
+            PayloadJson = JsonSerializer.Serialize(
+                new { queries },
+                LlmMappingExtensions.WorkerJson),
             AvailableAt = now,
             CreatedAt = now
         };

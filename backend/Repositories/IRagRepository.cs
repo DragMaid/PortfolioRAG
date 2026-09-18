@@ -35,9 +35,10 @@ public interface IRagRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Drops every indexed passage for an author. Called when the credential goes away:
-    /// the chunks are derived from public content and hold no secret, but keeping an index
-    /// nothing can query is how a system accumulates data nobody remembers consenting to.
+    /// Drops every indexed passage for an author. Nothing calls this on the key's way out
+    /// any more — the index is built from published work, costs nothing to hold and is
+    /// served to a caller doing their own generation — so it is here for a full rebuild and
+    /// for an account that is being emptied.
     /// </summary>
     Task<int> DeleteDocumentsAsync(int authorId, CancellationToken cancellationToken = default);
 
@@ -58,7 +59,7 @@ public interface IRagRepository
         int sourceId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Forgets every tracked source for an author. Goes with the credential, as the passages do.</summary>
+    /// <summary>Forgets every tracked source for an author. The companion to <see cref="DeleteDocumentsAsync"/>.</summary>
     Task<int> DeleteSourcesAsync(int authorId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -125,10 +126,11 @@ public interface IRagRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Marks every unfinished job of an author's cancelled. Called when the credential is
-    /// removed, so queued work does not run against a key that is no longer offered.
+    /// Marks an author's unfinished analyses and letters cancelled. Called when the
+    /// credential is removed, so queued work does not run against a key that is no longer
+    /// offered.
     /// </summary>
-    Task<int> CancelPendingJobsAsync(
+    Task<int> CancelPendingGenerationJobsAsync(
         int authorId,
         DateTimeOffset now,
         CancellationToken cancellationToken = default);

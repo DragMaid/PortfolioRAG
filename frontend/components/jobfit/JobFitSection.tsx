@@ -60,32 +60,16 @@ export function JobFitSection({
         className="grid gap-8 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-stretch lg:gap-12"
         onSubmit={(event) => {
           event.preventDefault();
-          if (canSubmit) void fit.submit(description, role);
+          if (canSubmit) void fit.submit(description);
         }}
       >
         <div className="flex flex-col gap-5">
           <p className="text-[15px] leading-relaxed text-warm-slate">
             Paste a job description — or drop the file — and this will compare it against what{" "}
-            {name} has actually published here: the timeline, the write-ups, the profile. It
-            says which requirements are evidenced and which are not.
+            {name} has actually published here: the timeline, the write-ups, the profile. The
+            role and the company are read out of the posting, and it says which requirements
+            are evidenced and which are not.
           </p>
-
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor={`${fieldId}-role`}
-              className="text-sm font-medium text-warm-black"
-            >
-              Role <span className="font-normal text-warm-slate">(optional)</span>
-            </label>
-            <input
-              id={`${fieldId}-role`}
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-              placeholder="Staff Engineer, Storage"
-              disabled={fit.isBusy}
-              className="rounded-lg border border-warm-border bg-warm-bg px-3.5 py-2.5 text-[15px] text-warm-black transition-colors placeholder:text-warm-slate/70 hover:border-warm-accent focus:border-warm-black focus:bg-warm-surface focus:outline-none disabled:opacity-60"
-            />
-          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button

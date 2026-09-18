@@ -51,12 +51,10 @@ export function useIntelligence() {
   const [busy, setBusy] = useState<Busy>(null);
   const [draft, setDraft] = useState<ExposureDraft | null>(null);
 
-  // The studio's own trial run, and whatever rebuild is in flight. Both are jobs on the
-  // same queue, polled the same way.
+  // The studio's own trial run. A cover letter is the same kind of job on the same queue,
+  // but it is owned by `useCoverLetter` so that writing one does not lock this tab.
   const [trial, setTrial] = useState<RagJobDto | null>(null);
   const [trialError, setTrialError] = useState<string | null>(null);
-  const [letter, setLetter] = useState<RagJobDto | null>(null);
-  const [letterError, setLetterError] = useState<string | null>(null);
   const [watching, setWatching] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -162,7 +160,6 @@ export function useIntelligence() {
       await llmApi.llmDeleteCredential();
       adopt(null);
       setTrial(null);
-      setLetter(null);
       showToast("Key removed, along with the index it built", "info");
     } catch (error) {
       await fail(error, "The key could not be removed.");
@@ -281,7 +278,6 @@ export function useIntelligence() {
         if (!live) return;
 
         if (job.kind === RagJobKind.JobFit) setTrial(job);
-        if (job.kind === RagJobKind.CoverLetter) setLetter(job);
 
         if (isPending(job)) {
           setAttempt((value) => value + 1);
@@ -290,11 +286,7 @@ export function useIntelligence() {
 
         setWatching(null);
 
-        if (job.status === RagJobStatus.Failed) {
-          const message = job.error ?? "The job failed.";
-          if (job.kind === RagJobKind.CoverLetter) setLetterError(message);
-          else setTrialError(message);
-        }
+        if (job.status === RagJobStatus.Failed) setTrialError(job.error ?? "The job failed.");
 
         // The index count and the month's spend both moved, so the panel is re-read rather
         // than patched from the job — the server is the one that knows both.
@@ -317,11 +309,6 @@ export function useIntelligence() {
     setTrialError(null);
   }, []);
 
-  const clearLetter = useCallback(() => {
-    setLetter(null);
-    setLetterError(null);
-  }, []);
-
   return {
     state,
     busy,
@@ -338,10 +325,6 @@ export function useIntelligence() {
     trial,
     trialError,
     clearTrial,
-    writeCoverLetter,
-    letter,
-    letterError,
-    clearLetter,
     isWorking: watching !== null,
     indexPending,
     reload: load,

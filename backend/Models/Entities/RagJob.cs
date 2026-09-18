@@ -10,7 +10,10 @@ public enum RagJobKind
     JobFit = 1,
 
     /// <summary>Write a cover letter for a pasted job description, grounded in that corpus.</summary>
-    CoverLetter = 2
+    CoverLetter = 2,
+
+    /// <summary>Search the corpus and hand the passages back, without calling a model.</summary>
+    Retrieval = 3
 }
 
 public enum RagJobStatus

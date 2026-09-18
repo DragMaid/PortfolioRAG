@@ -46,8 +46,11 @@ public class RagIndexSchedulerTests
     }
 
     [Fact]
-    public async Task WithoutAKeyContentChangesQueueNothing()
+    public async Task WithoutAKeyContentChangesAreStillIndexed()
     {
+        // Indexing needs no provider: the embeddings run on our own hardware, and the
+        // passages are searchable without a key through the retrieval endpoint, which is
+        // what a locally-run pipeline reads.
         await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("author@example.com");
         harness.SignIn(author);
@@ -55,8 +58,16 @@ public class RagIndexSchedulerTests
         var post = await harness.AddPostAsync(author, isDraft: false);
         await harness.PostService.UpdateAsync(post.Id, new UpdatePostDto { Title = "Renamed", Body = "body" });
 
-        Assert.Empty(await harness.Context.RagSources.ToListAsync());
-        Assert.Empty(await harness.Context.RagJobs.ToListAsync());
+        Assert.Empty(await harness.Context.LlmCredentials.ToListAsync());
+
+        var source = Assert.Single(
+            await harness.Context.RagSources.AsNoTracking()
+                .Where(s => s.SourceType == RagSourceType.Post)
+                .ToListAsync());
+
+        Assert.Equal("Renamed", source.Label);
+        Assert.Equal(RagSourceStatus.Queued, source.Status);
+        Assert.Single(await harness.Context.RagJobs.Where(j => j.Kind == RagJobKind.Index).ToListAsync());
     }
 
     [Fact]
@@ -145,8 +156,10 @@ public class RagIndexSchedulerTests
     }
 
     [Fact]
-    public async Task RemovingTheKeyForgetsTheSources()
+    public async Task RemovingTheKeyLeavesTheSourcesIndexed()
     {
+        // The index outlives the key. It is the author's own published work, it cost
+        // nothing to build, and it is still queryable by them without a provider.
         await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("author@example.com");
         harness.SignIn(author);
@@ -155,7 +168,7 @@ public class RagIndexSchedulerTests
         await harness.LlmCredentials.SaveAsync(Save());
         await harness.LlmCredentials.DeleteAsync();
 
-        Assert.Empty(await harness.Context.RagSources.ToListAsync());
+        Assert.NotEmpty(await harness.Context.RagSources.ToListAsync());
     }
 
     [Fact]

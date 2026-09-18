@@ -48,7 +48,11 @@ USER worker
 
 # Warm the model into the image. A layer, not a volume: an image that cannot start without
 # network access to a model host is an image that fails to start when that host is down.
-RUN python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5')"
+RUN python -c "\
+from rag.embeddings import get_embedder; \
+from rag.settings import get_settings; \
+s = get_settings(); \
+get_embedder(s.embedding_model, s.embedding_dimensions)"
 
 # Reports unhealthy if the process cannot reach the database or the vector column is not
 # the width it was built for — the two conditions under which every job would fail.

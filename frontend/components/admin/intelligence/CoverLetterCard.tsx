@@ -9,7 +9,7 @@ import { useCoverLetter } from "@/lib/admin/useCoverLetter";
 import { useToast } from "@/lib/admin/useToast";
 import { formatUsd } from "@/lib/jobfit/report";
 import { Button } from "../ui/Button";
-import { Field, TextArea, TextInput } from "../ui/Field";
+import { Field, TextArea } from "../ui/Field";
 import { Panel, PanelHeader } from "../ui/Panel";
 
 const MINIMUM_CHARS = 120;
@@ -32,8 +32,6 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
   const cover = useCoverLetter(onFinished);
 
   const [jobDescription, setJobDescription] = useState("");
-  const [roleTitle, setRoleTitle] = useState("");
-  const [company, setCompany] = useState("");
   const [notes, setNotes] = useState("");
 
   const trimmed = jobDescription.trim();
@@ -53,31 +51,8 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
       <PanelHeader
         icon="edit-note"
         title="Cover letter"
-        description="Paste a job description and get a first draft written from your own posts, timeline and profile — nothing it cannot find there. Spends your key and counts against the monthly budget."
+        description="Paste a job description and get a first draft written from your own posts, timeline and profile — nothing it cannot find there. The role and company are read out of the posting. Spends your key and counts against the monthly budget."
       />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Role (optional)" htmlFor={`${ids}-role`}>
-          <TextInput
-            id={`${ids}-role`}
-            value={roleTitle}
-            onChange={(event) => setRoleTitle(event.target.value)}
-            maxLength={200}
-            disabled={cover.isBusy}
-            placeholder="Staff Engineer, Storage"
-          />
-        </Field>
-        <Field label="Company (optional)" htmlFor={`${ids}-company`}>
-          <TextInput
-            id={`${ids}-company`}
-            value={company}
-            onChange={(event) => setCompany(event.target.value)}
-            maxLength={200}
-            disabled={cover.isBusy}
-            placeholder="Acme"
-          />
-        </Field>
-      </div>
 
       <Field label="Job description" htmlFor={`${ids}-jd`}>
         <JobDescriptionDropzone
@@ -120,7 +95,7 @@ export function CoverLetterCard({ onFinished }: { onFinished?: () => void }) {
           icon="sparkle"
           busy={cover.isBusy}
           disabled={!canWrite}
-          onClick={() => void cover.write({ jobDescription, roleTitle, company, notes })}
+          onClick={() => void cover.write({ jobDescription, notes })}
         >
           {cover.isBusy ? "Writing" : cover.letter ? "Write another" : "Write the letter"}
         </Button>

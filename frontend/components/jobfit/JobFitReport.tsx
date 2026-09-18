@@ -86,24 +86,6 @@ export function JobFitReport({ report }: { report: JobFitReportDto }) {
         ) : null}
       </section>
 
-      {(report.talkingPoints ?? []).length > 0 ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-warm-border bg-warm-bg p-4">
-          <h3 className="font-mono text-[11px] tracking-wider text-warm-slate uppercase">
-            Worth asking about
-          </h3>
-          <ul className="flex flex-col gap-1.5 text-[13.5px] leading-relaxed text-warm-black">
-            {report.talkingPoints!.map((point, index) => (
-              <li key={index} className="flex gap-2">
-                <span aria-hidden className="text-warm-accent">
-                  —
-                </span>
-                <span>{point}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       <RetrievalNote report={report} />
     </article>
   );
