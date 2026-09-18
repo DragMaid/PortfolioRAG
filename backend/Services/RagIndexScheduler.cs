@@ -23,9 +23,6 @@ public class RagIndexScheduler : IRagIndexScheduler
         string label,
         CancellationToken cancellationToken = default)
     {
-        if (await _rag.GetCredentialAsync(authorId, tracked: false, cancellationToken) is null)
-            return;
-
         var now = _timeProvider.GetUtcNow();
         await MarkQueuedAsync(authorId, sourceType, sourceId, label, now, cancellationToken);
         await _rag.SaveChangesAsync(cancellationToken);
@@ -38,9 +35,6 @@ public class RagIndexScheduler : IRagIndexScheduler
         int sourceId,
         CancellationToken cancellationToken = default)
     {
-        if (await _rag.GetCredentialAsync(authorId, tracked: false, cancellationToken) is null)
-            return;
-
         // NOTE: the row goes now rather than showing a "removing" state nobody asked for.
         // Its passages stay retrievable until the queued run deletes them, seconds later.
         await _rag.DeleteSourceAsync(authorId, sourceType, sourceId, cancellationToken);

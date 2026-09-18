@@ -57,4 +57,11 @@ public interface ILlmCredentialService
     /// Studio-only — there is no public path to this — and counts against the budget.
     /// </summary>
     Task<RagJobDto> WriteCoverLetterAsync(CoverLetterRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Queues a search of the caller's own index and nothing more. No model is called, so
+    /// this needs no provider key and spends nothing — it is the half of the pipeline the
+    /// server keeps when the reasoning half runs on the caller's machine.
+    /// </summary>
+    Task<RagJobDto> RetrieveAsync(RetrievalRequestDto dto, CancellationToken cancellationToken = default);
 }
