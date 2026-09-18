@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { RagJobDto } from "@/lib/api/generated";
 import type { Busy } from "@/lib/admin/useIntelligence";
 import { JobFitReport } from "@/components/jobfit/JobFitReport";
-import { formatUsage } from "@/lib/jobfit/report";
+import { formatUsage, isPending } from "@/lib/jobfit/report";
 import { Button } from "../ui/Button";
 import { Field, TextArea } from "../ui/Field";
 import { Panel, PanelHeader } from "../ui/Panel";
@@ -40,6 +40,8 @@ export function TrialRun({
 
   const trimmed = description.trim();
   const running = busy === "trying" || isWorking;
+  // Another job (a letter, a rebuild) is what is running, not this one.
+  const mine = busy === "trying" || (isWorking && isPending(trial));
   const usage = trial ? formatUsage(trial) : null;
 
   return (
@@ -50,7 +52,7 @@ export function TrialRun({
         description="Run a real posting against your own portfolio and read exactly what a visitor would get. This spends your key and counts against the monthly budget."
         aside={
           usage ? (
-            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 font-mono text-[10.5px] text-warm-slate">
+            <span className="rounded border border-warm-border bg-warm-sunken px-2 py-0.5 text-xs text-warm-slate">
               {usage}
             </span>
           ) : null
@@ -75,7 +77,7 @@ export function TrialRun({
           onChange={(event) => setDescription(event.target.value)}
           disabled={running}
           placeholder="Paste a posting you would actually want to be measured against."
-          className="text-[13px] leading-relaxed"
+          className="text-sm leading-relaxed"
         />
       </Field>
 
@@ -84,10 +86,10 @@ export function TrialRun({
           variant="primary"
           icon="sparkle"
           onClick={() => onRun(description)}
-          busy={running}
+          busy={mine}
           disabled={running || trimmed.length < MINIMUM_CHARS}
         >
-          {running ? "Running" : "Run the analysis"}
+          {mine ? "Running" : "Run the analysis"}
         </Button>
 
         {trial || error ? (
@@ -97,14 +99,14 @@ export function TrialRun({
         ) : null}
 
         {running ? (
-          <span className="font-mono text-[11px] text-warm-slate">
+          <span className="text-[13px] text-warm-slate">
             Reads the posting, searches the portfolio, weighs the evidence. Around a minute.
           </span>
         ) : null}
       </div>
 
       {error ? (
-        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[12.5px] leading-relaxed text-warm-danger">
+        <p className="rounded border border-warm-danger/25 bg-warm-danger-bg px-3 py-2 text-[13.5px] leading-relaxed text-warm-danger">
           {error}
         </p>
       ) : null}

@@ -41,7 +41,7 @@ export function RegistrySummary({ onOpenAnalytics }: { onOpenAnalytics: () => vo
     <Panel className="flex flex-col gap-3 p-4">
       <PanelHeader
         title="Registry summary"
-        aside={<span className="font-mono text-[11px] text-warm-slate">Last 30 days</span>}
+        aside={<span className="text-[13px] text-warm-slate">Last 30 days</span>}
       />
 
       <div className="grid grid-cols-2 gap-2">
@@ -75,8 +75,8 @@ function SummaryTile({
       onClick={onClick}
       className="rounded border border-warm-border/50 bg-warm-sunken p-2 text-center transition-colors hover:bg-warm-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent"
     >
-      <span className="block font-mono text-[18px] font-semibold text-warm-black">{value}</span>
-      <span className="font-mono text-[10px] text-warm-slate">{label}</span>
+      <span className="block text-lg font-semibold text-warm-black tabular-nums">{value}</span>
+      <span className="text-[13px] text-warm-slate">{label}</span>
     </button>
   );
 }

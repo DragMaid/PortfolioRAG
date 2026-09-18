@@ -23,17 +23,9 @@ public class PostSummaryDto
 
     public DateTimeOffset? PublishedAt { get; init; }
 
-    /// <summary>The kicker beside the ordinal on the card — "VECTOR CORE".</summary>
-    public string? Category { get; init; }
-
-    /// <summary>The line in the card footer — "Vector Storage".</summary>
-    public string? Domain { get; init; }
-
     public string? RepoUrl { get; init; }
 
     public string? DemoUrl { get; init; }
-
-    public string? SpecUrl { get; init; }
 
     /// <summary>
     /// The card image. Null only while the post is still a draft — publishing requires it,

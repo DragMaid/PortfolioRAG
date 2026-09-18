@@ -33,6 +33,8 @@ public class BlogDbContext : DbContext
 
     public DbSet<RagIndexState> RagIndexStates => Set<RagIndexState>();
 
+    public DbSet<RagSource> RagSources => Set<RagSource>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("vector");
@@ -111,11 +113,8 @@ public class BlogDbContext : DbContext
             entity.Property(p => p.Slug).IsRequired().HasMaxLength(200);
             entity.Property(p => p.Summary).HasMaxLength(500);
             entity.Property(p => p.Body).IsRequired();
-            entity.Property(p => p.Category).HasMaxLength(60);
-            entity.Property(p => p.Domain).HasMaxLength(60);
             entity.Property(p => p.RepoUrl).HasMaxLength(500);
             entity.Property(p => p.DemoUrl).HasMaxLength(500);
-            entity.Property(p => p.SpecUrl).HasMaxLength(500);
             entity.HasIndex(p => p.Slug).IsUnique();
 
             entity.HasOne(p => p.Author)
@@ -245,6 +244,21 @@ public class BlogDbContext : DbContext
             // NOTE: `embedding vector(384)` and the generated `search tsvector`, with their
             // indexes, are added by raw SQL in the ApiTokens+Rag migration. EF does not have
             // types for these 2 so just it will not know about them here.
+        });
+
+        modelBuilder.Entity<RagSource>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Label).IsRequired().HasMaxLength(300);
+            entity.Property(s => s.Error).HasMaxLength(2000);
+
+            // NOTE: one row per source, and the key the worker upserts on
+            entity.HasIndex(s => new { s.AuthorId, s.SourceType, s.SourceId }).IsUnique();
+
+            entity.HasOne(s => s.Author)
+                .WithMany()
+                .HasForeignKey(s => s.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<RagIndexState>(entity =>

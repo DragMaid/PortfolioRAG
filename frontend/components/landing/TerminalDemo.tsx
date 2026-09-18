@@ -128,12 +128,21 @@ console.log("Published & Indexed:", post.id);`,
 
         {/* Tab Controls & Actions */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg bg-slate-900/90 p-1 border border-slate-800 text-xs font-mono">
+          <div className="relative grid grid-cols-2 rounded-lg bg-slate-900/90 p-1 border border-slate-800 text-xs font-mono">
+            {/* One highlight that travels between the two tabs */}
+            <span
+              aria-hidden="true"
+              className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-md transition-[translate,background-color] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] ${activeTab === "curl"
+                  ? "translate-x-0 bg-cyan-500/20"
+                  : "translate-x-full bg-emerald-500/20"
+                }`}
+            />
             <button
               type="button"
               onClick={() => setActiveTab("curl")}
-              className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === "curl"
-                  ? "bg-cyan-500/20 text-cyan-300 font-semibold"
+              aria-pressed={activeTab === "curl"}
+              className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 ${activeTab === "curl"
+                  ? "text-cyan-300 font-semibold"
                   : "text-slate-400 hover:text-slate-200"
                 }`}
             >
@@ -142,8 +151,9 @@ console.log("Published & Indexed:", post.id);`,
             <button
               type="button"
               onClick={() => setActiveTab("response")}
-              className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === "response"
-                  ? "bg-emerald-500/20 text-emerald-300 font-semibold"
+              aria-pressed={activeTab === "response"}
+              className={`relative px-2.5 py-1 rounded-md transition-colors duration-200 ${activeTab === "response"
+                  ? "text-emerald-300 font-semibold"
                   : "text-slate-400 hover:text-slate-200"
                 }`}
             >
@@ -178,7 +188,7 @@ console.log("Published & Indexed:", post.id);`,
           >
             {copied ? (
               <>
-                <svg className="h-3.5 w-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-3.5 w-3.5 text-emerald-400 animate-confirm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                 </svg>
                 <span className="text-emerald-400">Copied</span>
@@ -199,8 +209,14 @@ console.log("Published & Indexed:", post.id);`,
       {/* Terminal Code Display Area                                  */}
       {/* ----------------------------------------------------------- */}
       <div className="p-6 overflow-x-auto text-xs sm:text-sm font-mono leading-relaxed select-text min-h-[260px] flex flex-col justify-between">
-        <pre className="text-slate-200">
-          <code>{currentSnippet[activeTab]}</code>
+        <pre
+          aria-busy={isExecuting}
+          className={`text-slate-200 transition-opacity duration-150 ${isExecuting ? "opacity-40" : "opacity-100"}`}
+        >
+          {/* Keyed so every tab or endpoint change re-runs the swap-in */}
+          <code key={`${selectedEndpoint}-${activeTab}`} className="block animate-code-swap">
+            {currentSnippet[activeTab]}
+          </code>
         </pre>
       </div>
     </div>

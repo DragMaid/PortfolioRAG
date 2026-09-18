@@ -30,7 +30,14 @@ function FooterColumn({
  * "selected repos", and once the profile came from the API there was no field behind them
  * and no studio screen to write them in. A repository worth listing is a contact channel.
  */
-export function Footer({ profile }: { profile: Profile }) {
+export function Footer({
+  profile,
+  sectionBase = "",
+}: {
+  profile: Profile;
+  /** Prefix for the section anchors, when the footer is drawn off the portfolio page itself. */
+  sectionBase?: string;
+}) {
   const year = new Date().getFullYear();
 
   return (
@@ -58,7 +65,7 @@ export function Footer({ profile }: { profile: Profile }) {
           <ul className="space-y-2 font-mono text-xs text-warm-slate">
             {navItems.map((item) => (
               <li key={item.href}>
-                <a href={item.href} className="transition-colors hover:text-warm-black">
+                <a href={`${sectionBase}${item.href}`} className="transition-colors hover:text-warm-black">
                   {item.indexed}
                 </a>
               </li>

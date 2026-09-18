@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Backend.Common.Exceptions;
 using Backend.Models.DTOs.Llm;
 using Backend.Models.Entities;
@@ -209,7 +210,7 @@ public class JobFitTests
     }
 
     [Fact]
-    public async Task DeletingTheKeyCancelsQueuedWorkAndDropsTheIndex()
+    public async Task DeletingTheKeyCancelsGenerationButKeepsTheIndex()
     {
         await using var harness = await TestHarness.CreateAsync();
         var author = await harness.AddAuthorAsync("author@example.com");
@@ -230,13 +231,21 @@ public class JobFitTests
         });
         await harness.Context.SaveChangesAsync();
 
+        var fit = await harness.LlmCredentials.TryJobFitAsync(Posting());
+
         await harness.LlmCredentials.DeleteAsync();
 
         Assert.Empty(await harness.Context.LlmCredentials.ToListAsync());
-        Assert.Empty(await harness.Context.RagDocuments.ToListAsync());
+
+        Assert.NotEmpty(await harness.Context.RagDocuments.ToListAsync());
+
+        var jobs = await harness.Context.RagJobs.AsNoTracking().ToListAsync();
+
+        // Indexing jobs are still kept
+        Assert.Equal(RagJobStatus.Cancelled, jobs.Single(j => j.Id == fit.Id).Status);
         Assert.All(
-            await harness.Context.RagJobs.AsNoTracking().ToListAsync(),
-            job => Assert.Equal(RagJobStatus.Cancelled, job.Status));
+            jobs.Where(j => j.Kind == RagJobKind.Index),
+            job => Assert.Equal(RagJobStatus.Queued, job.Status));
     }
 
     [Fact]
@@ -247,6 +256,65 @@ public class JobFitTests
         harness.CurrentUser.AuthorId = author.Id;
 
         await harness.LlmCredentials.DeleteAsync();
+    }
+
+    [Fact]
+    public async Task ASearchNeedsNoProviderKey()
+    {
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        var job = await harness.LlmCredentials.RetrieveAsync(new RetrievalRequestDto
+        {
+            Queries = ["  built a replication layer  ", "   ", "storage engine internals"]
+        });
+
+        Assert.Equal(RagJobKind.Retrieval, job.Kind);
+        Assert.Equal(RagJobStatus.Queued, job.Status);
+        Assert.Empty(await harness.Context.LlmCredentials.ToListAsync());
+
+        var queued = await harness.Context.RagJobs.AsNoTracking().SingleAsync(j => j.Id == job.Id);
+        var payload = JsonSerializer.Deserialize<JsonElement>(queued.PayloadJson);
+        var queries = payload.GetProperty("queries").EnumerateArray().Select(q => q.GetString()).ToList();
+
+        Assert.Equal(["built a replication layer", "storage engine internals"], queries);
+    }
+
+    [Fact]
+    public async Task ASearchWithNothingToSearchForIsRefused()
+    {
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => harness.LlmCredentials.RetrieveAsync(new RetrievalRequestDto { Queries = ["   "] }));
+    }
+
+    [Fact]
+    public async Task ASearchDoesNotCountAgainstTheMonthlyBudget()
+    {
+        // It has no provider call to bill, so it must not consume an account's allowance —
+        // otherwise a local pipeline would eat the ceiling meant for paid analyses.
+        await using var harness = await TestHarness.CreateAsync();
+        var author = await harness.AddAuthorAsync("author@example.com");
+        harness.CurrentUser.AuthorId = author.Id;
+
+        await harness.LlmCredentials.SaveAsync(Save());
+        await harness.LlmCredentials.UpdateSettingsAsync(new UpdateLlmSettingsDto
+        {
+            IsPublicFitEnabled = false,
+            DailyVisitorLimit = 1,
+            MonthlyAccountLimit = 1,
+            MonthlyBudgetUsd = 0.0001m
+        });
+
+        await harness.LlmCredentials.RetrieveAsync(new RetrievalRequestDto { Queries = ["anything"] });
+
+        var credential = await harness.LlmCredentials.GetAsync();
+        Assert.Equal(0m, credential!.MonthlySpendUsd);
+        Assert.Equal(0, credential.MonthlyRequestCount);
     }
 
     /* ---------------------------------------------------------------------- */
@@ -540,6 +608,10 @@ public class JobFitTests
         Assert.Equal("A clear match on the storage half.", publicView.Report!.Headline);
         Assert.Null(publicView.Report.Usage);
 
+        // Stripping the cost rebuilds the report; what the posting was read as must survive it.
+        Assert.Equal("Senior Backend Engineer", publicView.Report.RoleTitle);
+        Assert.Equal("Acme", publicView.Report.Company);
+
         harness.CurrentUser.AuthorId = author.Id;
         var ownerView = await harness.LlmCredentials.GetOwnJobAsync(job.Id);
         Assert.Equal(0.42m, ownerView.Report!.Usage!.CostUsd);
@@ -606,21 +678,6 @@ public class JobFitTests
             () => harness.LlmCredentials.GetOwnJobAsync(job.Id));
     }
 
-    [Fact]
-    public async Task ARebuildDoesNotStackBehindOneAlreadyQueued()
-    {
-        await using var harness = await TestHarness.CreateAsync();
-        var author = await harness.AddAuthorAsync("author@example.com");
-        harness.CurrentUser.AuthorId = author.Id;
-        await harness.LlmCredentials.SaveAsync(Save());
-
-        var first = await harness.LlmCredentials.RebuildIndexAsync();
-        var second = await harness.LlmCredentials.RebuildIndexAsync();
-
-        Assert.Equal(first.Id, second.Id);
-        Assert.Single(await harness.Context.RagJobs.Where(j => j.Kind == RagJobKind.Index).ToListAsync());
-    }
-
     /* ---------------------------------------------------------------------- */
     /* Helpers                                                                */
     /* ---------------------------------------------------------------------- */
@@ -673,6 +730,8 @@ public class JobFitTests
 
     private const string SucceededReport = """
         {
+          "role_title": "Senior Backend Engineer",
+          "company": "Acme",
           "verdict": "promising",
           "score": 72,
           "headline": "A clear match on the storage half.",
@@ -696,7 +755,6 @@ public class JobFitTests
           ],
           "strengths": ["Storage internals"],
           "gaps": ["No mobile work"],
-          "talking_points": ["Ask about the repair path"],
           "retrieval": {
             "queries": ["rust production storage"],
             "passages_considered": 24,

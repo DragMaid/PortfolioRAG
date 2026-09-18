@@ -22,7 +22,7 @@ export function SurfaceCard({
       {...props}
     >
       {accentEdge ? (
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-warm-accent/40 via-warm-border to-transparent" />
+        <div className="animate-edge-sweep absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-warm-accent/40 via-warm-border to-transparent" />
       ) : null}
       {children}
     </div>

@@ -19,6 +19,7 @@ from types import FrameType
 import psycopg
 
 from . import credentials, indexing, queue
+from .cover_letter import CoverLetterPipeline, CoverLetterRequest
 from .crypto import decode_encryption_key
 from .db import assert_embedding_column, close_pool, get_pool
 from .embeddings import Embedder, get_embedder
@@ -26,6 +27,8 @@ from .pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from .providers import get_provider
 from .providers.registry import UnknownProviderError
 from .queue import Job, Usage
+from .retrieval import DatabaseRetriever
+from .schemas import build_retrieval
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -123,7 +126,7 @@ class Worker:
             "Claimed a job.",
             extra={
                 "job_id": str(job.id),
-                "kind": "index" if job.kind == queue.JobKind.INDEX else "job_fit",
+                "kind": job.kind.name.lower(),
                 "author_id": job.author_id,
                 "attempt": job.attempts,
             },
@@ -132,19 +135,31 @@ class Worker:
         pool = get_pool(self.settings)
         self._pipeline = None
 
+        # Committed on its own, before the run's transaction opens, so the studio shows the
+        # sources as in progress while the run is still going.
+        if job.kind == queue.JobKind.INDEX:
+            with pool.connection() as conn:
+                indexing.mark_indexing(conn, job.author_id)
+
         # NOTE: the work and the row that records it commit together. A job that succeeded
         # and then could not be marked succeeded would be run again, and for an analysis that
         # means a second bill.
         try:
             with pool.connection() as conn:
-                if job.kind == queue.JobKind.INDEX:
-                    result, usage = self._run_index(conn, job)
 
-                elif job.kind == queue.JobKind.JOB_FIT:
-                    result, usage = self._run_job_fit(conn, job)
+                # NOTE: No base case as it should be caught by the enum
+                match job.kind:
+                    case queue.JobKind.INDEX:
+                        result, usage = self._run_index(conn, job)
 
-                else:
-                    raise PipelineError(f"Unknown job kind {job.kind}.")
+                    case queue.JobKind.JOB_FIT:
+                        result, usage = self._run_job_fit(conn, job)
+
+                    case queue.JobKind.COVER_LETTER:
+                        result, usage = self._run_cover_letter(conn, job)
+
+                    case queue.JobKind.RETRIEVAL:
+                        result, usage = self._run_retrieval(conn, job)
 
                 queue.succeed(conn, job, result, usage)
 
@@ -171,20 +186,56 @@ class Worker:
     def _run_index(self, conn, job: Job) -> tuple[dict, Usage]:
         force = bool(job.payload.get("force", False))
 
-        try:
-            result = indexing.ensure(
-                conn,
-                self.settings,
-                self._require_embedder(),
-                job.author_id,
-                force=force,
-            )
-        except Exception as error:
-            indexing.record_failure(conn, job.author_id, str(error))
-            raise
+        # NOTE: no failure bookkeeping here. This connection's transaction is rolled back
+        # when the run raises, taking anything written on it along; _fail records it on a
+        # fresh one instead.
+        result = indexing.ensure(
+            conn,
+            self.settings,
+            self._require_embedder(),
+            job.author_id,
+            force=force,
+        )
 
         # Indexing costs no provider tokens
         return result.as_dict(), Usage()
+
+    def _run_retrieval(self, conn, job: Job) -> tuple[dict, Usage]:
+        """Searches the index and hands the passages back. No model, no key, no bill.
+
+        The only job kind that does not load a credential, because it never calls a
+        provider: this is the half of the pipeline that needs the index, split off so the
+        other half can run somewhere else entirely — see ``rag.local``.
+        """
+        queries = [str(query) for query in job.payload.get("queries", []) if str(query).strip()]
+
+        if not queries:
+            raise PipelineError("A retrieval job needs at least one query.")
+
+        # Ensure index freshness and re-index if required
+        indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
+
+        retriever = DatabaseRetriever(
+            conn=conn,
+            embedder=self._require_embedder(),
+            settings=self.settings,
+            author_id=job.author_id,
+        )
+
+        passages = retriever.search(queries)
+
+        if not passages:
+            raise PipelineError(
+                "Nothing is indexed for this portfolio yet, so there is nothing to search."
+            )
+
+        result = build_retrieval(
+            author_name=retriever.author_name,
+            queries=queries,
+            passages=passages,
+        )
+
+        return result, Usage()
 
     def _run_job_fit(self, conn, job: Job) -> tuple[dict, Usage]:
         credential = credentials.load(conn, job.author_id, self._encryption_key)
@@ -196,7 +247,6 @@ class Worker:
         pipeline = JobFitPipeline(
             settings=self.settings,
             provider=provider,
-            embedder=self._require_embedder(),
             api_key=credential.api_key,
             model=credential.model,
         )
@@ -205,12 +255,42 @@ class Worker:
         self._pipeline = pipeline
 
         outcome = pipeline.run(
-            conn,
-            job.author_id,
-            JobFitRequest(
+            DatabaseRetriever(
+                conn=conn,
+                embedder=self._require_embedder(),
+                settings=self.settings,
+                author_id=job.author_id,
+            ),
+            JobFitRequest(job_description=job.payload.get("job_description", "")),
+        )
+
+        return outcome.report, outcome.usage
+
+    def _run_cover_letter(self, conn, job: Job) -> tuple[dict, Usage]:
+        credential = credentials.load(conn, job.author_id, self._encryption_key)
+        provider = get_provider(credential.provider)
+
+        indexing.ensure(conn, self.settings, self._require_embedder(), job.author_id)
+
+        pipeline = CoverLetterPipeline(
+            settings=self.settings,
+            provider=provider,
+            api_key=credential.api_key,
+            model=credential.model,
+        )
+
+        self._pipeline = pipeline
+
+        outcome = pipeline.write(
+            DatabaseRetriever(
+                conn=conn,
+                embedder=self._require_embedder(),
+                settings=self.settings,
+                author_id=job.author_id,
+            ),
+            CoverLetterRequest(
                 job_description=job.payload.get("job_description", ""),
-                role_title=job.payload.get("role_title"),
-                company=job.payload.get("company"),
+                notes=job.payload.get("notes"),
             ),
         )
 
@@ -231,6 +311,11 @@ class Worker:
 
         with pool.connection() as conn:
             queue.fail(conn, exhausted, message, usage)
+
+            if job.kind == queue.JobKind.INDEX:
+                indexing.record_failure(
+                    conn, job.author_id, message, final=exhausted.is_final_attempt
+                )
 
     def _spent(self) -> Usage:
         """What a failed pipeline had already spent, if it got far enough to spend anything.

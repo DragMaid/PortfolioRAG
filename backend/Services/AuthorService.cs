@@ -11,17 +11,20 @@ public class AuthorService : IAuthorService
 {
     private readonly IAuthorRepository _authors;
     private readonly IMediaService _media;
+    private readonly IRagIndexScheduler _index;
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
 
     public AuthorService(
         IAuthorRepository authors,
         IMediaService media,
+        IRagIndexScheduler index,
         ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _authors = authors;
         _media = media;
+        _index = index;
         _currentUser = currentUser;
         _timeProvider = timeProvider;
     }
@@ -88,6 +91,8 @@ public class AuthorService : IAuthorService
         author.ContactPitch = Clean(dto.ContactPitch);
 
         await _authors.SaveChangesAsync(cancellationToken);
+        await _index.SourceChangedAsync(author.Id, RagSourceType.Profile, 0, RagLabels.Profile(author.Name), cancellationToken);
+
         return author.ToDto();
     }
 
@@ -163,6 +168,7 @@ public class AuthorService : IAuthorService
 
         await _authors.AddExperienceAsync(experience, cancellationToken);
         await _authors.SaveChangesAsync(cancellationToken);
+        await IndexExperienceAsync(experience, cancellationToken);
 
         return experience.ToDto();
     }
@@ -177,6 +183,8 @@ public class AuthorService : IAuthorService
         Apply(dto, experience);
 
         await _authors.SaveChangesAsync(cancellationToken);
+        await IndexExperienceAsync(experience, cancellationToken);
+
         return experience.ToDto();
     }
 
@@ -187,6 +195,7 @@ public class AuthorService : IAuthorService
 
         _authors.RemoveExperience(experience);
         await _authors.SaveChangesAsync(cancellationToken);
+        await _index.SourceRemovedAsync(authorId, RagSourceType.Experience, id, cancellationToken);
 
         // The row is gone, so nothing will ever name the logo's key again — the same sweep
         // a deleted post gets, for the same reason.
@@ -264,6 +273,14 @@ public class AuthorService : IAuthorService
         EnsureSelf(experience.AuthorId, "experience", id);
         return experience;
     }
+
+    private Task IndexExperienceAsync(Experience experience, CancellationToken cancellationToken) =>
+        _index.SourceChangedAsync(
+            experience.AuthorId,
+            RagSourceType.Experience,
+            experience.Id,
+            RagLabels.Experience(experience.Company, experience.Role),
+            cancellationToken);
 
     private void Apply(ExperienceInputDto dto, Experience experience)
     {

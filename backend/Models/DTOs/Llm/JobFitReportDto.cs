@@ -29,6 +29,12 @@ public enum RequirementStatus
 /// <summary>The pipeline's answer, with every chunk attached to their original source.</summary>
 public class JobFitReportDto
 {
+    /// <summary>Name of the position from job description.</summary>
+    public string RoleTitle { get; init; } = string.Empty;
+
+    /// <summary>The hiring company, as read out of the posting.</summary>
+    public string? Company { get; init; }
+
     public JobFitVerdict Verdict { get; init; }
 
     /// <summary>
@@ -56,9 +62,6 @@ public class JobFitReportDto
     /// gap the author can see is one they can write a post about.
     /// </summary>
     public IReadOnlyList<string> Gaps { get; init; } = Array.Empty<string>();
-
-    /// <summary>What to raise in a first conversation, drawn from the matches above.</summary>
-    public IReadOnlyList<string> TalkingPoints { get; init; } = Array.Empty<string>();
 
     public RetrievalTraceDto Retrieval { get; init; } = new();
 

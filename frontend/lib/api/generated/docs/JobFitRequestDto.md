@@ -7,8 +7,6 @@
 Name | Type
 ------------ | -------------
 `jobDescription` | string
-`roleTitle` | string
-`company` | string
 
 ## Example
 
@@ -18,8 +16,6 @@ import type { JobFitRequestDto } from ''
 // TODO: Update the object below with actual values
 const example = {
   "jobDescription": null,
-  "roleTitle": null,
-  "company": null,
 } satisfies JobFitRequestDto
 
 console.log(example)

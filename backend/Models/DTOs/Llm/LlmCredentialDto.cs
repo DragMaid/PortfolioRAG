@@ -59,6 +59,30 @@ public class RagIndexStateDto
 
     public string? Error { get; init; }
 
-    /// <summary>The rebuild currently on the queue, if one is.</summary>
-    public RagJobDto? PendingJob { get; init; }
+    /// <summary>
+    /// Every post, job and profile the index tracks, with where each stands. Kept current by
+    /// the server as content changes; there is nothing for the author to trigger.
+    /// </summary>
+    public IReadOnlyList<RagSourceDto> Sources { get; init; } = Array.Empty<RagSourceDto>();
+}
+
+/// <summary>One row of the studio's index table.</summary>
+public class RagSourceDto
+{
+    public RagSourceType SourceType { get; init; }
+
+    public int SourceId { get; init; }
+
+    public string Label { get; init; } = string.Empty;
+
+    public RagSourceStatus Status { get; init; }
+
+    /// <summary>Why it failed, when <see cref="Status"/> is <see cref="RagSourceStatus.Failed"/>.</summary>
+    public string? Error { get; init; }
+
+    public int PassageCount { get; init; }
+
+    public DateTimeOffset QueuedAt { get; init; }
+
+    public DateTimeOffset? IndexedAt { get; init; }
 }

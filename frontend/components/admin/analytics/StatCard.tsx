@@ -27,18 +27,20 @@ export function StatCard({
   const rising = (change ?? 0) >= 0;
 
   return (
-    <Panel className="flex flex-col justify-between gap-2 p-4">
+    <Panel className="flex min-w-0 flex-col justify-between gap-2 p-4">
       <div className="flex items-center justify-between gap-2 text-warm-slate">
-        <span className="font-mono text-[11px] font-semibold tracking-wider uppercase">{label}</span>
+        <span className="text-[13px] font-medium">{label}</span>
         <Icon name={icon} className="text-[18px] text-warm-accent" />
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span className="font-mono text-2xl font-bold text-warm-black">{value}</span>
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span title={value} className="max-w-full truncate text-2xl font-semibold tracking-tight text-warm-black tabular-nums">
+          {value}
+        </span>
         {delta ? (
           <span
             className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold",
+              "rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums",
               rising ? "bg-warm-success-bg text-warm-success" : "bg-warm-danger-bg text-warm-danger",
             )}
           >
@@ -47,7 +49,7 @@ export function StatCard({
         ) : null}
       </div>
 
-      <span className="font-mono text-[11px] text-warm-slate">{footnote}</span>
+      <span className="text-[13px] text-warm-slate">{footnote}</span>
     </Panel>
   );
 }

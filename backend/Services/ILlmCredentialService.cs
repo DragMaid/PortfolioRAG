@@ -40,12 +40,6 @@ public interface ILlmCredentialService
     Task DeleteAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Queues a rebuild of the retrieval index. Returns the job already on the queue if one
-    /// is, rather than stacking a second.
-    /// </summary>
-    Task<RagJobDto> RebuildIndexAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// One of the caller's own jobs, with what it cost. Scoped to the account, so a job id
     /// belonging to somebody else reads as not found rather than as somebody else's answer.
     /// </summary>
@@ -57,4 +51,17 @@ public interface ILlmCredentialService
     /// per-visitor limit, which exists to bound strangers rather than the owner.
     /// </summary>
     Task<RagJobDto> TryJobFitAsync(JobFitRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Queues a cover letter for a posting, written from the caller's own indexed portfolio.
+    /// Studio-only — there is no public path to this — and counts against the budget.
+    /// </summary>
+    Task<RagJobDto> WriteCoverLetterAsync(CoverLetterRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Queues a search of the caller's own index and nothing more. No model is called, so
+    /// this needs no provider key and spends nothing — it is the half of the pipeline the
+    /// server keeps when the reasoning half runs on the caller's machine.
+    /// </summary>
+    Task<RagJobDto> RetrieveAsync(RetrievalRequestDto dto, CancellationToken cancellationToken = default);
 }

@@ -26,6 +26,10 @@ Rules:
   "a plus", and "or similar" are not.
 - Skip benefits, company description, equal-opportunity statements, salary and application
   instructions. They are not requirements.
+- Nobody tells you the role or the company separately; read both out of the posting. The role
+  title is the title alone ("Staff Engineer, Storage"), not the company, location or
+  employment type. The company is the employer hiring for the role, or null when the posting
+  does not name one. A recruiting agency posting on someone's behalf is not the company.
 - The search query is the most important field and is not the requirement restated. Write
   what the *evidence* would look like in somebody's portfolio: for "experience operating
   services at scale", write "operated production service scaling incidents on-call", not
@@ -33,7 +37,6 @@ Rules:
 """
 
 EXTRACT_USER = """\
-{role_line}{company_line}
 Job posting:
 
 <posting>
@@ -87,9 +90,7 @@ Passages retrieved from the portfolio:
 {passages}\
 """
 
-ASSESS_PROMPT = ChatPromptTemplate.from_messages(
-    [("system", ASSESS_SYSTEM), ("user", ASSESS_USER)]
-)
+ASSESS_PROMPT = ChatPromptTemplate.from_messages([("system", ASSESS_SYSTEM), ("user", ASSESS_USER)])
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +116,9 @@ them.
   years on the payments ledger at Stripe" is the whole point.
 - The gaps are the most useful part of this for both readers. State them plainly and without
   apology or hedging. A gap is not a criticism, it is a thing the portfolio does not show.
-- Talking points are questions worth asking, not selling points.
+- Say why the match is what it is and stop there. No questions to ask, no interview advice,
+  no suggestions about what either side should do next — this is a reading of the evidence,
+  not a conversation guide.
 - No greeting, no sign-off, no "Overall,". Do not invent a score or a verdict; those are
   computed and will be shown beside your text.\
 """
@@ -181,3 +184,48 @@ def render_findings(findings: list) -> str:
         blocks.append("\n".join(block))
 
     return "\n".join(blocks)
+
+
+# ---------------------------------------------------------------------------
+# Cover letter
+# ---------------------------------------------------------------------------
+
+# NOTE: the letter is written from the passages directly, unlike the job-fit narrative. It is
+# the author's own document, read and edited by them before anyone else sees it, so the
+# guard here is the same rule as assessment — nothing that is not in a passage — plus the
+# cited ids, which are checked against what was shown before the letter is returned.
+COVER_LETTER_SYSTEM = """\
+You write cover letters for the person whose portfolio passages are given below. The letter is
+in their voice, first person, and they will read and edit it before sending it.
+
+Rules:
+- Use only what the passages show. Do not invent employers, projects, numbers, years of
+  experience, technologies or outcomes. If a requirement is not evidenced, do not claim it;
+  either leave it out or, when it is central to the role, say plainly what is adjacent.
+- Lead with the one or two pieces of work that best answer what the role is for, and name them
+  specifically. Specifics are the entire value of the letter.
+- Three to five short paragraphs, 250 to 400 words. No subject line, no address block, no
+  placeholders in brackets.
+- Open with a greeting to the hiring team (use the company name when it is known) and close
+  with a short sign-off followed by the person's name.
+- Plain, confident, concrete. No clichés ("I am writing to express my interest", "passionate",
+  "team player"), no flattery of the company.
+- Follow the author's notes when given, unless they conflict with the rules above.
+- List the [#N] numbers of every passage the letter draws on in cited_document_ids.\
+"""
+
+COVER_LETTER_USER = """\
+Author: {author_name}
+Role: {role_title} ({seniority})
+{company_line}{notes_block}
+What the posting asks for:
+{requirement_list}
+
+Passages from the author's portfolio:
+
+{passages}\
+"""
+
+COVER_LETTER_PROMPT = ChatPromptTemplate.from_messages(
+    [("system", COVER_LETTER_SYSTEM), ("user", COVER_LETTER_USER)]
+)

@@ -35,11 +35,41 @@ public interface IRagRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Drops every indexed passage for an author. Called when the credential goes away:
-    /// the chunks are derived from public content and hold no secret, but keeping an index
-    /// nothing can query is how a system accumulates data nobody remembers consenting to.
+    /// Drops every indexed passage for an author. Nothing calls this on the key's way out
+    /// any more — the index is built from published work, costs nothing to hold and is
+    /// served to a caller doing their own generation — so it is here for a full rebuild and
+    /// for an account that is being emptied.
     /// </summary>
     Task<int> DeleteDocumentsAsync(int authorId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every source the index tracks for an author, in the order the studio lists them.</summary>
+    Task<IReadOnlyList<RagSource>> GetSourcesAsync(int authorId, CancellationToken cancellationToken = default);
+
+    Task<RagSource?> GetSourceAsync(
+        int authorId,
+        RagSourceType sourceType,
+        int sourceId,
+        CancellationToken cancellationToken = default);
+
+    Task AddSourceAsync(RagSource source, CancellationToken cancellationToken = default);
+
+    Task<int> DeleteSourceAsync(
+        int authorId,
+        RagSourceType sourceType,
+        int sourceId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Forgets every tracked source for an author. The companion to <see cref="DeleteDocumentsAsync"/>.</summary>
+    Task<int> DeleteSourcesAsync(int authorId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// What the index should hold for an author right now: the profile, every job and every
+    /// published post, with the label each is listed under. Read from the content tables, so
+    /// a first build can list everything as queued before the worker has seen any of it.
+    /// </summary>
+    Task<IReadOnlyList<(RagSourceType Type, int Id, string Label)>> ListIndexableSourcesAsync(
+        int authorId,
+        CancellationToken cancellationToken = default);
 
     /* ---------------------------------------------------------------------- */
     /* Queue                                                                  */
@@ -61,6 +91,15 @@ public interface IRagRepository
     /// rebuild being queued behind the first, and what the studio polls.
     /// </summary>
     Task<RagJob?> GetActiveJobAsync(
+        int authorId,
+        RagJobKind kind,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The author's newest job of a kind that no worker has claimed yet. A change can ride on
+    /// that one; a job already running may have read the corpus before the change landed.
+    /// </summary>
+    Task<RagJob?> GetQueuedJobAsync(
         int authorId,
         RagJobKind kind,
         CancellationToken cancellationToken = default);
@@ -87,10 +126,11 @@ public interface IRagRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Marks every unfinished job of an author's cancelled. Called when the credential is
-    /// removed, so queued work does not run against a key that is no longer offered.
+    /// Marks an author's unfinished analyses and letters cancelled. Called when the
+    /// credential is removed, so queued work does not run against a key that is no longer
+    /// offered.
     /// </summary>
-    Task<int> CancelPendingJobsAsync(
+    Task<int> CancelPendingGenerationJobsAsync(
         int authorId,
         DateTimeOffset now,
         CancellationToken cancellationToken = default);

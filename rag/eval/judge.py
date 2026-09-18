@@ -10,7 +10,7 @@ where an LLM judge would catch it most of the time.
 
 **An LLM judge, for the things that have no closed form.** Whether the summary is
 calibrated against the findings, whether the gaps are stated plainly rather than buried,
-whether the talking points are worth asking. These are real quality properties with no
+whether the prose accounts for the verdict it sits above. These are real quality properties with no
 formula, and a judge is the only way to measure them at all.
 
 The judge grades **against the verified findings**, never against its own opinion of the
@@ -54,8 +54,9 @@ class JudgeVerdict(BaseModel):
 
     usefulness: int = Field(
         description=(
-            "Would the talking points actually help a first conversation? 5 = specific "
-            "questions drawn from the evidence. 1 = generic interview filler."
+            "Does the prose explain why the match is what it is? 5 = a reader understands "
+            "which evidence carried the verdict and which absence held it back. 1 = it "
+            "restates the findings without accounting for them."
         )
     )
 
@@ -101,10 +102,7 @@ Strengths:
 {strengths}
 
 Gaps:
-{gaps}
-
-Talking points:
-{talking_points}""",
+{gaps}""",
         ),
     ]
 )

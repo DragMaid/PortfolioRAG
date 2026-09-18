@@ -21,12 +21,15 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import Runnable, RunnableLambda
 
 from rag import indexing
+from rag.cover_letter import CoverLetterPipeline, CoverLetterRequest
 from rag.db import close_pool, get_pool
 from rag.embeddings import get_embedder
 from rag.pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from rag.providers.base import ModelPrice
+from rag.retrieval import DatabaseRetriever
 from rag.schemas import (
     Assessment,
+    CoverLetter,
     EvidenceRef,
     ExtractedRequirement,
     Narrative,
@@ -107,6 +110,7 @@ REQUIREMENTS = [
 
 ANALYSIS = PostingAnalysis(
     role_title="Staff Engineer, Storage",
+    company="Acme",
     seniority="staff",
     requirements=REQUIREMENTS,
 )
@@ -116,7 +120,6 @@ NARRATIVE = Narrative(
     summary="Two paragraphs about the match.",
     strengths=["Owns a replication layer in production"],
     gaps=["Nothing about iOS"],
-    talking_points=["Ask how the anti-entropy repair path was validated"],
 )
 
 
@@ -144,21 +147,32 @@ def indexed(settings: Settings):
 
 
 def build(settings: Settings, embedder, responses: dict[type, Any]) -> JobFitPipeline:
-    return JobFitPipeline(
+    pipeline = JobFitPipeline(
         settings=settings,
         provider=StubProvider(responses),
-        embedder=embedder,
         api_key="stub",
         model="stub-model",
     )
+    # Not the pipeline's business any more — it is the retriever that embeds — but the
+    # tests build both from one fixture, so it is carried here.
+    pipeline.embedder = embedder
+    return pipeline
 
 
 def run(pipeline: JobFitPipeline, conn, author_id: int) -> dict[str, Any]:
     return pipeline.run(
-        conn,
-        author_id,
+        _retriever(pipeline, conn, author_id),
         JobFitRequest(job_description="A posting long enough to be worth reading. " * 6),
     ).report
+
+
+def _retriever(pipeline: JobFitPipeline, conn, author_id: int) -> DatabaseRetriever:
+    return DatabaseRetriever(
+        conn=conn,
+        embedder=pipeline.embedder,
+        settings=pipeline.settings,
+        author_id=author_id,
+    )
 
 
 def find(report: dict[str, Any], needle: str) -> dict[str, Any]:
@@ -220,6 +234,8 @@ def test_a_grounded_report_is_assembled_in_the_shape_the_api_reads(indexed, sett
 
     # snake_case throughout, which is what LlmMappingExtensions.WorkerJson reads.
     assert set(report) >= {
+        "role_title",
+        "company",
         "verdict",
         "score",
         "headline",
@@ -227,12 +243,13 @@ def test_a_grounded_report_is_assembled_in_the_shape_the_api_reads(indexed, sett
         "requirements",
         "strengths",
         "gaps",
-        "talking_points",
         "retrieval",
         "usage",
     }
 
     assert report["headline"] == NARRATIVE.headline
+    assert report["role_title"] == ANALYSIS.role_title
+    assert report["company"] == ANALYSIS.company
     assert len(report["requirements"]) == 3
     assert report["retrieval"]["citations_rejected"] == 0
     assert report["retrieval"]["passages_cited"] == 1
@@ -408,7 +425,9 @@ def test_a_posting_with_no_requirements_fails_rather_than_scoring_zero(indexed, 
     """Zero requirements would score 0 and read as a damning verdict on the author."""
     conn, author_id, embedder = indexed
 
-    empty = PostingAnalysis(role_title="Unclear", seniority="unclear", requirements=[])
+    empty = PostingAnalysis(
+        role_title="Unclear", company=None, seniority="unclear", requirements=[]
+    )
 
     with pytest.raises(PipelineError, match="No requirements"):
         run(
@@ -484,8 +503,9 @@ def test_every_requirement_reaches_the_assessment_prompt(indexed, settings):
     )
 
     pipeline = JobFitPipeline(
-        settings=settings, provider=provider, embedder=embedder, api_key="stub", model="stub-model"
+        settings=settings, provider=provider, api_key="stub", model="stub-model"
     )
+    pipeline.embedder = embedder
 
     run(pipeline, conn, author_id)
 
@@ -496,6 +516,57 @@ def test_every_requirement_reaches_the_assessment_prompt(indexed, settings):
 
     # And the passages are labelled the way the model is told to cite them.
     assert "[#" in assess_prompt
+
+
+def test_a_cover_letter_keeps_only_citations_to_passages_it_was_shown(indexed, settings):
+    conn, author_id, embedder = indexed
+
+    passages = _retrieved(conn, settings, embedder, author_id)
+    shown = _passage_containing(passages, "Rust")
+
+    provider = StubProvider(
+        {
+            PostingAnalysis: ANALYSIS,
+            CoverLetter: CoverLetter(
+                letter="Dear hiring team,\n\nI rewrote a write-ahead log in Rust.\n\nBest,\nMe",
+                cited_document_ids=[shown.document_id, shown.document_id, -1],
+            ),
+        }
+    )
+
+    pipeline = CoverLetterPipeline(
+        settings=settings,
+        provider=provider,
+        api_key="stub",
+        model="stub-model",
+    )
+    pipeline.embedder = embedder
+
+    outcome = pipeline.write(
+        _retriever(pipeline, conn, author_id),
+        CoverLetterRequest(
+            job_description="A posting long enough to be worth reading. " * 6,
+            notes="Lead with storage.",
+        ),
+    )
+
+    report = outcome.report
+
+    assert report["letter"].startswith("Dear hiring team")
+    # Both read out of the posting rather than supplied by the caller.
+    assert report["company"] == ANALYSIS.company
+    assert report["role_title"] == ANALYSIS.role_title
+    assert [source["document_id"] for source in report["sources"]] == [shown.document_id]
+    assert report["sources"][0]["source_type"] in {"profile", "experience", "post"}
+
+    # Two model calls: extraction and the letter.
+    assert outcome.usage.input_tokens == 2000
+    assert report["usage"]["cost_usd"] == str(outcome.usage.cost_usd)
+
+    # The notes and the author's name reach the prompt.
+    rendered = provider.prompts[-1].to_string()
+    assert "Lead with storage." in rendered
+    assert "Company: Acme" in rendered
 
 
 def _retrieved(conn, settings: Settings, embedder, author_id: int):

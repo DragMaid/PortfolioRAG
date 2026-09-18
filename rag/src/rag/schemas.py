@@ -62,7 +62,21 @@ class ExtractedRequirement(BaseModel):
 class PostingAnalysis(BaseModel):
     """What the posting is asking for, read out of it."""
 
-    role_title: str = Field(description="The role. Infer it if the posting has no title line.")
+    role_title: str = Field(
+        description=(
+            "The job title as the posting states it, without the company, location or "
+            "employment type. Infer it from the responsibilities if there is no title line."
+        )
+    )
+
+    # Required but nullable rather than defaulted: strict structured-output modes need every
+    # field listed, and null is the honest answer for a posting that names no employer.
+    company: str | None = Field(
+        description=(
+            "The hiring company's name, as the posting gives it. Null when the posting does "
+            "not name one — do not guess from a product or a recruiter agency's name."
+        )
+    )
 
     seniority: Literal["junior", "mid", "senior", "staff", "principal", "unclear"] = Field(
         description="The level the posting is pitched at."
@@ -147,9 +161,92 @@ class Narrative(BaseModel):
         description="Up to four. What the posting asks for that the portfolio does not show."
     )
 
-    talking_points: list[str] = Field(
-        description="Up to four questions or topics worth raising in a first conversation."
+
+# ---------------------------------------------------------------------------
+# Cover letter
+# ---------------------------------------------------------------------------
+
+
+class CoverLetter(BaseModel):
+    """The letter, and the passages it was written from."""
+
+    letter: str = Field(
+        description=(
+            "The letter itself, as Markdown paragraphs. No subject line, no address block, "
+            "no bracketed placeholders — the author sends this as written."
+        )
     )
+
+    cited_document_ids: list[int] = Field(
+        description=(
+            "The numbers in the [#N] labels of every passage the letter draws on. Only "
+            "passages you were shown; ids that were not are dropped."
+        )
+    )
+
+
+def build_cover_letter(
+    *,
+    letter: str,
+    role_title: str,
+    company: str | None,
+    sources: list[dict[str, Any]],
+    provider: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: Decimal,
+    duration_ms: int,
+) -> dict[str, Any]:
+    """The JSON the API reads back as a ``CoverLetterDto``."""
+    return {
+        "letter": letter,
+        "role_title": role_title,
+        "company": company,
+        "sources": sources,
+        "usage": {
+            "provider": provider,
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": str(cost_usd),
+            "duration_ms": duration_ms,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Retrieval
+# ---------------------------------------------------------------------------
+
+
+def build_retrieval(
+    *,
+    author_name: str,
+    queries: list[str],
+    passages: list[Any],
+) -> dict[str, Any]:
+    """The JSON the API reads back as a ``RetrievalResultDto``.
+
+    Everything a pipeline needs to reason and to cite, and nothing else: no embeddings —
+    diversification already happened here, and the vectors are large and useless downstream.
+    """
+    return {
+        "author_name": author_name,
+        "queries": queries,
+        "passages": [
+            {
+                "document_id": passage.document_id,
+                "source_type": source_name(passage.source_type),
+                "source_label": passage.source_label,
+                "chunk_index": passage.chunk_index,
+                "content": passage.content,
+                "score": passage.score,
+                "matched_queries": passage.matched_queries,
+            }
+            for passage in passages
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -186,12 +283,39 @@ class VerifiedFinding:
 _SOURCE_NAMES = {
     SourceType.PROFILE: "profile",
     SourceType.EXPERIENCE: "experience",
-    SourceType.POST: "post"
+    SourceType.POST: "post",
 }
+
+_SOURCE_TYPES = {name: source_type for source_type, name in _SOURCE_NAMES.items()}
+
+
+def build_findings(findings: list[VerifiedFinding]) -> list[dict[str, Any]]:
+    """Verified findings as the report's ``requirements`` list."""
+    return [
+        {
+            "requirement": finding.requirement,
+            "is_essential": finding.is_essential,
+            "status": finding.status,
+            "confidence": round(finding.confidence, 3),
+            "rationale": finding.rationale,
+            "evidence": [
+                {
+                    "document_id": evidence.document_id,
+                    "source_type": _SOURCE_NAMES.get(evidence.source_type, "post"),
+                    "source_label": evidence.source_label,
+                    "quote": evidence.quote,
+                }
+                for evidence in finding.evidence
+            ],
+        }
+        for finding in findings
+    ]
 
 
 def build_report(
     *,
+    role_title: str,
+    company: str | None,
     verdict: Verdict,
     score: int,
     narrative: Narrative,
@@ -209,32 +333,15 @@ def build_report(
 ) -> dict[str, Any]:
     """The JSON the API reads back as a ``JobFitReportDto``."""
     return {
+        "role_title": role_title,
+        "company": company,
         "verdict": verdict,
         "score": score,
         "headline": narrative.headline,
         "summary": narrative.summary,
-        "requirements": [
-            {
-                "requirement": finding.requirement,
-                "is_essential": finding.is_essential,
-                "status": finding.status,
-                "confidence": round(finding.confidence, 3),
-                "rationale": finding.rationale,
-                "evidence": [
-                    {
-                        "document_id": evidence.document_id,
-                        "source_type": _SOURCE_NAMES.get(evidence.source_type, "post"),
-                        "source_label": evidence.source_label,
-                        "quote": evidence.quote,
-                    }
-                    for evidence in finding.evidence
-                ],
-            }
-            for finding in findings
-        ],
+        "requirements": build_findings(findings),
         "strengths": narrative.strengths,
         "gaps": narrative.gaps,
-        "talking_points": narrative.talking_points,
         "retrieval": {
             "queries": queries,
             "passages_considered": passages_considered,
@@ -252,3 +359,11 @@ def build_report(
             "duration_ms": duration_ms,
         },
     }
+
+
+def source_name(source_type: SourceType) -> str:
+    return _SOURCE_NAMES.get(source_type, "post")
+
+
+def source_type(name: str) -> SourceType:
+    return _SOURCE_TYPES.get(name.strip().lower(), SourceType.POST)

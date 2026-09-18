@@ -21,9 +21,16 @@ public static class JobFitPayload
     /// </summary>
     public const int MinimumChars = 120;
 
-    public static string Normalize(JobFitRequestDto dto, int maximumChars)
+    public static string Normalize(JobFitRequestDto dto, int maximumChars) =>
+        Serialize(Validate(dto.JobDescription, maximumChars), notes: null);
+
+    /// <summary>The same checks for a cover letter, which also carries the author's own notes.</summary>
+    public static string Normalize(CoverLetterRequestDto dto, int maximumChars) =>
+        Serialize(Validate(dto.JobDescription, maximumChars), dto.Notes);
+
+    private static string Validate(string? jobDescription, int maximumChars)
     {
-        var description = dto.JobDescription?.Trim() ?? string.Empty;
+        var description = jobDescription?.Trim() ?? string.Empty;
 
         if (description.Length < MinimumChars)
         {
@@ -39,15 +46,18 @@ public static class JobFitPayload
                 "Paste the requirements and responsibilities rather than the whole page.");
         }
 
-        return JsonSerializer.Serialize(
+        return description;
+    }
+
+    // NOTE: no role or company — the worker reads both out of the posting at extraction.
+    private static string Serialize(string description, string? notes) =>
+        JsonSerializer.Serialize(
             new
             {
                 job_description = description,
-                role_title = Trimmed(dto.RoleTitle),
-                company = Trimmed(dto.Company)
+                notes = Trimmed(notes)
             },
             LlmMappingExtensions.WorkerJson);
-    }
 
     private static string? Trimmed(string? value)
     {

@@ -46,7 +46,7 @@ export function ProjectRegistry({
         icon="folder"
         title="Project Registry"
         aside={
-          <span className="rounded bg-warm-sunken px-2 py-0.5 font-mono text-[11px] text-warm-slate">
+          <span className="rounded bg-warm-sunken px-2 py-0.5 text-[13px] text-warm-slate">
             {counts.all} {counts.all === 1 ? "record" : "records"}
           </span>
         }
@@ -69,7 +69,7 @@ export function ProjectRegistry({
             aria-selected={filter === key}
             onClick={() => onFilterChange(key)}
             className={cn(
-              "rounded py-1 font-mono text-[11px] transition-colors",
+              "rounded py-1 text-[13px] transition-colors",
               "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-warm-accent",
               filter === key
                 ? "bg-warm-surface font-medium text-warm-black shadow-sm"
@@ -157,11 +157,11 @@ function ProjectCard({
       </div>
 
       {post.summary ? (
-        <p className="line-clamp-2 text-xs leading-relaxed text-warm-slate">{post.summary}</p>
+        <p className="line-clamp-2 text-[13px] leading-relaxed text-warm-slate">{post.summary}</p>
       ) : null}
 
-      <div className="mt-2 flex items-center justify-between gap-2 border-t border-warm-border/40 pt-1.5 font-mono text-[10.5px] text-warm-slate">
-        <span className={cn("shrink-0", active ? "font-medium text-warm-accent" : "")}>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-warm-border/40 pt-1.5 text-xs text-warm-slate">
+        <span className={cn("shrink-0", active ? "font-medium text-warm-accent-ink" : "")}>
           #{ordinal.toString().padStart(2, "0")}
         </span>
       </div>

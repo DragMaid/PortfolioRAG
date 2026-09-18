@@ -75,6 +75,7 @@ builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ILlmCredentialService, LlmCredentialService>();
 builder.Services.AddScoped<IJobFitService, JobFitService>();
+builder.Services.AddScoped<IRagIndexScheduler, RagIndexScheduler>();
 
 // NOTE: the visitor salt is too insignificant so ill leave it as optional for now
 var analyticsOptions = builder.Configuration

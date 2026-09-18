@@ -6,6 +6,8 @@
 
 Name | Type
 ------------ | -------------
+`roleTitle` | string
+`company` | string
 `verdict` | [JobFitVerdict](JobFitVerdict.md)
 `score` | number
 `headline` | string
@@ -24,6 +26,8 @@ import type { JobFitReportDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
+  "roleTitle": null,
+  "company": null,
   "verdict": null,
   "score": null,
   "headline": null,

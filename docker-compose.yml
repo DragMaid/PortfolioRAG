@@ -73,6 +73,7 @@ services:
   # The retrieval worker that handle vector indexing 
   # Scale by running more of these (`docker compose up -d --scale rag=3`)
   rag:
+    profiles: ["rag"]
     build: ./rag
     container_name: portfolio-rag
     restart: unless-stopped

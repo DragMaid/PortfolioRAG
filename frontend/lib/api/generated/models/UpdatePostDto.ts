@@ -43,23 +43,11 @@ export interface UpdatePostDto {
     /**
      * 
      */
-    category?: string | null;
-    /**
-     * 
-     */
-    domain?: string | null;
-    /**
-     * 
-     */
     repoUrl?: string | null;
     /**
      * 
      */
     demoUrl?: string | null;
-    /**
-     * 
-     */
-    specUrl?: string | null;
 }
 
 /**
@@ -86,11 +74,8 @@ export function UpdatePostDtoFromJSONTyped(json: any, ignoreDiscriminator: boole
         'summary': json['summary'] === undefined ? undefined : json['summary'] === null ? null : json['summary'],
         'body': json['body'],
         'isFeatured': json['isFeatured'] == null ? undefined : json['isFeatured'],
-        'category': json['category'] === undefined ? undefined : json['category'] === null ? null : json['category'],
-        'domain': json['domain'] === undefined ? undefined : json['domain'] === null ? null : json['domain'],
         'repoUrl': json['repoUrl'] === undefined ? undefined : json['repoUrl'] === null ? null : json['repoUrl'],
         'demoUrl': json['demoUrl'] === undefined ? undefined : json['demoUrl'] === null ? null : json['demoUrl'],
-        'specUrl': json['specUrl'] === undefined ? undefined : json['specUrl'] === null ? null : json['specUrl'],
     };
 }
 
@@ -110,11 +95,8 @@ export function UpdatePostDtoToJSONTyped(value?: UpdatePostDto | null, ignoreDis
         'summary': value['summary'],
         'body': value['body'],
         'isFeatured': value['isFeatured'],
-        'category': value['category'],
-        'domain': value['domain'],
         'repoUrl': value['repoUrl'],
         'demoUrl': value['demoUrl'],
-        'specUrl': value['specUrl'],
     };
 }
 

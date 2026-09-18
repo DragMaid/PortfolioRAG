@@ -5,3 +5,5 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .git/
+# The local fastembed cache. The image warms its own.
+.cache/

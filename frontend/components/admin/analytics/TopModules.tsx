@@ -10,7 +10,7 @@ export function TopModules({ posts }: { posts: TopPostDto[] }) {
       <PanelHeader
         icon="verified"
         title="Top viewed projects"
-        aside={<span className="font-mono text-[11px] text-warm-slate">Reads</span>}
+        aside={<span className="text-[13px] text-warm-slate">Reads</span>}
       />
 
       {posts.length === 0 ? (
@@ -30,13 +30,13 @@ export function TopModules({ posts }: { posts: TopPostDto[] }) {
                 <span className="truncate font-serif text-[15px] font-medium text-warm-black">
                   {post.title}
                 </span>
-                <span className="shrink-0 font-mono text-xs font-semibold text-warm-black">
+                <span className="shrink-0 text-[13px] font-semibold text-warm-black">
                   {formatCount(post.reads ?? 0)}
                 </span>
               </div>
 
               {post.summary ? (
-                <p className="line-clamp-2 text-[11.5px] leading-relaxed text-warm-slate">
+                <p className="line-clamp-2 text-[13px] leading-relaxed text-warm-slate">
                   {post.summary}
                 </p>
               ) : null}
@@ -48,7 +48,7 @@ export function TopModules({ posts }: { posts: TopPostDto[] }) {
                     style={{ width: `${Math.min(100, (post.share ?? 0) * 100)}%` }}
                   />
                 </span>
-                <span className="font-mono text-[10.5px] text-warm-slate">
+                <span className="text-xs text-warm-slate">
                   {formatShare(post.share ?? 0)}
                 </span>
               </div>

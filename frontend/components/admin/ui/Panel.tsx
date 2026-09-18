@@ -23,7 +23,7 @@ export function Panel({
 }
 
 /**
- * A panel's title row: an accent glyph, a small-caps mono label, and whatever the panel
+ * A panel's title row: an accent glyph, a sans title, and whatever the panel
  * wants on the right — a count, a filter, a link.
  */
 export function PanelHeader({
@@ -44,12 +44,12 @@ export function PanelHeader({
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           {icon ? <Icon name={icon} className="text-[18px] text-warm-accent" /> : null}
-          <h2 className="font-mono text-xs font-semibold tracking-wider text-warm-black uppercase">
+          <h2 className="text-[15px] leading-snug font-semibold text-warm-black">
             {title}
           </h2>
         </div>
         {description ? (
-          <p className="mt-1 text-[12.5px] leading-relaxed text-warm-slate">{description}</p>
+          <p className="mt-1 max-w-[68ch] text-[13.5px] leading-relaxed text-warm-slate">{description}</p>
         ) : null}
       </div>
       {aside ? <div className="flex shrink-0 items-center gap-2">{aside}</div> : null}

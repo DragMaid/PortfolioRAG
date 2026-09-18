@@ -48,7 +48,7 @@ export function TokenRow({ token, busy, onRotate, onRevoke, onForget }: TokenRow
             pulse={false}
             tone={status === "active" ? "success" : status === "expired" ? "accent" : "muted"}
           />
-          <span className="truncate font-mono text-[13px] font-medium text-warm-black">
+          <span className="truncate text-sm font-medium text-warm-black">
             {name}
           </span>
 
@@ -61,7 +61,7 @@ export function TokenRow({ token, busy, onRotate, onRevoke, onForget }: TokenRow
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10.5px] text-warm-slate">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-warm-slate">
           <span className="rounded border border-warm-border bg-warm-sunken px-1.5 py-0.5 text-warm-black">
             {token.prefix}…
           </span>
@@ -184,7 +184,7 @@ function ConfirmStrip({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <span className="font-mono text-[10.5px] text-warm-slate">{COPY.question}</span>
+      <span className="text-xs text-warm-slate">{COPY.question}</span>
 
       <Button variant="ghost" onClick={onCancel}>
         Cancel

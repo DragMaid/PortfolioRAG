@@ -46,6 +46,8 @@ _PACKAGES = (
     "langchain-google-genai",
     "langchain-groq",
     "fastembed",
+    "camoufox",
+    "playwright",
 )
 
 # Settings that can never reach a file, however local.

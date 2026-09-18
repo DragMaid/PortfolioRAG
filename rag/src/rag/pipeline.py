@@ -31,22 +31,27 @@ from decimal import Decimal
 from typing import Any
 
 from langchain_core.messages import AIMessage
-from psycopg import Connection
 
-from . import citations, prompts, retrieval, scoring
-from .embeddings import Embedder
+from . import citations, prompts, scoring
 from .providers import ChatProvider
+from .providers.web import WebProvider
 from .queue import Usage
+from .retrieval import Passage, Retriever
 from .schemas import (
     Assessment,
     ExtractedRequirement,
     Narrative,
     PostingAnalysis,
+    build_findings,
     build_report,
+    build_retrieval,
 )
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
+
+StageCallback = Callable[[str], None]
+OutputCallback = Callable[[str, dict[str, Any]], None]
 
 
 class PipelineError(RuntimeError):
@@ -55,9 +60,9 @@ class PipelineError(RuntimeError):
 
 @dataclass(slots=True)
 class JobFitRequest:
+    # The posting alone. The role and company are read out of it at extraction, so a caller
+    # never has to type what the posting already says.
     job_description: str
-    role_title: str | None = None
-    company: str | None = None
 
 
 @dataclass(slots=True)
@@ -73,14 +78,12 @@ class JobFitPipeline:
         self,
         *,
         settings: Settings,
-        provider: ChatProvider,
-        embedder: Embedder,
+        provider: ChatProvider | WebProvider,
         api_key: str,
         model: str,
     ):
         self.settings = settings
         self.provider = provider
-        self.embedder = embedder
         self.model_name = model
 
         # Two models used for requirement extraction, and reasoning for job fit
@@ -110,18 +113,21 @@ class JobFitPipeline:
 
     def run(
         self,
-        conn: Connection,
-        author_id: int,
+        retriever: Retriever,
         request: JobFitRequest,
-        on_stage: Callable[[str], None] | None = None,
+        on_stage: StageCallback | None = None,
+        on_output: OutputCallback | None = None,
     ) -> JobFitOutcome:
-        """Runs the six stages. ``on_stage`` is told each stage's name as it starts, for a
-        caller that wants to show progress; the worker passes nothing."""
-        stage = on_stage or (lambda _name: None)
+        """Runs the six stages. ``on_stage`` is told each stage's name as it starts, and
+        ``on_output`` each stage's result as plain JSON once it finishes, for a caller that
+        wants to show progress; the worker passes neither."""
+        stage = on_stage or (lambda _: None)
+        output = on_output or (lambda _stage, _data: None)
         started = time.monotonic()
 
         stage("extract")
         analysis = self._extract(request)
+        output("extract", analysis.model_dump(mode="json"))
 
         if not analysis.requirements:
             raise PipelineError(
@@ -132,17 +138,8 @@ class JobFitPipeline:
         queries = [requirement.search_query for requirement in analysis.requirements]
 
         stage("retrieve")
-        passages = retrieval.retrieve(
-            conn,
-            self.embedder,
-            author_id,
-            queries,
-            dense_k=self.settings.dense_k,
-            sparse_k=self.settings.sparse_k,
-            rrf_k=self.settings.rrf_k,
-            limit=self.settings.context_passages,
-            diversity_lambda=self.settings.mmr_lambda,
-        )
+        passages = retriever.search(queries)
+        output("retrieve", retrieved(retriever, queries, passages))
 
         if not passages:
             raise PipelineError(
@@ -152,6 +149,7 @@ class JobFitPipeline:
 
         stage("assess")
         assessment = self._assess(analysis, passages)
+        output("assess", assessment.model_dump(mode="json"))
 
         essential = {
             requirement.requirement: requirement.is_essential
@@ -164,16 +162,27 @@ class JobFitPipeline:
         value = scoring.score(verification.findings)
         verdict = scoring.verdict(verification.findings, value)
         counts = scoring.summarize(verification.findings)
+        output(
+            "verify",
+            {
+                "findings": build_findings(verification.findings),
+                "rejected": verification.rejected,
+                "cited_document_ids": sorted(verification.cited_document_ids),
+                "score": value,
+                "verdict": verdict,
+                "counts": counts,
+            },
+        )
 
         stage("narrate")
         narrative = self._narrate(analysis, verification.findings, value, verdict, counts)
+        output("narrate", narrative.model_dump(mode="json"))
 
         duration_ms = int((time.monotonic() - started) * 1000)
 
         logger.info(
             "Analysis complete.",
             extra={
-                "author_id": author_id,
                 "requirements": len(analysis.requirements),
                 "passages": len(passages),
                 "cited": len(verification.cited_document_ids),
@@ -188,6 +197,8 @@ class JobFitPipeline:
         )
 
         report = build_report(
+            role_title=analysis.role_title,
+            company=analysis.company,
             verdict=verdict,
             score=value,
             narrative=narrative,
@@ -216,18 +227,12 @@ class JobFitPipeline:
 
         return self._invoke(
             chain,
-            {
-                "job_description": request.job_description,
-                # Rendered as whole lines so an absent title leaves no dangling label. The
-                # posting usually carries both, and these are only for when it does not.
-                "role_line": f"Role: {request.role_title}\n" if request.role_title else "",
-                "company_line": f"Company: {request.company}\n" if request.company else "",
-            },
+            {"job_description": request.job_description},
             PostingAnalysis,
             stage="extract",
         )
 
-    def _assess(self, analysis: PostingAnalysis, passages: list[retrieval.Passage]) -> Assessment:
+    def _assess(self, analysis: PostingAnalysis, passages: list[Passage]) -> Assessment:
         chain = prompts.ASSESS_PROMPT | self.provider.structured(self._reasoner, Assessment)
 
         return self._invoke(
@@ -328,6 +333,15 @@ class JobFitPipeline:
             output_tokens=output_tokens,
             cost_usd=cost,
         )
+
+
+def retrieved(retriever: Retriever, queries: list[str], passages: list[Passage]) -> dict[str, Any]:
+    """What a search turned up, in the same shape the worker writes for a retrieval job."""
+    return build_retrieval(
+        author_name=getattr(retriever, "author_name", ""),
+        queries=queries,
+        passages=passages,
+    )
 
 
 def requirement_queries(requirements: list[ExtractedRequirement]) -> list[str]:

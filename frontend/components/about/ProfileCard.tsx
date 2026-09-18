@@ -1,5 +1,4 @@
 import { AvatarPlaceholderIcon, ContactGlyph, MailIcon, MapPinIcon } from "@/components/icons";
-import { StatusDot } from "@/components/ui/StatusDot";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import type { Profile } from "@/lib/types";
 
@@ -50,25 +49,26 @@ export function ProfileCard({ profile }: { profile: Profile }) {
               <img
                 src={profile.avatarUrl}
                 alt=""
-                className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="animate-portrait-develop size-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             ) : (
-              <AvatarPlaceholderIcon className="size-20 text-warm-slate/50 transition-transform duration-500 group-hover:scale-105" />
+              <AvatarPlaceholderIcon className="animate-portrait-develop size-20 text-warm-slate/50 transition-transform duration-500 group-hover:scale-105" />
             )}
           </div>
         </div>
 
-        <h1 className="font-serif text-2xl font-normal tracking-tight text-warm-black sm:text-3xl">
+        <h1 className="animate-ink-in font-serif text-3xl font-normal tracking-tight text-balance text-warm-black sm:text-[2.125rem] sm:leading-tight">
           {profile.name}
         </h1>
-        <p className="mt-1 font-mono text-xs text-warm-slate">{profile.title}</p>
+        <p className="animate-ink-in mt-1.5 text-sm leading-snug text-warm-slate">{profile.title}</p>
 
-        <div className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-warm-border/90 bg-warm-bg px-3 py-2 font-mono text-xs text-warm-black">
-          <StatusDot variant="pulse" />
-          <span className="text-[11px] leading-snug">{profile.availability}</span>
+        {/* A steady dot: availability is a fact about the person, not an alert. */}
+        <div className="mt-5 flex w-full items-start gap-2.5 rounded-lg bg-warm-bg px-3 py-2.5 text-[13px] leading-snug text-warm-black">
+          <span aria-hidden className="mt-[5px] size-2 shrink-0 rounded-full bg-warm-success" />
+          <span>{profile.availability}</span>
         </div>
 
-        <div className="my-5 h-px w-full bg-warm-border" />
+        <div className="my-6 h-px w-full bg-warm-border" />
 
         <div className="w-full space-y-3 font-mono text-xs text-warm-slate">
           <ContactRow icon={<MapPinIcon className="size-4" />} label={profile.location} />

@@ -28,7 +28,7 @@ export function ReferrerTable({
       <PanelHeader
         icon="share"
         title="Distribution by channel & inbound source"
-        aside={<span className="font-mono text-[11px] text-warm-slate">{windowLabel}</span>}
+        aside={<span className="text-[13px] text-warm-slate">{windowLabel}</span>}
       />
 
       {referrers.length === 0 ? (
@@ -39,9 +39,9 @@ export function ReferrerTable({
         />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
+          <table className="w-full text-left text-[13px] tabular-nums">
             <thead>
-              <tr className="border-b border-warm-border text-[10.5px] text-warm-slate uppercase">
+              <tr className="border-b border-warm-border text-xs font-medium text-warm-slate">
                 <th scope="col" className="pb-2.5 font-medium">Source</th>
                 <th scope="col" className="pb-2.5 font-medium">Visitors</th>
                 <th scope="col" className="pb-2.5 font-medium">Share of reads</th>
@@ -78,7 +78,7 @@ export function ReferrerTable({
                             style={{ width: `${Math.min(100, (referrer.share ?? 0) * 100)}%` }}
                           />
                         </span>
-                        <span className="text-[11px] text-warm-slate">
+                        <span className="text-[13px] text-warm-slate">
                           {formatShare(referrer.share ?? 0)}
                         </span>
                       </span>
