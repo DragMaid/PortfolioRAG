@@ -26,6 +26,7 @@ from rag.db import close_pool, get_pool
 from rag.embeddings import get_embedder
 from rag.pipeline import JobFitPipeline, JobFitRequest, PipelineError
 from rag.providers.base import ModelPrice
+from rag.retrieval import DatabaseRetriever
 from rag.schemas import (
     Assessment,
     CoverLetter,
@@ -146,21 +147,32 @@ def indexed(settings: Settings):
 
 
 def build(settings: Settings, embedder, responses: dict[type, Any]) -> JobFitPipeline:
-    return JobFitPipeline(
+    pipeline = JobFitPipeline(
         settings=settings,
         provider=StubProvider(responses),
-        embedder=embedder,
         api_key="stub",
         model="stub-model",
     )
+    # Not the pipeline's business any more — it is the retriever that embeds — but the
+    # tests build both from one fixture, so it is carried here.
+    pipeline.embedder = embedder
+    return pipeline
 
 
 def run(pipeline: JobFitPipeline, conn, author_id: int) -> dict[str, Any]:
     return pipeline.run(
-        conn,
-        author_id,
+        _retriever(pipeline, conn, author_id),
         JobFitRequest(job_description="A posting long enough to be worth reading. " * 6),
     ).report
+
+
+def _retriever(pipeline: JobFitPipeline, conn, author_id: int) -> DatabaseRetriever:
+    return DatabaseRetriever(
+        conn=conn,
+        embedder=pipeline.embedder,
+        settings=pipeline.settings,
+        author_id=author_id,
+    )
 
 
 def find(report: dict[str, Any], needle: str) -> dict[str, Any]:
@@ -491,8 +503,9 @@ def test_every_requirement_reaches_the_assessment_prompt(indexed, settings):
     )
 
     pipeline = JobFitPipeline(
-        settings=settings, provider=provider, embedder=embedder, api_key="stub", model="stub-model"
+        settings=settings, provider=provider, api_key="stub", model="stub-model"
     )
+    pipeline.embedder = embedder
 
     run(pipeline, conn, author_id)
 
@@ -524,14 +537,13 @@ def test_a_cover_letter_keeps_only_citations_to_passages_it_was_shown(indexed, s
     pipeline = CoverLetterPipeline(
         settings=settings,
         provider=provider,
-        embedder=embedder,
         api_key="stub",
         model="stub-model",
     )
+    pipeline.embedder = embedder
 
     outcome = pipeline.write(
-        conn,
-        author_id,
+        _retriever(pipeline, conn, author_id),
         CoverLetterRequest(
             job_description="A posting long enough to be worth reading. " * 6,
             notes="Lead with storage.",

@@ -7,7 +7,9 @@ posting's requirements the published work actually evidences, and cites the pass
 every claim it makes.
 
 The service has exactly one job: drain the `RagJobs` table the API writes to. It exposes no
-port and nothing talks to it.
+port and nothing talks to it. (One thing in this package does listen on a port — `rag-local`,
+which is not the service and does not run in a deployment. See [Running it
+locally](#running-it-locally).)
 
 ```
                     ┌──────────────┐
@@ -45,6 +47,11 @@ would be an awkward bill against a hosted embedding API and is free here.
 `indexing.ensure` first. An unchanged portfolio costs two queries and no model time, because
 each passage carries a content hash. So nothing in the API has to remember to invalidate
 anything when a post is edited, and there is no cache to go stale.
+
+**The pipeline does not know where its passages come from.** It takes a `Retriever` — two
+methods — rather than a database connection. In the worker that is `DatabaseRetriever`, with
+the index in a table beside it; in `rag-local` it is an HTTP client holding an API token. The
+same six stages, the same citation checking, two very different machines.
 
 **Three of the six stages are code, not a model.** Retrieval, citation verification and
 scoring are deterministic. That split is the design: every judgement a model makes is
@@ -119,6 +126,50 @@ docker compose up -d rag
 docker compose up -d --scale rag=3    # SKIP LOCKED needs no coordination between them
 ```
 
+## Running it locally
+
+The pipeline can also run entirely on your own machine, with no provider key and no bill:
+
+```sh
+uv run python -m rag.webchat login        # once, to sign in to the chat site
+uv run rag-local --site gemini            # then open http://127.0.0.1:5173
+```
+
+```
+  your machine                                    the deployment
+  ┌──────────────────────────────┐                ┌──────────────┐
+  │ rag-local (FastAPI, 5173)    │── retrieval ──▶│  ASP.NET API │
+  │   page + run state           │◀── passages ───│              │
+  │        │                     │                └──────────────┘
+  │        ▼                     │                        │
+  │ chat site in your browser    │                ┌───────────────┐
+  │   extract · assess · narrate │                │ rag worker    │
+  └──────────────────────────────┘                │ index only    │
+                                                  └───────────────┘
+```
+
+The split is the whole idea. Retrieval needs the index, so it stays where the index is: the
+service asks the API's `POST /api/llm/retrieval`, which queues a `Retrieval` job, and the
+worker answers it with passages — no provider, no key, nothing billed. Everything that needs
+a model happens on your machine, in a chat site you are already signed in to, through
+`rag.providers.web`. The posting never reaches the portfolio's API.
+
+Three things are worth knowing:
+
+* **It needs an API token**, the `pfl_…` kind from the studio's access tab, with the write
+  scope. The page holds it for its tab and sends it with each run; the service keeps it for
+  the length of that run and never writes it down. A token cannot read or replace a provider
+  key — those endpoints are session-only — so the most it can do here is search an index of
+  published work.
+* **It is one run at a time.** One browser profile holds one lock, and the pipeline opens a
+  fresh conversation per stage. A second run is refused rather than queued.
+* **The reports stay local.** Nothing is posted back, and a locally-produced report is never
+  served to a visitor: the citation checking behind it is the same code, but it ran on your
+  machine, and the server has not seen the passages it claims to quote.
+
+Token counts in a local run are estimates — a chat site reports none — and the cost is zero
+because no key is billed. Both are labelled as such wherever they are shown.
+
 ### Configuration
 
 Everything is `RAG_*` in the environment or `.env`; `.env.example` lists it. Two settings
@@ -128,14 +179,6 @@ are not free choices:
 |---|---|
 | `RAG_ENCRYPTION_KEY` | The API's `Llm:EncryptionKey`, exactly. It is what author provider keys were sealed with. A mismatch is not a degraded mode — it is every analysis failing to read a key. |
 | `RAG_EMBEDDING_DIMENSIONS` | The width of the `RagDocuments.Embedding` column, which the migration creates at 384. The worker refuses to start if they disagree rather than writing vectors the column will reject. `uv run rag-migrate` resizes the column to match (clearing stored vectors, so each author is re-embedded on their next index run). |
-
-`RAG_WEB_SITE` is the one local-only setting worth knowing about. Set it to `gemini`,
-`claude` or `chatgpt` and job-fit and cover-letter jobs are answered by a signed-in browser
-conversation rather than the author's key — free, slow and unseeded, which is what makes the
-whole pipeline exercisable without spending anything. Sign in once with
-`uv run python -m rag.webchat login`, and run a single worker: one browser profile serves
-one job at a time. A stored, validated credential is still required, because nothing about
-the account's consent or its ceilings is skipped — only the bill.
 
 ## Tests
 
