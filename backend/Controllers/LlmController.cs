@@ -17,9 +17,9 @@ namespace Backend.Controllers;
 /// <see cref="Backend.Common.Security.SecretProtector"/>.
 ///
 /// Running a job is not in that class. It cannot read, replace or remove the key, and what
-/// it can spend is already bounded by the account's monthly ceilings, so the three run
-/// endpoints below accept an API token with the write scope. That is what lets a script —
-/// or <c>tools/cover-letter</c> — drive the pipeline without a studio sign-in.
+/// it can spend is already bounded by the account's monthly ceilings, so the run endpoints
+/// below accept an API token with the write scope. That is what lets a script — or the
+/// local service in <c>rag/src/rag/local</c> — drive the pipeline without a studio sign-in.
 /// </summary>
 [ApiController]
 [Route("api/llm")]
@@ -156,6 +156,26 @@ public class LlmController : ControllerBase
         CancellationToken cancellationToken)
     {
         var job = await _credentials.WriteCoverLetterAsync(dto, cancellationToken);
+        return Accepted($"/api/llm/jobs/{job.Id}", job);
+    }
+
+    /// <summary>
+    /// Searches your own index and hands back the passages, without calling any model.
+    ///
+    /// The retrieval half of the pipeline on its own, for running the reasoning half
+    /// yourself — see <c>rag/src/rag/local</c>, which does exactly that against a signed-in
+    /// chat site in your own browser. No provider key is needed and nothing is billed.
+    /// </summary>
+    [HttpPost("retrieval")]
+    [ProducesResponseType(typeof(RagJobDto), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<RagJobDto>> Retrieve(
+        [FromBody] RetrievalRequestDto dto,
+        CancellationToken cancellationToken)
+    {
+        var job = await _credentials.RetrieveAsync(dto, cancellationToken);
         return Accepted($"/api/llm/jobs/{job.Id}", job);
     }
 

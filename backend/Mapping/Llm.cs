@@ -30,6 +30,9 @@ public static class LlmMappingExtensions
     /// <summary>A letter: one extraction and one generation.</summary>
     private const int CoverLetterEstimateSeconds = 30;
 
+    /// <summary>And a bare search, which calls no model and is over in a moment.</summary>
+    private const int RetrievalEstimateSeconds = 5;
+
     public static LlmCredentialDto ToDto(
         this LlmCredential credential,
         IReadOnlyList<string> availableModels,
@@ -91,27 +94,32 @@ public static class LlmMappingExtensions
         {
             RagJobKind.Index => IndexEstimateSeconds,
             RagJobKind.CoverLetter => CoverLetterEstimateSeconds,
+            RagJobKind.Retrieval => RetrievalEstimateSeconds,
             _ => JobFitEstimateSeconds
         },
         Report = job.Kind == RagJobKind.JobFit ? ReadReport(job, includeUsage) : null,
-        CoverLetter = job.Kind == RagJobKind.CoverLetter ? ReadCoverLetter(job) : null
+        CoverLetter = job.Kind == RagJobKind.CoverLetter ? ReadCoverLetter(job) : null,
+        Retrieval = job.Kind == RagJobKind.Retrieval ? Read<RetrievalResultDto>(job) : null
     };
 
-    /// <summary>The letter out of a finished job, or null if there is not one to read.</summary>
-    private static CoverLetterDto? ReadCoverLetter(RagJob job)
+    /// <summary>A finished job's result as <typeparamref name="T"/>, or null if there is not one.</summary>
+    private static T? Read<T>(RagJob job) where T : class
     {
         if (job.Status != RagJobStatus.Succeeded || string.IsNullOrWhiteSpace(job.ResultJson))
             return null;
 
         try
         {
-            return JsonSerializer.Deserialize<CoverLetterDto>(job.ResultJson, WorkerJson);
+            return JsonSerializer.Deserialize<T>(job.ResultJson, WorkerJson);
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    /// <summary>The letter out of a finished job, or null if there is not one to read.</summary>
+    private static CoverLetterDto? ReadCoverLetter(RagJob job) => Read<CoverLetterDto>(job);
 
     /// <summary>The report out of a finished job, or null if there is not one to read.</summary>
     private static JobFitReportDto? ReadReport(RagJob job, bool includeUsage)
