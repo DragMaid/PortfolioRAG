@@ -1,3 +1,4 @@
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -8,80 +9,279 @@
         color-scheme: light dark;
         --fg: #1d1b18;
         --muted: #6b665e;
+        --faint: #9a948a;
         --bg: #faf8f4;
-        --line: #d9d3c8;
+        --panel: #fffdf9;
+        --sunk: #f2eee7;
+        --line: #e2dcd1;
         --field: #fff;
+        --accent: #2c5d8f;
+        --accent-soft: #e4edf6;
         --error: #a3332a;
+        --error-soft: #f8e6e3;
         --ok: #2f6b3a;
+        --ok-soft: #e3f0e4;
+        --warn: #8a5a12;
+        --warn-soft: #f6ecd9;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
       }
       @media (prefers-color-scheme: dark) {
         :root {
           --fg: #ece8e1;
           --muted: #a39d93;
-          --bg: #171614;
-          --line: #3a3732;
-          --field: #201e1b;
+          --faint: #7a746b;
+          --bg: #151412;
+          --panel: #1c1a18;
+          --sunk: #232120;
+          --line: #34312c;
+          --field: #1f1d1a;
+          --accent: #7fb0e0;
+          --accent-soft: #1d2a38;
           --error: #e07a70;
+          --error-soft: #3a1f1c;
           --ok: #7cc48a;
+          --ok-soft: #1c2e20;
+          --warn: #e0b061;
+          --warn-soft: #362a17;
         }
       }
       * { box-sizing: border-box; }
       body {
         margin: 0 auto;
-        max-width: 780px;
-        padding: 24px 16px 64px;
-        font: 14px/1.5 system-ui, sans-serif;
+        max-width: 880px;
+        padding: 32px 16px 80px;
+        font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
         color: var(--fg);
         background: var(--bg);
       }
-      h1 { font-size: 20px; margin: 0 0 4px; }
-      h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 12px; }
-      h3 { font-size: 13px; margin: 16px 0 6px; }
-      section { border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin-top: 16px; }
-      label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+      code, .mono { font-family: var(--mono); font-size: 12px; }
+      h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      h3 { font-size: 13px; margin: 18px 0 6px; }
+      p { margin: 0 0 8px; }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-top: 16px;
+      }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
       input, textarea {
         width: 100%;
-        padding: 7px 9px;
+        padding: 8px 10px;
         font: inherit;
         color: inherit;
         background: var(--field);
         border: 1px solid var(--line);
-        border-radius: 4px;
+        border-radius: 6px;
       }
+      input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
       textarea { resize: vertical; }
-      button { margin-top: 12px; padding: 7px 14px; font: inherit; cursor: pointer; }
+      button {
+        padding: 7px 14px;
+        font: inherit;
+        color: inherit;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) { border-color: var(--muted); }
+      button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+      button.small { padding: 2px 8px; font-size: 12px; }
       button:disabled { cursor: not-allowed; opacity: 0.55; }
+      .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      .spacer { flex: 1; }
       .muted { color: var(--muted); font-size: 12px; }
       .error { color: var(--error); white-space: pre-wrap; }
       .ok { color: var(--ok); }
       .prose { white-space: pre-wrap; border-left: 3px solid var(--line); padding-left: 12px; }
-      .score { font-size: 28px; font-weight: 600; }
-      .tabs { display: flex; gap: 8px; margin-bottom: 4px; }
-      .tabs button { margin: 0; }
-      .tabs button[aria-pressed="true"] { border-color: var(--fg); font-weight: 600; }
-      .stages { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
-      .stages li {
+      [hidden] { display: none !important; }
+
+      /* Token */
+      .token-on { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; }
+      .check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+      .check input { width: auto; margin: 0; }
+
+      /* Tabs */
+      .tabs { display: inline-flex; background: var(--sunk); border-radius: 8px; padding: 3px; gap: 2px; }
+      .tabs button { border: 0; background: transparent; padding: 5px 14px; border-radius: 6px; }
+      .tabs button[aria-pressed="true"] { background: var(--panel); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+
+      /* Progress */
+      .progress-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+      .progress-head strong { font-size: 15px; }
+      .clock { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
+      .bar { height: 6px; background: var(--sunk); border-radius: 999px; overflow: hidden; margin: 10px 0 14px; }
+      .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.5s ease; }
+      .bar[data-state="succeeded"] > div { background: var(--ok); }
+      .bar[data-state="failed"] > div { background: var(--error); }
+      .bar[data-state="running"] > div {
+        background-image: linear-gradient(90deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 55%, transparent) 50%, var(--accent) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 1.6s linear infinite;
+      }
+      @keyframes shimmer { to { background-position: -200% 0; } }
+      @media (prefers-reduced-motion: reduce) { .bar > div { animation: none !important; transition: none; } }
+
+      /* Pipeline */
+      .pipeline { list-style: none; margin: 0; padding: 0; position: relative; }
+      .stage { position: relative; padding-left: 34px; padding-bottom: 12px; }
+      .stage::before {
+        content: "";
+        position: absolute;
+        left: 11px;
+        top: 26px;
+        bottom: 0;
+        width: 2px;
+        background: var(--line);
+      }
+      .stage:last-child::before { display: none; }
+      .stage[data-state="done"]::before { background: var(--ok); opacity: 0.5; }
+      .marker {
+        position: absolute;
+        left: 0;
+        top: 2px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        display: grid;
+        place-items: center;
         font-size: 11px;
+        font-weight: 700;
+        color: var(--faint);
+      }
+      .stage[data-state="now"] .marker { border-color: var(--accent); color: var(--accent); }
+      .stage[data-state="now"] .marker::after {
+        content: "";
+        position: absolute;
+        inset: -5px;
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        opacity: 0.35;
+        animation: pulse 1.4s ease-out infinite;
+      }
+      @keyframes pulse { from { transform: scale(0.8); opacity: 0.6; } to { transform: scale(1.3); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .stage .marker::after { animation: none !important; } }
+      .stage[data-state="done"] .marker { border-color: var(--ok); background: var(--ok); color: var(--bg); }
+      .stage[data-state="failed"] .marker { border-color: var(--error); background: var(--error); color: var(--bg); }
+
+      .card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+      .stage[data-state="now"] .card { border-color: var(--accent); }
+      .stage[data-state="failed"] .card { border-color: var(--error); }
+      .card > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 9px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .card > summary::-webkit-details-marker { display: none; }
+      .card > summary::after { content: "▸"; color: var(--faint); margin-left: auto; transition: transform 0.15s; }
+      .card[open] > summary::after { transform: rotate(90deg); }
+      .card:not([data-has-output]) > summary { cursor: default; }
+      .card:not([data-has-output]) > summary::after { visibility: hidden; }
+      .stage-name { font-weight: 600; }
+      .kind {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: var(--sunk);
+        color: var(--muted);
+      }
+      .kind[data-kind="llm"] { background: var(--accent-soft); color: var(--accent); }
+      .flow { width: 100%; font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
+      .flow .arrow { color: var(--faint); }
+      .flow b { color: var(--fg); font-weight: 600; }
+      .card-body { border-top: 1px solid var(--line); padding: 12px; }
+      .raw { margin-top: 12px; }
+      .raw pre {
+        margin: 8px 0 0;
+        max-height: 360px;
+        overflow: auto;
+        padding: 10px;
+        background: var(--sunk);
+        border-radius: 6px;
+        font: 11.5px/1.5 var(--mono);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      /* Stage output pieces */
+      .kv { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; font-size: 13px; }
+      .kv span { color: var(--muted); font-size: 12px; }
+      .table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+      th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+      th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      tr:last-child td { border-bottom: 0; }
+      .pill {
+        display: inline-block;
+        font-size: 10.5px;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: var(--muted);
-        border: 1px solid var(--line);
+        padding: 1px 7px;
         border-radius: 999px;
-        padding: 1px 8px;
+        background: var(--sunk);
+        color: var(--muted);
+        white-space: nowrap;
       }
-      .stages li[data-state="done"] { color: var(--ok); border-color: var(--ok); }
-      .stages li[data-state="now"] { color: var(--fg); border-color: var(--fg); }
+      .pill[data-v="met"], .pill[data-v="strong"], .pill[data-v="essential"] { background: var(--ok-soft); color: var(--ok); }
+      .pill[data-v="partial"], .pill[data-v="promising"] { background: var(--warn-soft); color: var(--warn); }
+      .pill[data-v="missing"], .pill[data-v="weak"], .pill[data-v="demoted"] { background: var(--error-soft); color: var(--error); }
+      .passages { display: grid; gap: 8px; }
+      .passage { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+      .passage-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12px; }
+      .passage-head .label { font-weight: 600; font-size: 13px; }
+      .passage-text {
+        margin-top: 6px;
+        font-size: 12.5px;
+        white-space: pre-wrap;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      .passage-text.clamp { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+      .chip { font-size: 11px; background: var(--sunk); color: var(--muted); border-radius: 4px; padding: 0 6px; }
+      .finding { border-top: 1px solid var(--line); padding: 8px 0; }
+      .finding:first-child { border-top: 0; padding-top: 0; }
+      .finding-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+      .conf { font-family: var(--mono); font-size: 11px; color: var(--muted); }
       ul.bullets { margin: 4px 0; padding-left: 20px; }
-      .requirement { border-top: 1px solid var(--line); padding: 8px 0; }
-      .status { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
       blockquote {
-        margin: 4px 0 0;
-        padding-left: 10px;
+        margin: 6px 0 0;
+        padding: 2px 0 2px 10px;
         border-left: 2px solid var(--line);
         font-style: italic;
         color: var(--muted);
+        font-size: 12.5px;
       }
-      [hidden] { display: none !important; }
+      blockquote .src { font-style: normal; font-size: 11px; color: var(--faint); }
+
+      /* Report */
+      .score-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+      .score { font-size: 40px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+      .score small { font-size: 14px; color: var(--muted); font-weight: 400; }
+      .headline { font-size: 16px; font-weight: 600; margin: 8px 0; }
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+      @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } section { padding: 16px; } }
+      .requirement { border-top: 1px solid var(--line); padding: 10px 0; }
+      .letter-body { font-size: 14.5px; line-height: 1.65; }
     </style>
   </head>
   <body>
@@ -89,93 +289,172 @@
     <p class="muted" id="intro">Loading…</p>
 
     <section>
-      <h2>1. Your API token</h2>
+      <h2>1 · API token</h2>
       <div id="signed-out">
-        <label for="token">API token — the <code>pfl_…</code> kind, from the studio's access tab</label>
+        <label for="token">The <code>pfl_…</code> kind, from the studio's access tab</label>
         <input id="token" type="password" autocomplete="off" placeholder="pfl_…" />
-        <button id="use-token">Use this token</button>
+        <label class="check"><input id="remember" type="checkbox" checked /> Remember it in this browser</label>
+        <div class="row"><button id="use-token" class="primary">Use this token</button></div>
       </div>
-      <div id="signed-in" hidden>
-        <p>Using token <strong id="who"></strong>. <button id="forget">Forget it</button></p>
+      <div id="signed-in" class="token-on" hidden>
+        <span class="dot" aria-hidden="true"></span>
+        <span>Using <code id="who"></code></span>
+        <span class="muted" id="token-where"></span>
+        <span class="spacer"></span>
+        <button id="forget" class="small">Forget it</button>
       </div>
       <p id="auth-status" class="error"></p>
       <p class="muted">
-        It is used for one thing: asking the API for the passages a search turns up. The
-        posting itself never goes there — reading it, judging it and writing it up all
-        happen in the browser this service drives. Nothing is billed, and no provider key is
-        involved.
+        Used for one thing: asking the API for the passages a search turns up. The posting
+        itself never goes there. Reading it, judging it and writing it up all happen in the
+        browser this service drives. Nothing is billed, and no provider key is involved.
       </p>
     </section>
 
     <section id="run-section" hidden>
-      <h2>2. Run it</h2>
-      <div class="tabs">
+      <h2>2 · Run it</h2>
+      <div class="tabs" role="group" aria-label="What to produce">
         <button id="tab-fit" aria-pressed="true">Job fit</button>
         <button id="tab-letter" aria-pressed="false">Cover letter</button>
       </div>
 
-      <label for="jd">Job description — the role and company are read out of it</label>
+      <label for="jd">Job description (the role and company are read out of it)</label>
       <textarea id="jd" rows="10"></textarea>
+      <p class="muted" id="jd-count"></p>
 
       <div id="notes-field" hidden>
-        <label for="notes">Notes (optional) — anything to lean on or leave out</label>
+        <label for="notes">Notes (optional): anything to lean on or leave out</label>
         <textarea id="notes" rows="2" maxlength="1000"></textarea>
       </div>
 
-      <button id="run">Run it</button>
-      <p id="run-status" class="muted"></p>
-      <ul class="stages" id="stages" hidden></ul>
+      <div class="row">
+        <button id="run" class="primary">Run it</button>
+        <span id="run-hint" class="muted"></span>
+      </div>
+    </section>
+
+    <section id="progress-section" hidden>
+      <h2>3 · Progress</h2>
+      <div class="progress-head">
+        <strong id="progress-title"></strong>
+        <span class="muted" id="progress-detail"></span>
+        <span class="clock" id="clock"></span>
+      </div>
+      <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div></div></div>
+      <p id="run-status" class="muted" hidden></p>
+      <ol class="pipeline" id="pipeline"></ol>
     </section>
 
     <section id="fit-result" hidden>
       <h2>Report</h2>
-      <p><span class="score" id="fit-score"></span> <span class="muted">/ 100 ·</span> <strong id="fit-verdict"></strong></p>
-      <p class="muted" id="fit-role"></p>
-      <p><strong id="fit-headline"></strong></p>
+      <div class="score-row">
+        <div class="score"><span id="fit-score"></span><small> / 100</small></div>
+        <span class="pill" id="fit-verdict"></span>
+        <span class="muted" id="fit-role"></span>
+      </div>
+      <p class="headline" id="fit-headline"></p>
       <div id="fit-summary" class="prose"></div>
-      <h3>Strengths</h3>
-      <ul class="bullets" id="fit-strengths"></ul>
-      <h3>Gaps</h3>
-      <ul class="bullets" id="fit-gaps"></ul>
+      <div class="two-col">
+        <div>
+          <h3>Strengths</h3>
+          <ul class="bullets" id="fit-strengths"></ul>
+        </div>
+        <div>
+          <h3>Gaps</h3>
+          <ul class="bullets" id="fit-gaps"></ul>
+        </div>
+      </div>
       <h3>Requirements</h3>
       <div id="fit-requirements"></div>
       <p class="muted" id="fit-retrieval"></p>
       <p class="muted" id="fit-usage"></p>
-      <button id="fit-save">Save the JSON</button>
+      <div class="row"><button id="fit-save">Save the JSON</button></div>
     </section>
 
     <section id="letter-result" hidden>
       <h2>Letter</h2>
       <p class="muted" id="letter-role"></p>
-      <div id="letter" class="prose"></div>
+      <div id="letter" class="prose letter-body"></div>
       <p class="muted" id="letter-sources"></p>
       <p class="muted" id="letter-usage"></p>
-      <button id="letter-copy">Copy</button>
+      <div class="row"><button id="letter-copy">Copy</button></div>
     </section>
 
     <script>
       const $ = (id) => document.getElementById(id);
       const TOKEN_KEY = "rag-local.token";
+      const RUN_KEY = "rag-local.last-run";
+      const DRAFT_KEY = "rag-local.draft";
 
-      // The stages the pipeline reports, in the order it runs them. Listed here so the page
-      // can show what has not happened yet as well as what has.
-      const FIT_STAGES = ["extract", "retrieve", "assess", "verify", "narrate"];
-      const LETTER_STAGES = ["extract", "write"];
+      // The stages each pipeline reports, in the order it runs them, so the page can show
+      // what has not happened yet as well as what has.
+      const STAGES = {
+        extract: { label: "Extract", kind: "llm", doing: "Reading the posting into requirements" },
+        retrieve: { label: "Retrieve", kind: "code", doing: "Searching the portfolio for each requirement" },
+        assess: { label: "Assess", kind: "llm", doing: "Judging each requirement against the passages" },
+        verify: { label: "Verify", kind: "code", doing: "Checking every citation against its passage" },
+        narrate: { label: "Narrate", kind: "llm", doing: "Writing up the verified findings" },
+        write: { label: "Write", kind: "llm", doing: "Writing the letter from the passages" },
+      };
+      const PIPELINES = {
+        "job-fit": ["extract", "retrieve", "assess", "verify", "narrate"],
+        "cover-letter": ["extract", "retrieve", "write"],
+      };
 
       let config = null;
       let kind = "job-fit";
       let report = null;
+      let polling = false;
 
+      // localStorage keeps the token across reloads and new tabs; sessionStorage is the
+      // fallback when the reader chose not to remember it. Either can throw when storage is
+      // blocked, so every access is guarded.
+      function store(persistent) {
+        try { return persistent ? localStorage : sessionStorage; } catch { return null; }
+      }
       const storage = {
-        get(key) { try { return sessionStorage.getItem(key); } catch { return null; } },
-        set(key, value) { try { sessionStorage.setItem(key, value); } catch {} },
-        remove(key) { try { sessionStorage.removeItem(key); } catch {} },
+        get(key) {
+          for (const s of [store(true), store(false)]) {
+            try { const v = s?.getItem(key); if (v != null) return v; } catch {}
+          }
+          return null;
+        },
+        set(key, value, persistent = true) {
+          try { store(persistent)?.setItem(key, value); } catch {}
+        },
+        remove(key) {
+          for (const s of [store(true), store(false)]) { try { s?.removeItem(key); } catch {} }
+        },
+        where(key) {
+          try { if (store(true)?.getItem(key) != null) return "remembered in this browser"; } catch {}
+          return "for this tab only";
+        },
       };
 
       function show(element, message, kindName) {
         element.textContent = message;
         element.className = kindName || "muted";
+        element.hidden = !message;
       }
+
+      /** Builds an element: h("p", { className: "x" }, "text", child). */
+      function h(tag, props, ...children) {
+        const element = document.createElement(tag);
+        for (const [key, value] of Object.entries(props || {})) {
+          if (value == null || value === false) continue;
+          if (key === "dataset") Object.assign(element.dataset, value);
+          else if (key in element) element[key] = value;
+          else element.setAttribute(key, value);
+        }
+        for (const child of children.flat()) {
+          if (child == null || child === false) continue;
+          element.append(child instanceof Node ? child : document.createTextNode(String(child)));
+        }
+        return element;
+      }
+
+      const pill = (value, text) => h("span", { className: "pill", dataset: { v: value } }, text ?? value);
+      const plural = (n, word, many) => `${n} ${n === 1 ? word : many || `${word}s`}`;
 
       /** One call to this service. Its errors are already one readable line. */
       async function local(method, path, body) {
@@ -196,9 +475,11 @@
 
         if (!response.ok) {
           const detail = data?.detail;
-          throw new Error(
+          const error = new Error(
             typeof detail === "string" ? detail : `The local service answered ${response.status}.`,
           );
+          error.status = response.status;
+          throw error;
         }
         return data;
       }
@@ -210,13 +491,17 @@
             `Passages come from ${config.api}. Every model call happens in ${config.site}, ` +
             `in ${config.browser}${config.headless ? " (headless)" : ""}, signed in as you. ` +
             `Nothing is billed.`;
+          updateCount();
         } catch (error) {
           show($("intro"), error.message, "error");
         }
       }
 
+      // ---- Token ---------------------------------------------------------------------
+
       function remembered(token) {
         $("who").textContent = `${token.slice(0, 12)}…`;
+        $("token-where").textContent = `· ${storage.where(TOKEN_KEY)}`;
         $("signed-out").hidden = true;
         $("signed-in").hidden = false;
         $("run-section").hidden = false;
@@ -236,16 +521,21 @@
         if (!token.startsWith("pfl_")) {
           show(
             $("auth-status"),
-            "That does not look like an API token — they begin with pfl_ and are issued in " +
+            "That does not look like an API token. They begin with pfl_ and are issued in " +
               "the studio's access tab.",
             "error",
           );
           return;
         }
 
-        storage.set(TOKEN_KEY, token);
+        storage.remove(TOKEN_KEY);
+        storage.set(TOKEN_KEY, token, $("remember").checked);
         $("token").value = "";
         remembered(token);
+      });
+
+      $("token").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") $("use-token").click();
       });
 
       $("forget").addEventListener("click", () => {
@@ -253,57 +543,401 @@
         show($("auth-status"), "");
       });
 
+      // ---- Form ----------------------------------------------------------------------
+
       function selectKind(next) {
         kind = next;
         $("tab-fit").setAttribute("aria-pressed", String(next === "job-fit"));
         $("tab-letter").setAttribute("aria-pressed", String(next === "cover-letter"));
         $("notes-field").hidden = next !== "cover-letter";
         $("run").textContent = next === "job-fit" ? "Run the analysis" : "Write the letter";
+        saveDraft();
+      }
+
+      function saveDraft() {
+        storage.set(DRAFT_KEY, JSON.stringify({ kind, jd: $("jd").value, notes: $("notes").value }));
+      }
+
+      function loadDraft() {
+        try {
+          const draft = JSON.parse(storage.get(DRAFT_KEY) || "{}");
+          $("jd").value = draft.jd || "";
+          $("notes").value = draft.notes || "";
+          selectKind(draft.kind === "cover-letter" ? "cover-letter" : "job-fit");
+        } catch {
+          selectKind("job-fit");
+        }
+      }
+
+      function updateCount() {
+        const n = $("jd").value.trim().length;
+        const min = config?.minimumChars ?? 120;
+        const max = config?.maximumChars ?? 20000;
+        $("jd-count").textContent =
+          n === 0 ? "" : n < min ? `${n} characters, at least ${min} needed` :
+          n > max ? `${n.toLocaleString()} characters, over the ${max.toLocaleString()} limit` :
+          `${n.toLocaleString()} characters`;
+        $("jd-count").className = n > 0 && (n < min || n > max) ? "error" : "muted";
       }
 
       $("tab-fit").addEventListener("click", () => selectKind("job-fit"));
       $("tab-letter").addEventListener("click", () => selectKind("cover-letter"));
+      $("jd").addEventListener("input", () => { updateCount(); saveDraft(); });
+      $("notes").addEventListener("input", saveDraft);
 
-      function renderStages(run) {
-        const expected = run.kind === "job-fit" ? FIT_STAGES : LETTER_STAGES;
-        const seen = new Set(run.stages || []);
+      // ---- Progress ------------------------------------------------------------------
 
-        $("stages").replaceChildren(
-          ...expected.map((name) => {
-            const item = document.createElement("li");
-            item.textContent = name;
-            item.dataset.state =
-              run.stage === name ? "now" : seen.has(name) ? "done" : "waiting";
+      let clock = { timer: null, base: 0, at: 0 };
+
+      function tickClock(run) {
+        clock.base = run.elapsed;
+        clock.at = Date.now();
+        const paint = () => {
+          const s = clock.base + (run.status === "running" ? Math.floor((Date.now() - clock.at) / 1000) : 0);
+          $("clock").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+        };
+        paint();
+        clearInterval(clock.timer);
+        if (run.status === "running") clock.timer = setInterval(paint, 1000);
+      }
+
+      function stageState(run, name) {
+        const outputs = run.outputs || {};
+        if (run.status === "failed" && run.stage === name) return "failed";
+        if (run.status === "running" && run.stage === name) return "now";
+        if (name in outputs || (run.stages || []).includes(name)) return "done";
+        return "waiting";
+      }
+
+      /** The pipeline's cards, built once per run and filled in as outputs arrive, so a
+       *  card the reader opened stays open across polls. */
+      let cards = { runId: null, byStage: {} };
+
+      function buildPipeline(run) {
+        const list = PIPELINES[run.kind];
+        cards = { runId: run.id, byStage: {} };
+        $("pipeline").replaceChildren(
+          ...list.map((name, index) => {
+            const meta = STAGES[name];
+            const flow = h("div", { className: "flow" });
+            const body = h("div", { className: "card-body" });
+            const card = h(
+              "details",
+              { className: "card" },
+              h(
+                "summary",
+                {},
+                h("span", { className: "stage-name" }, meta.label),
+                h("span", { className: "kind", dataset: { kind: meta.kind } }, meta.kind === "llm" ? "model" : "code"),
+                flow,
+              ),
+              body,
+            );
+            // A stage with nothing to show yet should not open onto an empty body.
+            card.addEventListener("toggle", () => {
+              if (card.open && !("hasOutput" in card.dataset)) card.open = false;
+            });
+            const item = h("li", { className: "stage" }, h("span", { className: "marker" }, index + 1), card);
+            cards.byStage[name] = { item, card, flow, body, filled: false };
             return item;
           }),
         );
-        $("stages").hidden = false;
       }
+
+      function renderProgress(run) {
+        if (cards.runId !== run.id) buildPipeline(run);
+        $("progress-section").hidden = false;
+
+        const list = PIPELINES[run.kind];
+        const outputs = run.outputs || {};
+        let done = 0;
+
+        for (const name of list) {
+          const state = stageState(run, name);
+          const slot = cards.byStage[name];
+          slot.item.dataset.state = state;
+          if (state === "done") done += 1;
+          if (state === "now") done += 0.4;
+
+          slot.flow.replaceChildren(...flowLine(name, run, state));
+
+          if (!slot.filled && outputs[name]) {
+            slot.filled = true;
+            slot.card.dataset.hasOutput = "";
+            slot.body.replaceChildren(renderOutput(name, outputs[name], outputs), rawToggle(outputs[name]));
+          }
+        }
+
+        const percent = run.status === "succeeded" ? 100 : Math.round((done / list.length) * 100);
+        $("bar").dataset.state = run.status;
+        $("bar").firstElementChild.style.width = `${Math.max(percent, 3)}%`;
+        $("bar").setAttribute("aria-valuenow", String(percent));
+
+        if (run.status === "running") {
+          const meta = STAGES[run.stage];
+          const index = list.indexOf(run.stage);
+          $("progress-title").textContent = meta ? `${meta.doing}…` : "Starting the browser…";
+          $("progress-detail").textContent =
+            index >= 0 ? `Stage ${index + 1} of ${list.length}${meta.kind === "llm" ? " · a browser is typing, so this is not quick" : ""}` : "";
+        } else if (run.status === "succeeded") {
+          $("progress-title").textContent = "Done";
+          $("progress-detail").textContent = `${list.length} stages`;
+        } else {
+          const meta = STAGES[run.stage];
+          $("progress-title").textContent = meta ? `Failed at ${meta.label.toLowerCase()}` : "Failed";
+          $("progress-detail").textContent = "";
+        }
+
+        tickClock(run);
+      }
+
+      /** "what went in → what came out", from the outputs so far. */
+      function flowLine(name, run, state) {
+        const o = run.outputs || {};
+        const reqs = o.extract?.requirements?.length;
+        const passages = o.retrieve?.passages?.length;
+        const parts = { in: null, out: null };
+
+        switch (name) {
+          case "extract":
+            parts.in = "the posting";
+            if (o.extract) parts.out = `${plural(reqs, "requirement")} · ${o.extract.seniority} ${o.extract.role_title || "role"}`;
+            break;
+          case "retrieve":
+            if (reqs != null) parts.in = plural(reqs, "search", "searches");
+            if (o.retrieve) parts.out = `${plural(passages, "passage")} from ${plural(new Set(o.retrieve.passages.map((p) => p.document_id)).size, "document")}`;
+            break;
+          case "assess":
+            if (reqs != null && passages != null) parts.in = `${plural(reqs, "requirement")} + ${plural(passages, "passage")}`;
+            if (o.assess) parts.out = countStatuses(o.assess.findings);
+            break;
+          case "verify":
+            if (o.assess) parts.in = plural(o.assess.findings.reduce((n, f) => n + (f.evidence?.length || 0), 0), "citation");
+            if (o.verify) parts.out = `${o.verify.score}/100 ${o.verify.verdict} · ${o.verify.rejected} rejected`;
+            break;
+          case "narrate":
+            if (o.verify) parts.in = "verified findings + score";
+            if (o.narrate) parts.out = `${plural(o.narrate.strengths.length, "strength")}, ${plural(o.narrate.gaps.length, "gap")}`;
+            break;
+          case "write":
+            if (reqs != null && passages != null) parts.in = `${plural(reqs, "requirement")} + ${plural(passages, "passage")}`;
+            if (o.write) parts.out = `${o.write.letter.split(/\s+/).filter(Boolean).length} words · cites ${plural(o.write.cited_document_ids.length, "passage")}`;
+            break;
+        }
+
+        const pieces = [];
+        if (parts.in) pieces.push(h("span", {}, parts.in));
+        if (parts.in) pieces.push(h("span", { className: "arrow" }, "→"));
+        if (parts.out) pieces.push(h("b", {}, parts.out));
+        else pieces.push(h("span", {}, state === "now" ? "working…" : state === "failed" ? "failed" : "waiting"));
+        return pieces;
+      }
+
+      function countStatuses(findings) {
+        const counts = { met: 0, partial: 0, missing: 0 };
+        for (const f of findings || []) counts[f.status] = (counts[f.status] || 0) + 1;
+        return `${counts.met} met, ${counts.partial} partial, ${counts.missing} missing`;
+      }
+
+      function rawToggle(data) {
+        const pre = h("pre", { hidden: true });
+        const button = h("button", { className: "small", type: "button" }, "Show raw JSON");
+        button.addEventListener("click", () => {
+          if (!pre.textContent) pre.textContent = JSON.stringify(data, null, 2);
+          pre.hidden = !pre.hidden;
+          button.textContent = pre.hidden ? "Show raw JSON" : "Hide raw JSON";
+        });
+        return h("div", { className: "raw" }, button, pre);
+      }
+
+      // ---- Stage outputs -------------------------------------------------------------
+
+      function renderOutput(name, data, outputs) {
+        switch (name) {
+          case "extract": return renderExtract(data);
+          case "retrieve": return renderRetrieve(data);
+          case "assess": return renderFindings(data.findings, outputs.retrieve);
+          case "verify": return renderVerify(data, outputs.assess);
+          case "narrate": return renderNarrate(data);
+          case "write": return renderWrite(data, outputs.retrieve);
+          default: return h("div");
+        }
+      }
+
+      function renderExtract(data) {
+        return h(
+          "div",
+          {},
+          h(
+            "div",
+            { className: "kv" },
+            h("div", {}, h("span", {}, "Role "), data.role_title || "unnamed"),
+            h("div", {}, h("span", {}, "Company "), data.company || "not stated"),
+            h("div", {}, h("span", {}, "Seniority "), data.seniority),
+          ),
+          h(
+            "div",
+            { className: "table-wrap" },
+            h(
+              "table",
+              {},
+              h("thead", {}, h("tr", {}, h("th", {}, "Requirement"), h("th", {}, "Kind"), h("th", {}, "Search written for it"))),
+              h(
+                "tbody",
+                {},
+                (data.requirements || []).map((r) =>
+                  h(
+                    "tr",
+                    {},
+                    h("td", {}, r.requirement, " ", r.is_essential ? pill("essential") : pill("nice", "nice to have")),
+                    h("td", {}, h("span", { className: "chip" }, r.category)),
+                    h("td", { className: "mono" }, r.search_query),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      function renderRetrieve(data) {
+        const passages = [...(data.passages || [])].sort((a, b) => b.score - a.score);
+        return h(
+          "div",
+          {},
+          h("p", { className: "muted" }, `${plural(data.queries?.length || 0, "search", "searches")}, fused and diversified into ${plural(passages.length, "passage")}. Click a passage to read it whole.`),
+          h(
+            "div",
+            { className: "passages" },
+            passages.map((p) => {
+              const text = h("div", { className: "passage-text clamp", title: "Click to expand" }, p.content);
+              text.addEventListener("click", () => text.classList.toggle("clamp"));
+              return h(
+                "div",
+                { className: "passage" },
+                h(
+                  "div",
+                  { className: "passage-head" },
+                  h("span", { className: "mono" }, `#${p.document_id}`),
+                  h("span", { className: "label" }, p.source_label || "untitled"),
+                  h("span", { className: "chip" }, p.source_type),
+                  h("span", { className: "spacer" }),
+                  h("span", { className: "conf" }, `score ${Number(p.score).toFixed(3)}`),
+                ),
+                text,
+                p.matched_queries?.length
+                  ? h("div", { className: "chips" }, p.matched_queries.map((q) => h("span", { className: "chip" }, q)))
+                  : null,
+              );
+            }),
+          ),
+        );
+      }
+
+      function labelFor(retrieve) {
+        const labels = new Map((retrieve?.passages || []).map((p) => [p.document_id, p.source_label]));
+        return (id) => labels.get(id) || `#${id}`;
+      }
+
+      function renderFindings(findings, retrieve, before) {
+        const label = labelFor(retrieve);
+        return h(
+          "div",
+          {},
+          (findings || []).map((f) => {
+            const was = before?.get(f.requirement);
+            const demoted = was && was !== f.status;
+            return h(
+              "div",
+              { className: "finding" },
+              h(
+                "div",
+                { className: "finding-head" },
+                pill(f.status),
+                demoted ? pill("demoted", `was ${was}`) : null,
+                h("strong", {}, f.requirement),
+                f.confidence != null ? h("span", { className: "conf" }, `${Math.round(f.confidence * 100)}%`) : null,
+              ),
+              h("p", { className: "muted" }, f.rationale),
+              (f.evidence || []).map((e) =>
+                h(
+                  "blockquote",
+                  {},
+                  `“${e.quote}” `,
+                  h("span", { className: "src" }, `— ${e.source_label || label(e.document_id)} #${e.document_id}`),
+                ),
+              ),
+            );
+          }),
+        );
+      }
+
+      function renderVerify(data, assess) {
+        const before = new Map((assess?.findings || []).map((f) => [f.requirement, f.status]));
+        const c = data.counts || {};
+        return h(
+          "div",
+          {},
+          h(
+            "div",
+            { className: "kv" },
+            h("div", {}, h("span", {}, "Score "), h("strong", {}, `${data.score}/100`)),
+            h("div", {}, h("span", {}, "Verdict "), pill(data.verdict)),
+            h("div", {}, h("span", {}, "Essential met "), `${c.essential_met ?? 0}/${c.essential ?? 0}`),
+            h("div", {}, h("span", {}, "Citations rejected "), data.rejected),
+            h("div", {}, h("span", {}, "Documents cited "), (data.cited_document_ids || []).length),
+          ),
+          renderFindings(data.findings, null, before),
+        );
+      }
+
+      function renderNarrate(data) {
+        return h(
+          "div",
+          {},
+          h("p", { className: "headline" }, data.headline),
+          h("div", { className: "prose" }, data.summary),
+          h(
+            "div",
+            { className: "two-col" },
+            h("div", {}, h("h3", {}, "Strengths"), h("ul", { className: "bullets" }, data.strengths.map((s) => h("li", {}, s)))),
+            h("div", {}, h("h3", {}, "Gaps"), h("ul", { className: "bullets" }, data.gaps.map((s) => h("li", {}, s)))),
+          ),
+        );
+      }
+
+      function renderWrite(data, retrieve) {
+        const label = labelFor(retrieve);
+        return h(
+          "div",
+          {},
+          h("div", { className: "prose letter-body" }, data.letter),
+          h(
+            "div",
+            { className: "chips" },
+            (data.cited_document_ids || []).map((id) => h("span", { className: "chip" }, `#${id} ${label(id)}`)),
+          ),
+        );
+      }
+
+      // ---- Running -------------------------------------------------------------------
 
       const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      $("run").addEventListener("click", async () => {
-        const button = $("run");
-        button.disabled = true;
-        $("fit-result").hidden = true;
-        $("letter-result").hidden = true;
-        report = null;
+      async function follow(run) {
+        polling = true;
+        $("run").disabled = true;
+        show($("run-status"), "");
+        storage.set(RUN_KEY, run.id);
 
         try {
-          let run = await local("POST", "/api/runs", {
-            kind,
-            jobDescription: $("jd").value,
-            notes: $("notes").value || null,
-          });
-
           while (run.status === "running") {
-            renderStages(run);
-            show($("run-status"), `${run.stage}… ${run.elapsed}s — this is a browser typing, so it is not quick.`);
+            renderProgress(run);
             await sleep(1500);
             run = await local("GET", `/api/runs/${run.id}`);
           }
 
-          renderStages(run);
+          renderProgress(run);
 
           if (run.status !== "succeeded") {
             show($("run-status"), run.error || "The run failed.", "error");
@@ -313,29 +947,58 @@
           report = run.report;
           if (run.kind === "job-fit") renderReport(run.report);
           else renderLetter(run.report);
-
-          show($("run-status"), `Done in ${run.elapsed}s.`, "ok");
         } catch (error) {
+          if (error.status === 404) storage.remove(RUN_KEY);
           show($("run-status"), error.message, "error");
         } finally {
-          button.disabled = false;
+          polling = false;
+          $("run").disabled = false;
+        }
+      }
+
+      $("run").addEventListener("click", async () => {
+        if (polling) return;
+        $("run").disabled = true;
+        $("fit-result").hidden = true;
+        $("letter-result").hidden = true;
+        show($("run-hint"), "");
+        report = null;
+
+        try {
+          const run = await local("POST", "/api/runs", {
+            kind,
+            jobDescription: $("jd").value,
+            notes: $("notes").value || null,
+          });
+          $("progress-section").scrollIntoView({ behavior: "smooth", block: "start" });
+          await follow(run);
+        } catch (error) {
+          show($("run-hint"), error.message, "error");
+          $("run").disabled = false;
         }
       });
+
+      /** Picks the last run back up after a reload: still going, or finished meanwhile. */
+      async function resume() {
+        const id = storage.get(RUN_KEY);
+        if (!id || !storage.get(TOKEN_KEY)) return;
+        try {
+          const run = await local("GET", `/api/runs/${id}`);
+          await follow(run);
+        } catch {
+          storage.remove(RUN_KEY);
+        }
+      }
+
+      // ---- Results -------------------------------------------------------------------
 
       function bullets(element, items, empty) {
         element.replaceChildren();
         if (!items || items.length === 0) {
-          const li = document.createElement("li");
-          li.className = "muted";
-          li.textContent = empty;
-          element.append(li);
+          element.append(h("li", { className: "muted" }, empty));
           return;
         }
-        for (const item of items) {
-          const li = document.createElement("li");
-          li.textContent = item;
-          element.append(li);
-        }
+        for (const item of items) element.append(h("li", {}, item));
       }
 
       function usageLine(usage) {
@@ -344,48 +1007,45 @@
         return (
           `${usage.provider} ${usage.model} · ~${usage.input_tokens} in · ~${usage.output_tokens} out · ` +
           `${cost === 0 ? "no charge" : `$${cost.toFixed(4)}`} · ${Math.round(usage.duration_ms / 1000)}s ` +
-          `(token counts are estimates — a chat site reports none)`
+          `(token counts are estimates, since a chat site reports none)`
         );
       }
+
+      const roleLine = (data) =>
+        `Read as ${data.role_title || "an unnamed role"}${data.company ? ` at ${data.company}` : ""}`;
 
       // The worker writes snake_case for the .NET side to read; a local run never goes
       // through the API, so the report arrives in exactly that shape.
       function renderReport(data) {
         $("fit-score").textContent = data.score;
         $("fit-verdict").textContent = data.verdict;
-        $("fit-role").textContent =
-          `Read as: ${data.role_title || "an unnamed role"}${data.company ? ` at ${data.company}` : ""}`;
+        $("fit-verdict").dataset.v = data.verdict;
+        $("fit-role").textContent = roleLine(data);
         $("fit-headline").textContent = data.headline;
         $("fit-summary").textContent = data.summary;
 
         bullets($("fit-strengths"), data.strengths, "Nothing lines up with this posting.");
         bullets($("fit-gaps"), data.gaps, "Nothing the posting asks for is unevidenced.");
 
-        $("fit-requirements").replaceChildren();
-        for (const requirement of data.requirements || []) {
-          const block = document.createElement("div");
-          block.className = "requirement";
-
-          const heading = document.createElement("p");
-          const status = document.createElement("span");
-          status.className = "status";
-          status.textContent = `${requirement.status}${requirement.is_essential ? "" : " · nice to have"} `;
-          heading.append(status, document.createTextNode(requirement.requirement));
-
-          const rationale = document.createElement("p");
-          rationale.className = "muted";
-          rationale.textContent = requirement.rationale;
-
-          block.append(heading, rationale);
-
-          for (const evidence of requirement.evidence || []) {
-            const quote = document.createElement("blockquote");
-            quote.textContent = `“${evidence.quote}” — ${evidence.source_label}`;
-            block.append(quote);
-          }
-
-          $("fit-requirements").append(block);
-        }
+        $("fit-requirements").replaceChildren(
+          ...(data.requirements || []).map((r) =>
+            h(
+              "div",
+              { className: "requirement" },
+              h(
+                "div",
+                { className: "finding-head" },
+                pill(r.status),
+                r.is_essential ? null : pill("nice", "nice to have"),
+                h("strong", {}, r.requirement),
+              ),
+              h("p", { className: "muted" }, r.rationale),
+              (r.evidence || []).map((e) =>
+                h("blockquote", {}, `“${e.quote}” `, h("span", { className: "src" }, `— ${e.source_label}`)),
+              ),
+            ),
+          ),
+        );
 
         const retrieval = data.retrieval;
         $("fit-retrieval").textContent = retrieval
@@ -397,12 +1057,11 @@
       }
 
       function renderLetter(data) {
-        $("letter-role").textContent =
-          `Read as: ${data.role_title || "an unnamed role"}${data.company ? ` at ${data.company}` : ""}`;
+        $("letter-role").textContent = roleLine(data);
         $("letter").textContent = data.letter;
         const sources = (data.sources || []).map((s) => `${s.source_type}: ${s.source_label}`);
         $("letter-sources").textContent = sources.length
-          ? `Drawn from — ${sources.join(" · ")}`
+          ? `Drawn from ${sources.join(" · ")}`
           : "Cited no passages.";
         $("letter-usage").textContent = usageLine(data.usage);
         $("letter-result").hidden = false;
@@ -428,10 +1087,12 @@
         }
       });
 
-      selectKind("job-fit");
+      loadDraft();
+      updateCount();
       const stored = storage.get(TOKEN_KEY);
       if (stored) remembered(stored);
       loadConfig();
+      resume();
     </script>
   </body>
 </html>

@@ -153,3 +153,59 @@ def test_what_the_worker_writes_is_what_the_local_client_reads():
     assert passage.source_type is SourceType.EXPERIENCE
     assert passage.source_label == "Helio — Engineer"
     assert passage.content == "Owned the replication layer."
+
+
+def test_every_run_drives_the_browser_from_the_thread_that_opened_it(monkeypatch):
+    """Playwright's sync API is bound to its starting thread, and the browser outlives a run.
+
+    A thread per run let the first run open the browser and the second call into it after
+    that thread had exited — ``greenlet.error: cannot switch to a different thread``.
+    """
+    import threading
+    from types import SimpleNamespace
+
+    from rag.local import runs as runs_module
+    from rag.settings import Settings
+
+    class FakeWeb:
+        def __init__(self, **_kwargs: Any):
+            self.owner = threading.get_ident()
+            self.closed_from: int | None = None
+
+        def close(self) -> None:
+            self.closed_from = threading.get_ident()
+
+    callers: list[int] = []
+
+    class FakePipeline:
+        def __init__(self, *, provider: FakeWeb, **_kwargs: Any):
+            self.provider = provider
+
+        def run(self, _retriever, _request, on_stage, on_output):
+            assert threading.get_ident() == self.provider.owner
+            callers.append(threading.get_ident())
+            on_stage("extract")
+            on_output("extract", {"requirements": []})
+
+            return SimpleNamespace(report={"score": 1})
+
+    monkeypatch.setattr(runs_module, "WebProvider", FakeWeb)
+    monkeypatch.setattr(runs_module, "JobFitPipeline", FakePipeline)
+
+    service = runs_module.Runs(Settings(), site="claude", browser="camoufox", headless=True)
+    finished = []
+
+    for _ in range(2):
+        run = service.start(
+            kind="job-fit", token="pfl_x", api_base="http://api.test", job_description="x"
+        )
+        service._browser_thread.submit(lambda: None).result()
+        finished.append(service.get(run.id))
+
+    assert [run.status for run in finished] == ["succeeded", "succeeded"], finished[0].error
+    assert finished[1].outputs == {"extract": {"requirements": []}}
+    assert len(set(callers)) == 1
+
+    web = service._web
+    service.close()
+    assert web.closed_from == callers[0]

@@ -96,7 +96,7 @@ export function AccessPanel() {
           />
         )}
 
-        <IssueTokenForm busy={tokens.busy === "issuing"} onCreate={tokens.create} />
+        <IssueTokenForm busy={tokens.busy === "issuing"} onCreateAction={tokens.create} />
       </Panel>
 
       <Panel className="flex flex-col gap-3 p-5 sm:p-6">

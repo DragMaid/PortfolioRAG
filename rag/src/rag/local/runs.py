@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -32,6 +33,7 @@ class Run:
     status: Literal["running", "succeeded", "failed"] = "running"
     stage: str = _STARTING
     stages: list[str] = field(default_factory=list)
+    outputs: dict[str, Any] = field(default_factory=dict)
     started_at: float = field(default_factory=time.monotonic)
     finished_at: float | None = None
     report: dict[str, Any] | None = None
@@ -47,7 +49,8 @@ class Run:
             "kind": self.kind,
             "status": self.status,
             "stage": self.stage,
-            "stages": self.stages,
+            "stages": list(self.stages),
+            "outputs": dict(self.outputs),
             "elapsed": self.elapsed,
             "report": self.report,
             "error": self.error,
@@ -72,8 +75,15 @@ class Runs:
         self._order: list[str] = []
         self._current: str | None = None
         self._web: WebProvider | None = None
+        # NOTE: the playwright will keep trying to cal to the same browser thread
+        # even if it's already closed.
+        self._browser_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser")
 
     def close(self) -> None:
+        self._browser_thread.submit(self._close_browser).result()
+        self._browser_thread.shutdown(wait=True)
+
+    def _close_browser(self) -> None:
         if self._web is not None:
             self._web.close()
             self._web = None
@@ -134,13 +144,7 @@ class Runs:
             while len(self._order) > _MAX_SCROLL_SIZE:
                 self._runs.pop(self._order.pop(0), None)
 
-        thread = threading.Thread(
-            target=self._run,
-            args=(run, kind, token, api_base, job_description, notes),
-            name=f"run-{run.id[:8]}",
-            daemon=True,
-        )
-        thread.start()
+        self._browser_thread.submit(self._run, run, kind, token, api_base, job_description, notes)
 
         return run
 
@@ -158,6 +162,10 @@ class Runs:
                 run.stage = name
                 run.stages.append(name)
 
+        def output(name: str, data: dict[str, Any]) -> None:
+            with self._lock:
+                run.outputs[name] = data
+
         try:
             retriever = ApiRetriever(PortfolioApi(api_base, token))
             provider = self._provider()
@@ -173,17 +181,18 @@ class Runs:
             )
 
             if isinstance(pipeline, CoverLetterPipeline):
-                # It has no stage callback of its own; these are the three it runs.
-                stage("extract")
                 outcome = pipeline.write(
                     retriever,
                     CoverLetterRequest(job_description=job_description, notes=notes),
+                    on_stage=stage,
+                    on_output=output,
                 )
             else:
                 outcome = pipeline.run(
                     retriever,
                     JobFitRequest(job_description=job_description),
                     on_stage=stage,
+                    on_output=output,
                 )
 
             with self._lock:
