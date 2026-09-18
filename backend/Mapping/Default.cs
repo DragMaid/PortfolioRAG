@@ -115,11 +115,12 @@ public static class MappingExtensions
     public static string? ResolveAvatarUrl(this Author author) =>
         author.AvatarObjectKey is null ? null : $"/api/authors/{author.Id}/avatar";
 
-    public static MediaDto ToDto(this Media media) => new()
+    public static MediaDto ToDto(this Media media, string? previewUrl = null) => new()
     {
         Id = media.Id,
         Filename = media.Filename,
         Url = $"/api/media/{media.Id}/content",
+        PreviewUrl = previewUrl,
         Extension = media.Extension,
         Role = media.Role,
         Caption = media.Caption,

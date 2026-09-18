@@ -50,6 +50,10 @@ export interface MediaDto {
     /**
      * 
      */
+    previewUrl?: string | null;
+    /**
+     * 
+     */
     extension?: MediaExtension;
     /**
      * 
@@ -95,6 +99,7 @@ export function MediaDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
         'id': json['id'] == null ? undefined : json['id'],
         'filename': json['filename'] == null ? undefined : json['filename'],
         'url': json['url'] == null ? undefined : json['url'],
+        'previewUrl': json['previewUrl'] === undefined ? undefined : json['previewUrl'] === null ? null : json['previewUrl'],
         'extension': json['extension'] == null ? undefined : MediaExtensionFromJSON(json['extension']),
         'role': json['role'] == null ? undefined : MediaRoleFromJSON(json['role']),
         'caption': json['caption'] === undefined ? undefined : json['caption'] === null ? null : json['caption'],
@@ -118,6 +123,7 @@ export function MediaDtoToJSONTyped(value?: MediaDto | null, ignoreDiscriminator
         'id': value['id'],
         'filename': value['filename'],
         'url': value['url'],
+        'previewUrl': value['previewUrl'],
         'extension': MediaExtensionToJSON(value['extension']),
         'role': MediaRoleToJSON(value['role']),
         'caption': value['caption'],

@@ -49,7 +49,10 @@ export function ArtworkSlot({ role, media, isLive, disabled, onUpload }: Artwork
     ? "The still on the project card. Pictures only."
     : "Plays in the preview banner. A video, or a second picture if there is no footage.";
 
-  const contentUrl = media?.url ? `${API_BASE_URL}${media.url}` : null;
+  /* The signed bucket link the upload came back with, when there is one. The API route is
+     only a fallback: it hides a draft's files from an image request, which carries no token. */
+  const contentUrl = media?.previewUrl
+    ?? (media?.url ? `${API_BASE_URL}${media.url}` : null);
 
   async function handleFiles(files: FileList | File[]) {
     setBusy(true);

@@ -650,8 +650,8 @@
   background: linear-gradient(
     to top,
     color-mix(in oklab, var(--color-marquee) 94%, transparent) 0%,
-    color-mix(in oklab, var(--color-marquee) 55%, transparent) 38%,
-    transparent 70%
+    color-mix(in oklab, var(--color-marquee) 70%, transparent) 45%,
+    transparent 85%
   );
 }
 
