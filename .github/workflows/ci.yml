@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+  workflow_call:
 
 # Drop the old test run if a new push to the PR is detected during the process
 concurrency:
