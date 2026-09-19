@@ -23,8 +23,8 @@ type ProjectPosterProps = {
 const PREVIEW_DELAY_MS = 380;
 
 /**
- * One film on the shelf: the project's thumbnail as key art, with its title set over the
- * foot of it like a poster's billing block.
+ * One film on the shelf: the project's thumbnail as key art, with its title and summary set
+ * over the foot of it like a poster's billing block.
  *
  * A tab, because choosing it changes the screen above. Resting on it previews it the way a
  * streaming shelf does; the delay keeps a pointer passing across the shelf from flicking
@@ -68,7 +68,7 @@ export function ProjectPoster({
       onPointerLeave={leave}
       onKeyDown={onKeyDown}
       data-active={isActive}
-      className="poster group relative aspect-[2/3] w-36 shrink-0 snap-start overflow-hidden rounded-xl bg-marquee text-left sm:w-44 lg:w-48"
+      className="poster group relative aspect-video w-72 shrink-0 snap-start overflow-hidden rounded-xl bg-marquee text-left sm:w-80 lg:w-96"
     >
       {/* Plain <img>: the src redirects to a signed link the image optimizer would outlive. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -83,14 +83,20 @@ export function ProjectPoster({
 
       <span aria-hidden className="poster-shade absolute inset-0" />
 
-      <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-3.5 text-marquee-ink sm:p-4">
+      <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 text-marquee-ink sm:p-5">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-marquee-dim tabular-nums">
           No. {project.index}
           {project.year ? ` · ${project.year}` : ""}
         </span>
-        <span className="line-clamp-3 text-balance font-serif text-lg leading-tight sm:text-xl">
+        <span className="line-clamp-1 text-balance font-serif text-xl leading-tight sm:text-2xl">
           {project.title}
         </span>
+        {/* The pitch, so a film can be judged from the shelf before it is put on screen. */}
+        {project.summary ? (
+          <span className="line-clamp-2 text-xs leading-relaxed text-marquee-dim sm:text-[13px]">
+            {project.summary}
+          </span>
+        ) : null}
       </span>
 
       {/* The rotation's countdown, on the film it is counting down. */}

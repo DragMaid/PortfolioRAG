@@ -170,7 +170,9 @@ function AssetRow({
   const [confirming, setConfirming] = useState(false);
 
   const kind = item.extension !== undefined ? KINDS[item.extension] : undefined;
-  const contentUrl = item.url ? `${API_BASE_URL}${item.url}` : null;
+  // The signed link the API minted for the author; the content route hides a draft's files
+  // from an image request, which carries no token.
+  const contentUrl = item.previewUrl ?? (item.url ? `${API_BASE_URL}${item.url}` : null);
 
   // The Markdown the author pastes into the body. The API's own content route, so it keeps
   // working when the signed storage link behind it expires.

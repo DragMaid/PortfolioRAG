@@ -295,8 +295,15 @@ export function useStudio() {
 
       for (const file of selected) {
         try {
-          await postMediaApi.postMediaUpload({ postId: baseline.id, file, role });
+          const added = await postMediaApi.postMediaUpload({ postId: baseline.id, file, role });
           uploaded++;
+
+          // Shown straight away from the upload's own signed link rather than after the
+          // re-read below. A thumbnail or trailer displaces whatever held its slot.
+          setMedia((current) => [
+            ...current.filter((item) => role === MediaRole.Attachment || item.role !== role),
+            added,
+          ]);
         } catch (error) {
           await fail(error, `Could not upload ${file.name}.`);
         }
@@ -330,7 +337,12 @@ export function useStudio() {
           updateMediaDto: { caption: caption.trim() || undefined },
         });
 
-        setMedia((current) => current.map((item) => (item.id === mediaId ? updated : item)));
+        setMedia((current) =>
+          current.map((item) =>
+            // A caption edit is not signed again; keep the link the list came with.
+            item.id === mediaId ? { ...updated, previewUrl: item.previewUrl } : item,
+          ),
+        );
         showToast("Caption saved");
       } catch (error) {
         await fail(error, "Could not save that caption.");

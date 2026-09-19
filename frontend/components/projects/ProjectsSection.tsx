@@ -12,6 +12,7 @@ import { ProjectMarquee } from "@/components/projects/ProjectMarquee";
 import { ProjectPoster } from "@/components/projects/ProjectPoster";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useRovingTabList } from "@/components/ui/useRovingTabList";
+import { cn } from "@/lib/cn";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import type { Project } from "@/lib/types";
 
@@ -21,6 +22,12 @@ const AUTOPLAY_MS = 6000;
 const MORPH_NAME = "marquee-art";
 /** How long the morph will wait for the screen's picture to decode before going anyway. */
 const DECODE_BUDGET_MS = 250;
+
+/** How much of the visible shelf one press of a side arrow moves past. */
+const PAGE_FRACTION = 0.85;
+
+const sideArrowClasses =
+  "absolute top-[calc(50%-0.25rem)] z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-warm-border bg-warm-surface/90 text-warm-black shadow-lg backdrop-blur transition-[opacity,background-color] duration-300 hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";
 
 const controlClasses =
   "flex size-9 items-center justify-center rounded-full border border-warm-border bg-warm-surface text-warm-black transition-colors hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";
@@ -45,6 +52,8 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
   const [isPageHidden, setIsPageHidden] = useState(false);
 
   const shelfRef = useRef<HTMLDivElement>(null);
+  /* Whether the shelf has films past either edge, which is what the side arrows show. */
+  const [overflow, setOverflow] = useState({ start: false, end: false });
   const marqueeRef = useRef<HTMLDivElement>(null);
   const posterArt = useRef<(HTMLImageElement | null)[]>([]);
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -126,6 +135,39 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
     });
     /* `posterRefs` is a stable ref object; listed only to satisfy the lint rule. */
   }, [activeIndex, prefersReducedMotion, posterRefs]);
+
+  const measureShelf = useCallback(() => {
+    const shelf = shelfRef.current;
+    if (!shelf) return;
+
+    // A pixel of slack: fractional widths can leave the far end a hair short of the max.
+    const start = shelf.scrollLeft > 1;
+    const end = shelf.scrollLeft + shelf.clientWidth < shelf.scrollWidth - 1;
+    setOverflow((current) =>
+      current.start === start && current.end === end ? current : { start, end },
+    );
+  }, []);
+
+  /* Re-measured on resize as well as scroll: a wider window can fit the whole shelf. */
+  useEffect(() => {
+    const shelf = shelfRef.current;
+    if (!shelf) return;
+
+    measureShelf();
+    const observer = new ResizeObserver(measureShelf);
+    observer.observe(shelf);
+    return () => observer.disconnect();
+  }, [measureShelf, count]);
+
+  const pageShelf = (direction: -1 | 1) => {
+    const shelf = shelfRef.current;
+    if (!shelf) return;
+
+    shelf.scrollBy({
+      left: direction * shelf.clientWidth * PAGE_FRACTION,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  };
 
   useEffect(() => {
     const sync = () => setIsPageHidden(document.hidden);
@@ -224,16 +266,20 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
       </div>
 
       {count > 1 ? (
-        <div className="mt-10">
+        /* The rotation pauses for the arrows too, so it lives on the wrapper, not the shelf. */
+        <div
+          className="relative mt-10"
+          onMouseEnter={suspend}
+          onMouseLeave={resume}
+          onFocusCapture={suspend}
+          onBlurCapture={resume}
+        >
           <div
             ref={shelfRef}
             role="tablist"
             aria-label="Selected works"
+            onScroll={measureShelf}
             className="shelf no-scrollbar -mx-6 flex snap-x gap-4 overflow-x-auto scroll-px-6 px-6 pb-6 pt-4 sm:-mx-8 sm:scroll-px-8 sm:px-8 sm:gap-5"
-            onMouseEnter={suspend}
-            onMouseLeave={resume}
-            onFocusCapture={suspend}
-            onBlurCapture={resume}
           >
             {projects.map((project, index) => (
               <ProjectPoster
@@ -252,6 +298,37 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
               />
             ))}
           </div>
+
+          {/* Scroll the shelf, not the film: the screen changes only when a poster is chosen.
+              Each arrow fades out at its end, so its presence says whether there is more. */}
+          <button
+            type="button"
+            onClick={() => pageShelf(-1)}
+            aria-label="Scroll works back"
+            aria-hidden={!overflow.start}
+            tabIndex={overflow.start ? 0 : -1}
+            className={cn(
+              sideArrowClasses,
+              "-left-3 sm:-left-5",
+              !overflow.start && "pointer-events-none opacity-0",
+            )}
+          >
+            <ChevronLeftIcon className="size-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => pageShelf(1)}
+            aria-label="Scroll works forward"
+            aria-hidden={!overflow.end}
+            tabIndex={overflow.end ? 0 : -1}
+            className={cn(
+              sideArrowClasses,
+              "-right-3 sm:-right-5",
+              !overflow.end && "pointer-events-none opacity-0",
+            )}
+          >
+            <ChevronRightIcon className="size-5" />
+          </button>
         </div>
       ) : null}
     </section>

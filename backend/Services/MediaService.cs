@@ -132,7 +132,7 @@ public class MediaService : IMediaService
             role,
             authorId);
 
-        return media.ToDto();
+        return await WithPreviewAsync(media, cancellationToken);
     }
 
     public async Task<IReadOnlyList<MediaDto>> GetForPostAsync(
@@ -146,7 +146,14 @@ public class MediaService : IMediaService
             throw ForbiddenException.For("post", postId);
 
         var medias = await _medias.GetByPostIdAsync(postId, cancellationToken);
-        return medias.Select(m => m.ToDto()).ToList();
+
+        // NOTE: sequential on purpose. B2 caches one authorization per folder, so after the
+        // first link the rest are local; S3 signs locally from the start.
+        var result = new List<MediaDto>(medias.Count);
+        foreach (var media in medias)
+            result.Add(await WithPreviewAsync(media, cancellationToken));
+
+        return result;
     }
 
     public async Task<IReadOnlyList<MediaDto>> GetForPublicPostAsync(
@@ -198,6 +205,25 @@ public class MediaService : IMediaService
 
         _medias.Remove(media);
         await _medias.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// The author's view of an upload, with a link the editor can draw without a round trip
+    /// through <see cref="GetContentUrlAsync"/>. A bucket that will not sign leaves the preview
+    /// empty rather than failing a request whose real work already succeeded.
+    /// </summary>
+    private async Task<MediaDto> WithPreviewAsync(Media media, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var url = await _storage.GetDownloadUrlAsync(media.ObjectKey, cancellationToken);
+            return media.ToDto(url.ToString());
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogWarning(exception, "Could not sign a preview link for {ObjectKey}.", media.ObjectKey);
+            return media.ToDto();
+        }
     }
 
     public async Task<Uri> GetContentUrlAsync(int mediaId, CancellationToken cancellationToken = default)
