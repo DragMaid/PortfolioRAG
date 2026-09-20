@@ -32,6 +32,16 @@ x-api-environment: &api-environment
   Backblaze__ApplicationKey: ${B2_APPLICATION_KEY:?}
   Backblaze__BucketName: ${B2_BUCKET_NAME:?}
   Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+  # Optional. Left empty, the API writes verification codes to its own log instead of
+  # mailing them, and an account that signed up with a password cannot publish until
+  # somebody reads one out of `docker compose logs api`.
+  Smtp__Host: ${SMTP_HOST:-}
+  Smtp__Port: ${SMTP_PORT:-587}
+  Smtp__Username: ${SMTP_USERNAME:-}
+  Smtp__Password: ${SMTP_PASSWORD:-}
+  Smtp__UseStartTls: ${SMTP_USE_STARTTLS:-true}
+  Smtp__FromAddress: ${SMTP_FROM_ADDRESS:-}
+  Smtp__FromName: ${SMTP_FROM_NAME:-Portfolio}
   Cors__AllowedOrigins__0: https://${SITE_DOMAIN:?}
   Analytics__VisitorSalt: ${ANALYTICS_VISITOR_SALT:?}
   Analytics__SelfHosts__0: ${SITE_DOMAIN:?}
