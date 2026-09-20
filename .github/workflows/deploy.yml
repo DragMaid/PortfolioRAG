@@ -107,15 +107,16 @@ jobs:
       VPS_HOST: ${{ vars.VPS_HOST }}
       VPS_PORT: ${{ vars.VPS_PORT || '22' }}
       VPS_USER: ${{ vars.VPS_USER || 'deploy' }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+      PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       APP_DIR: /opt/portfolio
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure SSH
-        env:
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy
@@ -131,8 +132,6 @@ jobs:
           EOF
 
       - name: Write .env
-        env:
-          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
         run: |
           umask 077
           printf '%s\n' "$PROD_ENV_FILE" > release.env
@@ -147,8 +146,6 @@ jobs:
 
       - name: Roll out
         # The registry token goes over stdin, not the command line, so it never shows in `ps`.
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: printf '%s' "$GHCR_TOKEN" | ssh vps "$APP_DIR/deploy.sh $GITHUB_ACTOR"
 
       - name: Clean up
