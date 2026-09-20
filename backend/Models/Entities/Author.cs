@@ -69,6 +69,13 @@ public class Author
 
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
+    /// <summary>
+    /// The codes emailed to this account's address, spent and unspent. Only ever more than
+    /// one because a resend issues a new one; see EmailVerificationService.
+    /// </summary>
+    public ICollection<EmailVerificationCode> EmailVerificationCodes { get; set; } =
+        new List<EmailVerificationCode>();
+
     /// <summary>The long-lived tokens this account has issued for scripts and CI jobs.</summary>
     public ICollection<ApiToken> ApiTokens { get; set; } = new List<ApiToken>();
 

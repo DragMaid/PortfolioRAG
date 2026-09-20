@@ -31,6 +31,13 @@ public static class AuthClaims
 
     /// <summary>Which token it was, for the audit trail in the logs.</summary>
     public const string ApiTokenId = "api_token_id";
+
+    /// <summary>
+    /// "true" once something has vouched for the account's address — a code it typed back,
+    /// or Google. Carried on the credential rather than read from the database on every
+    /// request, which is why confirming an address re-issues the token pair.
+    /// </summary>
+    public const string EmailVerified = "email_verified";
 }
 
 public static class AuthMethods

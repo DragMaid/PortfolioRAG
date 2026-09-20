@@ -16,10 +16,12 @@ namespace Backend.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IEmailVerificationService _verification;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IEmailVerificationService verification)
     {
         _authService = authService;
+        _verification = verification;
     }
 
     /// <summary>Creates an author account with a password and signs it in.</summary>
@@ -63,9 +65,13 @@ public class AuthController : ControllerBase
         Ok(await _authService.SignInWithGoogleAsync(dto, cancellationToken));
 
     /// <summary>Adds Google as a sign-in method for the account making the request.</summary>
+    // NOTE: allowed before the address is confirmed because it is one of the two ways to
+    // confirm it — linking Google to the address the account already carries sets the same
+    // stamp the code does.
     [HttpPost("oauth/google/link")]
     [Authorize]
     [SessionOnly]
+    [AllowUnverifiedEmail]
     [ProducesResponseType(typeof(AuthProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -114,6 +120,9 @@ public class AuthController : ControllerBase
     [HttpPost("password")]
     [Authorize]
     [SessionOnly]
+    // An account that cannot yet publish may still fix its password — most obviously when
+    // it registered with one it immediately regretted.
+    [AllowUnverifiedEmail]
     [ProducesResponseType(typeof(AuthResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -121,6 +130,41 @@ public class AuthController : ControllerBase
         [FromBody] SetPasswordDto dto,
         CancellationToken cancellationToken) =>
         Ok(await _authService.SetPasswordAsync(dto, cancellationToken));
+
+    /// <summary>
+    /// Confirms the caller's email address with the code that was mailed to it, and
+    /// returns a fresh token pair — the one the caller arrived with still says the address
+    /// is unconfirmed, and will until it expires.
+    /// </summary>
+    [HttpPost("email/verify")]
+    [Authorize]
+    [SessionOnly]
+    [AllowUnverifiedEmail]
+    [ProducesResponseType(typeof(AuthResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<AuthResultDto>> ConfirmEmail(
+        [FromBody] ConfirmEmailDto dto,
+        CancellationToken cancellationToken) =>
+        Ok(await _verification.ConfirmAsync(dto, cancellationToken));
+
+    /// <summary>
+    /// Mails the caller another code, retiring whatever was outstanding. Refused while the
+    /// cooldown is running, or once the address has had its quota for the day.
+    /// </summary>
+    [HttpPost("email/verify/resend")]
+    [Authorize]
+    [SessionOnly]
+    [AllowUnverifiedEmail]
+    [ProducesResponseType(typeof(EmailVerificationChallengeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<EmailVerificationChallengeDto>> ResendEmailVerification(
+        CancellationToken cancellationToken) =>
+        Ok(await _verification.ResendAsync(cancellationToken));
 
     /// API routes
     /// <summary>Lists the API tokens on your account. Secrets are never included.</summary>

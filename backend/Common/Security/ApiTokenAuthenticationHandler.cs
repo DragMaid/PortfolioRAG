@@ -99,6 +99,7 @@ public class ApiTokenAuthenticationHandler : AuthenticationHandler<Authenticatio
         new Claim(JwtRegisteredClaimNames.Email, token.Author.Email),
         new Claim(JwtRegisteredClaimNames.Name, token.Author.Name),
         new Claim(AuthClaims.AuthMethod, AuthMethods.ApiToken),
+        new Claim(AuthClaims.EmailVerified, token.Author.EmailConfirmedAt is not null ? "true" : "false"),
         new Claim(AuthClaims.ApiTokenScope, token.Scope.ToString()),
         new Claim(AuthClaims.ApiTokenId, token.Id.ToString(CultureInfo.InvariantCulture))
     ];
