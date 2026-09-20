@@ -21,6 +21,13 @@ import {
     RagJobKindToJSON,
     RagJobKindToJSONTyped,
 } from './RagJobKind';
+import type { RetrievalResultDto } from './RetrievalResultDto';
+import {
+    RetrievalResultDtoFromJSON,
+    RetrievalResultDtoFromJSONTyped,
+    RetrievalResultDtoToJSON,
+    RetrievalResultDtoToJSONTyped,
+} from './RetrievalResultDto';
 import type { RagJobStatus } from './RagJobStatus';
 import {
     RagJobStatusFromJSON,
@@ -85,6 +92,10 @@ export interface RagJobDto {
      * 
      */
     coverLetter?: CoverLetterDto | null;
+    /**
+     * 
+     */
+    retrieval?: RetrievalResultDto | null;
 }
 
 
@@ -115,6 +126,7 @@ export function RagJobDtoFromJSONTyped(json: any, ignoreDiscriminator: boolean):
         'estimatedSeconds': json['estimatedSeconds'] == null ? undefined : json['estimatedSeconds'],
         'report': json['report'] === undefined ? undefined : json['report'] === null ? null : JobFitReportDtoFromJSON(json['report']),
         'coverLetter': json['coverLetter'] === undefined ? undefined : json['coverLetter'] === null ? null : CoverLetterDtoFromJSON(json['coverLetter']),
+        'retrieval': json['retrieval'] === undefined ? undefined : json['retrieval'] === null ? null : RetrievalResultDtoFromJSON(json['retrieval']),
     };
 }
 
@@ -138,6 +150,7 @@ export function RagJobDtoToJSONTyped(value?: RagJobDto | null, ignoreDiscriminat
         'estimatedSeconds': value['estimatedSeconds'],
         'report': JobFitReportDtoToJSON(value['report']),
         'coverLetter': CoverLetterDtoToJSON(value['coverLetter']),
+        'retrieval': RetrievalResultDtoToJSON(value['retrieval']),
     };
 }
 

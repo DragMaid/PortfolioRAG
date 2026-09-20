@@ -9,6 +9,7 @@ Name | Type
 `id` | number
 `filename` | string
 `url` | string
+`previewUrl` | string
 `extension` | [MediaExtension](MediaExtension.md)
 `role` | [MediaRole](MediaRole.md)
 `caption` | string
@@ -26,6 +27,7 @@ const example = {
   "id": null,
   "filename": null,
   "url": null,
+  "previewUrl": null,
   "extension": null,
   "role": null,
   "caption": null,

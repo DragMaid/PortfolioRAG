@@ -47,6 +47,10 @@ export interface AuthResultDto {
     /**
      * 
      */
+    emailConfirmed?: boolean;
+    /**
+     * 
+     */
     author?: AuthorDto;
 }
 
@@ -71,6 +75,7 @@ export function AuthResultDtoFromJSONTyped(json: any, ignoreDiscriminator: boole
         'tokenType': json['tokenType'] == null ? undefined : json['tokenType'],
         'expiresIn': json['expiresIn'] == null ? undefined : json['expiresIn'],
         'refreshToken': json['refreshToken'] == null ? undefined : json['refreshToken'],
+        'emailConfirmed': json['emailConfirmed'] == null ? undefined : json['emailConfirmed'],
         'author': json['author'] == null ? undefined : AuthorDtoFromJSON(json['author']),
     };
 }
@@ -90,6 +95,7 @@ export function AuthResultDtoToJSONTyped(value?: AuthResultDto | null, ignoreDis
         'tokenType': value['tokenType'],
         'expiresIn': value['expiresIn'],
         'refreshToken': value['refreshToken'],
+        'emailConfirmed': value['emailConfirmed'],
         'author': AuthorDtoToJSON(value['author']),
     };
 }

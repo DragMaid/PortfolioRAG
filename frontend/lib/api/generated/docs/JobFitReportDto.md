@@ -15,7 +15,6 @@ Name | Type
 `requirements` | [Array&lt;RequirementAssessmentDto&gt;](RequirementAssessmentDto.md)
 `strengths` | Array&lt;string&gt;
 `gaps` | Array&lt;string&gt;
-`talkingPoints` | Array&lt;string&gt;
 `retrieval` | [RetrievalTraceDto](RetrievalTraceDto.md)
 `usage` | [UsageDto](UsageDto.md)
 
@@ -35,7 +34,6 @@ const example = {
   "requirements": null,
   "strengths": null,
   "gaps": null,
-  "talkingPoints": null,
   "retrieval": null,
   "usage": null,
 } satisfies JobFitReportDto

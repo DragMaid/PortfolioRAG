@@ -24,6 +24,7 @@ docs/AuthResultDto.md
 docs/AuthorDto.md
 docs/AuthorSummaryDto.md
 docs/AuthorsApi.md
+docs/ConfirmEmailDto.md
 docs/ContactChannelDto.md
 docs/ContactChannelInputDto.md
 docs/ContactChannelsApi.md
@@ -33,6 +34,7 @@ docs/CoverLetterSourceDto.md
 docs/CreateApiTokenDto.md
 docs/CreatePostDto.md
 docs/DailyTrafficDto.md
+docs/EmailVerificationChallengeDto.md
 docs/EvidenceDto.md
 docs/ExperienceDto.md
 docs/ExperienceInputDto.md
@@ -73,7 +75,10 @@ docs/RefreshTokenDto.md
 docs/RegisterDto.md
 docs/RequirementAssessmentDto.md
 docs/RequirementStatus.md
+docs/RetrievalRequestDto.md
+docs/RetrievalResultDto.md
 docs/RetrievalTraceDto.md
+docs/RetrievedPassageDto.md
 docs/SaveLlmCredentialDto.md
 docs/SetPasswordDto.md
 docs/TopPostDto.md
@@ -92,6 +97,7 @@ models/AuthProfileDto.ts
 models/AuthResultDto.ts
 models/AuthorDto.ts
 models/AuthorSummaryDto.ts
+models/ConfirmEmailDto.ts
 models/ContactChannelDto.ts
 models/ContactChannelInputDto.ts
 models/CoverLetterDto.ts
@@ -100,6 +106,7 @@ models/CoverLetterSourceDto.ts
 models/CreateApiTokenDto.ts
 models/CreatePostDto.ts
 models/DailyTrafficDto.ts
+models/EmailVerificationChallengeDto.ts
 models/EvidenceDto.ts
 models/ExperienceDto.ts
 models/ExperienceInputDto.ts
@@ -134,7 +141,10 @@ models/RefreshTokenDto.ts
 models/RegisterDto.ts
 models/RequirementAssessmentDto.ts
 models/RequirementStatus.ts
+models/RetrievalRequestDto.ts
+models/RetrievalResultDto.ts
 models/RetrievalTraceDto.ts
+models/RetrievedPassageDto.ts
 models/SaveLlmCredentialDto.ts
 models/SetPasswordDto.ts
 models/TopPostDto.ts

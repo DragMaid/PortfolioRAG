@@ -15,6 +15,7 @@ Name | Type
 `estimatedSeconds` | number
 `report` | [JobFitReportDto](JobFitReportDto.md)
 `coverLetter` | [CoverLetterDto](CoverLetterDto.md)
+`retrieval` | [RetrievalResultDto](RetrievalResultDto.md)
 
 ## Example
 
@@ -32,6 +33,7 @@ const example = {
   "estimatedSeconds": null,
   "report": null,
   "coverLetter": null,
+  "retrieval": null,
 } satisfies RagJobDto
 
 console.log(example)

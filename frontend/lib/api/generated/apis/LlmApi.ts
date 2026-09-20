@@ -45,6 +45,11 @@ import {
     RagJobDtoToJSON,
 } from '../models/RagJobDto';
 import {
+    type RetrievalRequestDto,
+    RetrievalRequestDtoFromJSON,
+    RetrievalRequestDtoToJSON,
+} from '../models/RetrievalRequestDto';
+import {
     type SaveLlmCredentialDto,
     SaveLlmCredentialDtoFromJSON,
     SaveLlmCredentialDtoToJSON,
@@ -60,6 +65,13 @@ export interface LlmGetJobRequest {
      * 
      */
     id: string;
+}
+
+export interface LlmRetrieveRequest {
+    /**
+     * 
+     */
+    retrievalRequestDto: RetrievalRequestDto;
 }
 
 export interface LlmSaveCredentialRequest {
@@ -227,7 +239,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Requires a signed-in session: an API token is refused here.
      */
     async llmGetJobRaw(requestParameters: LlmGetJobRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RagJobDto>> {
         const requestOptions = await this.llmGetJobRequestOpts(requestParameters);
@@ -237,7 +248,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Requires a signed-in session: an API token is refused here.
      */
     async llmGetJob(requestParameters: LlmGetJobRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
         const response = await this.llmGetJobRaw(requestParameters, initOverrides);
@@ -286,6 +296,59 @@ export class LlmApi extends runtime.BaseAPI {
      */
     async llmGetProviders(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<LlmProviderDto>> {
         const response = await this.llmGetProvidersRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for llmRetrieve without sending the request
+     */
+    async llmRetrieveRequestOpts(requestParameters: LlmRetrieveRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['retrievalRequestDto'] == null) {
+            throw new runtime.RequiredError(
+                'retrievalRequestDto',
+                'Required parameter "retrievalRequestDto" was null or undefined when calling llmRetrieve().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/llm/retrieval`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: RetrievalRequestDtoToJSON(requestParameters['retrievalRequestDto']),
+        };
+    }
+
+    /**
+     */
+    async llmRetrieveRaw(requestParameters: LlmRetrieveRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RagJobDto>> {
+        const requestOptions = await this.llmRetrieveRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RagJobDtoFromJSON(jsonValue));
+    }
+
+    /**
+     */
+    async llmRetrieve(requestParameters: LlmRetrieveRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
+        const response = await this.llmRetrieveRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -427,7 +490,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Requires a signed-in session: an API token is refused here.
      */
     async llmTryJobFitRaw(requestParameters: LlmTryJobFitRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RagJobDto>> {
         const requestOptions = await this.llmTryJobFitRequestOpts(requestParameters);
@@ -437,7 +499,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Requires a signed-in session: an API token is refused here.
      */
     async llmTryJobFit(requestParameters: LlmTryJobFitRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
         const response = await this.llmTryJobFitRaw(requestParameters, initOverrides);
@@ -537,7 +598,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Requires a signed-in session: an API token is refused here.
      */
     async llmWriteCoverLetterRaw(requestParameters: LlmWriteCoverLetterRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RagJobDto>> {
         const requestOptions = await this.llmWriteCoverLetterRequestOpts(requestParameters);
@@ -547,7 +607,6 @@ export class LlmApi extends runtime.BaseAPI {
     }
 
     /**
-     * Requires a signed-in session: an API token is refused here.
      */
     async llmWriteCoverLetter(requestParameters: LlmWriteCoverLetterRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RagJobDto> {
         const response = await this.llmWriteCoverLetterRaw(requestParameters, initOverrides);

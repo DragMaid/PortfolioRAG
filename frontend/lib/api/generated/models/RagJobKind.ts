@@ -22,6 +22,7 @@ export const RagJobKind = {
     Index: 'Index',
     JobFit: 'JobFit',
     CoverLetter: 'CoverLetter',
+    Retrieval: 'Retrieval',
 } as const;
 export type RagJobKind = typeof RagJobKind[keyof typeof RagJobKind];
 

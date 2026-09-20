@@ -1,32 +1,34 @@
 
-# AuthResultDto
+# RetrievedPassageDto
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`accessToken` | string
-`tokenType` | string
-`expiresIn` | number
-`refreshToken` | string
-`emailConfirmed` | boolean
-`author` | [AuthorDto](AuthorDto.md)
+`documentId` | number
+`sourceType` | [RagSourceType](RagSourceType.md)
+`sourceLabel` | string
+`chunkIndex` | number
+`content` | string
+`score` | number
+`matchedQueries` | Array&lt;string&gt;
 
 ## Example
 
 ```typescript
-import type { AuthResultDto } from ''
+import type { RetrievedPassageDto } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "accessToken": null,
-  "tokenType": null,
-  "expiresIn": null,
-  "refreshToken": null,
-  "emailConfirmed": null,
-  "author": null,
-} satisfies AuthResultDto
+  "documentId": null,
+  "sourceType": null,
+  "sourceLabel": null,
+  "chunkIndex": null,
+  "content": null,
+  "score": null,
+  "matchedQueries": null,
+} satisfies RetrievedPassageDto
 
 console.log(example)
 
@@ -35,7 +37,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as AuthResultDto
+const exampleParsed = JSON.parse(exampleJSON) as RetrievedPassageDto
 console.log(exampleParsed)
 ```
 
