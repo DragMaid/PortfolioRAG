@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/admin/useAuth";
 import { useProfile } from "@/lib/admin/useProfile";
 import { useStudio } from "@/lib/admin/useStudio";
 import { AccessPanel } from "./access/AccessPanel";
@@ -10,6 +11,7 @@ import { IntelligencePanel } from "./intelligence/IntelligencePanel";
 import { ProfilePanel } from "./profile/ProfilePanel";
 import { TabNav, type StudioTab } from "./TabNav";
 import { TopBar } from "./TopBar";
+import { VerifyEmailNotice } from "./VerifyEmailScreen";
 
 /**
  * The signed-in studio: the system bar, the five tabs, and whichever one is open.
@@ -24,13 +26,26 @@ import { TopBar } from "./TopBar";
 export function Studio() {
   const studio = useStudio();
   const profile = useProfile();
+  const { session } = useAuth();
   const [tab, setTab] = useState<StudioTab>("content");
+
+  // Only ever true for somebody who chose "look around first" on the code screen. Nothing
+  // below will save while it is, so the strip stays until the address is confirmed.
+  const [showVerification, setShowVerification] = useState(false);
+  const needsVerification = session !== null && !session.emailConfirmed;
 
   // Either tab can hold unsaved work, and the browser only asks once.
   useUnsavedChangesPrompt(studio.isDirty || profile.isDirty);
 
   return (
     <>
+      {needsVerification ? (
+        <VerifyEmailNotice
+          expanded={showVerification}
+          onToggle={() => setShowVerification((open) => !open)}
+        />
+      ) : null}
+
       <TopBar
         post={studio.baseline}
         isDirty={tab === "content" ? studio.isDirty : tab === "profile" ? profile.isDirty : false}

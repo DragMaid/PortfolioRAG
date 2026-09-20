@@ -30,7 +30,7 @@ The portfolio can answer "does this person fit this job?" with evidence. Job-fit
 ## Capabilities and Constraints
 
 - Stack: Next.js 16 (App Router) + React 19 + Tailwind 4 frontend; ASP.NET API; Postgres + pgvector; Python RAG worker; MinIO for media. Frontend API clients are generated from OpenAPI (`npm run generate-api`).
-- Shipped: multi-author portfolios at `/[handle]`, studio, email + Google sign-in, API tokens, generated OpenAPI spec and TS client, page-view analytics, job-fit analysis, cover-letter generation (in progress on current branch).
+- Shipped: multi-author portfolios at `/[handle]`, studio, email + Google sign-in (email sign-ups confirm the address with a six-digit code before they can publish; Google accounts skip it), API tokens, generated OpenAPI spec and TS client, page-view analytics, job-fit analysis, cover-letter generation (in progress on current branch).
 - Internal, not author-facing products: the worker's hybrid dense + sparse retrieval exists only inside job-fit. It is not a public search or retrieval API.
 - **Not shipped — do not claim:** edge distribution/caching, hybrid search as a feature, public/plug-and-play LLM retrieval endpoints. The current landing page claims these and is out of step with the product.
 - Portfolio pages render per request so authors see published changes immediately.
