@@ -372,7 +372,20 @@ builder.Services.AddOpenApiDocument(settings =>
     settings.OperationProcessors.Add(new BearerSecurityProcessor("Bearer"));
 });
 
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
+
+// NOTE: the deployment runs this image once with --migrate before the API starts, so the
+// schema is brought up to date by one process instead of racing every replica at boot.
+if (args.Contains("--migrate"))
+{
+    using var migrateScope = app.Services.CreateScope();
+    await migrateScope.ServiceProvider.GetRequiredService<BlogDbContext>().Database.MigrateAsync();
+    app.Logger.LogInformation("Database migrations applied.");
+    return;
+}
+
 app.UseExceptionHandler();
 
 if (!app.Environment.IsDevelopment() &&
@@ -437,6 +450,9 @@ app.UseAuthorization();
 app.UseMiddleware<ApiTokenRestrictionMiddleware>();
 
 app.MapControllers();
+
+// Liveness for the deploy script, which polls it through the loopback port after an upgrade.
+app.MapHealthChecks("/healthz");
 
 app.Run();
 

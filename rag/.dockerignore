@@ -7,3 +7,5 @@ __pycache__/
 .git/
 # The local fastembed cache. The image warms its own.
 .cache/
+# Signed-in browser profiles for the local webchat tool. Never part of an image.
+.webchat/
