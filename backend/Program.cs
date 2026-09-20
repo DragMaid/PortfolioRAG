@@ -63,6 +63,7 @@ builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IApiTokenRepository, ApiTokenRepository>();
+builder.Services.AddScoped<IEmailVerificationRepository, EmailVerificationRepository>();
 builder.Services.AddScoped<IMediaRepository, MediaRepository>();
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();
 builder.Services.AddScoped<IRagRepository, RagRepository>();
@@ -71,6 +72,7 @@ builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ILlmCredentialService, LlmCredentialService>();
@@ -241,6 +243,38 @@ builder.Services.AddScoped<IVisitorFingerprint, VisitorFingerprint>();
 // NOTE: this one add problem+json instead of 500s for debuggability
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DefaultExceptionHandler>();
+
+// ---------------------------------------------------------------------------
+// Outgoing mail
+// ---------------------------------------------------------------------------
+
+// The only thing the API mails today is the code that confirms a self-registered address.
+// It is optional on purpose: a deployment with no relay logs the codes instead of sending
+// them, which is what development wants and what stops a missing secret from taking the
+// whole API down at boot. Sign-in through Google never touches any of it.
+var smtpOptions = builder.Configuration
+    .GetSection(SmtpOptions.SectionName)
+    .Get<SmtpOptions>() ?? new SmtpOptions();
+
+if (!noCheck)
+    smtpOptions.Validate();
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+
+var emailVerificationOptions = builder.Configuration
+    .GetSection(EmailVerificationOptions.SectionName)
+    .Get<EmailVerificationOptions>() ?? new EmailVerificationOptions();
+
+if (!noCheck)
+    emailVerificationOptions.Validate();
+
+builder.Services.Configure<EmailVerificationOptions>(
+    builder.Configuration.GetSection(EmailVerificationOptions.SectionName));
+
+if (smtpOptions.IsConfigured)
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+else
+    builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
 
 // ---------------------------------------------------------------------------
 // Authentication
@@ -415,6 +449,14 @@ else
     app.Logger.LogInformation("Media storage provider: {Provider}.", storageOptions.Provider);
 }
 
+if (!smtpOptions.IsConfigured)
+{
+    app.Logger.LogWarning(
+        "No mail relay is configured, so email verification codes will be written to this log " +
+        "instead of being sent. Fill in the '{SectionName}' section to deliver them.",
+        SmtpOptions.SectionName);
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -448,6 +490,10 @@ app.UseAuthorization();
 // After authorization, so a caller with no credentials at all still gets a 401 rather than
 // being told which actions a token it does not have would be refused.
 app.UseMiddleware<ApiTokenRestrictionMiddleware>();
+
+// Last of the three, so an unconfirmed account is told to confirm its address only once
+// its credential has been accepted and found otherwise allowed to make the call.
+app.UseMiddleware<EmailVerificationMiddleware>();
 
 app.MapControllers();
 
