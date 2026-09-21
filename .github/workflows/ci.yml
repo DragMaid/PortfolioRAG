@@ -124,6 +124,56 @@ jobs:
         working-directory: rag
         run: uv run rag-eval --retrieval-only --container
 
+  applier:
+    name: Applier
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: applier/uv.lock
+
+      - name: Install
+        working-directory: applier
+        run: uv sync --locked
+
+      - name: Lint
+        working-directory: applier
+        run: uv run ruff check .
+
+      # Unit only: no browser, no model, no board. The form tests (-m browser) need
+      # camoufox's download and run locally.
+      - name: Test
+        working-directory: applier
+        run: uv run pytest -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: applier/web/package-lock.json
+
+      - name: Install the page
+        working-directory: applier/web
+        run: npm ci
+
+      - name: Typecheck the page
+        working-directory: applier/web
+        run: npm run lint
+
+      # web/dist is committed so that running the tool needs no Node. This is the check that
+      # it was rebuilt with whatever changed under web/src.
+      - name: The built page matches its source
+        working-directory: applier/web
+        run: |
+          npm run build
+          git diff --exit-code -- dist \
+            || { echo "::error::web/dist is stale. Run 'cd applier/web && npm run build' and commit it."; exit 1; }
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
