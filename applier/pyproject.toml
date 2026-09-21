@@ -1,0 +1,54 @@
+[project]
+name = "applier"
+version = "0.1.0"
+description = "Finds postings on job boards, measures them against the portfolio, and applies to the ones that fit."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "rag",
+    "camoufox[geoip]>=0.5.6",
+    "pydantic>=2",
+    "pyyaml>=6.0.2",
+    "fastapi>=0.121.0",
+    "uvicorn>=0.41.0",
+]
+
+[project.scripts]
+applier = "applier.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.4",
+]
+
+[tool.uv.sources]
+# The assessment and the letter are the rag package's pipelines, run exactly as rag-local
+# runs them. A path dependency, so a change there is picked up here without a release.
+rag = { path = "../rag", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/applier"]
+
+# js/fields.js needs no force-include: it is inside the package directory above, and
+# hatchling carries it. Naming it here as well makes a wheel build refuse, because the same
+# path is then added twice.
+[tool.hatch.build.targets.wheel.force-include]
+# The controller's page, built by Vite and committed, so running this needs no Node.
+"web/dist" = "applier/web"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["browser: drives a real browser against a local page"]
+addopts = "-m 'not browser'"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
