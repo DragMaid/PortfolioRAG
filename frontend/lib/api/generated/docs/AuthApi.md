@@ -1,9 +1,10 @@
 # AuthApi
 
-All URIs are relative to *http://localhost:5009*
+All URIs are relative to *http://localhost:5019*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
+| [**authConfirmEmail**](AuthApi.md#authconfirmemail) | **POST** /api/auth/email/verify |  |
 | [**authCreateApiToken**](AuthApi.md#authcreateapitoken) | **POST** /api/auth/tokens |  |
 | [**authDeleteApiToken**](AuthApi.md#authdeleteapitoken) | **DELETE** /api/auth/tokens/{id} |  |
 | [**authGoogleSignIn**](AuthApi.md#authgooglesignin) | **POST** /api/auth/oauth/google |  |
@@ -14,10 +15,85 @@ All URIs are relative to *http://localhost:5009*
 | [**authMe**](AuthApi.md#authme) | **GET** /api/auth/me |  |
 | [**authRefresh**](AuthApi.md#authrefresh) | **POST** /api/auth/refresh |  |
 | [**authRegister**](AuthApi.md#authregister) | **POST** /api/auth/register |  |
+| [**authResendEmailVerification**](AuthApi.md#authresendemailverification) | **POST** /api/auth/email/verify/resend |  |
 | [**authRevokeApiToken**](AuthApi.md#authrevokeapitoken) | **POST** /api/auth/tokens/{id}/revoke |  |
 | [**authRotateApiToken**](AuthApi.md#authrotateapitoken) | **POST** /api/auth/tokens/{id}/rotate |  |
 | [**authSetPassword**](AuthApi.md#authsetpassword) | **POST** /api/auth/password |  |
 
+
+
+## authConfirmEmail
+
+> AuthResultDto authConfirmEmail(confirmEmailDto)
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AuthApi,
+} from '';
+import type { AuthConfirmEmailRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new AuthApi(config);
+
+  const body = {
+    // ConfirmEmailDto
+    confirmEmailDto: ...,
+  } satisfies AuthConfirmEmailRequest;
+
+  try {
+    const data = await api.authConfirmEmail(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **confirmEmailDto** | [ConfirmEmailDto](ConfirmEmailDto.md) |  | |
+
+### Return type
+
+[**AuthResultDto**](AuthResultDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **400** |  |  -  |
+| **401** |  |  -  |
+| **429** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
 ## authCreateApiToken
@@ -704,6 +780,73 @@ No authorization required
 | **201** |  |  -  |
 | **400** |  |  -  |
 | **409** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## authResendEmailVerification
+
+> EmailVerificationChallengeDto authResendEmailVerification()
+
+
+
+Requires a signed-in session: an API token is refused here.
+
+### Example
+
+```ts
+import {
+  Configuration,
+  AuthApi,
+} from '';
+import type { AuthResendEmailVerificationRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new AuthApi(config);
+
+  try {
+    const data = await api.authResendEmailVerification();
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+[**EmailVerificationChallengeDto**](EmailVerificationChallengeDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** |  |  -  |
+| **401** |  |  -  |
+| **409** |  |  -  |
+| **429** |  |  -  |
+| **503** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

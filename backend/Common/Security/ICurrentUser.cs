@@ -23,6 +23,13 @@ public interface ICurrentUser
     /// <summary>The scope of that token, or null when this is not a token request.</summary>
     ApiTokenScope? ApiTokenScope { get; }
 
+    /// <summary>
+    /// Whether the address on this account has been confirmed. False for a self-registered
+    /// account that has not typed its code back yet — see
+    /// <see cref="EmailVerificationMiddleware"/> for what that costs it.
+    /// </summary>
+    bool IsEmailConfirmed { get; }
+
     /// <summary>The caller's author id, or a 401 if the request carried no usable identity.</summary>
     int RequireAuthorId();
 }

@@ -192,6 +192,46 @@ namespace backend.Migrations
                     b.ToTable("ContactChannels");
                 });
 
+            modelBuilder.Entity("Backend.Models.Entities.EmailVerificationCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId", "CreatedAt");
+
+                    b.ToTable("EmailVerificationCodes");
+                });
+
             modelBuilder.Entity("Backend.Models.Entities.Experience", b =>
                 {
                     b.Property<int>("Id")
@@ -756,6 +796,17 @@ namespace backend.Migrations
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("Backend.Models.Entities.EmailVerificationCode", b =>
+                {
+                    b.HasOne("Backend.Models.Entities.Author", "Author")
+                        .WithMany("EmailVerificationCodes")
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
             modelBuilder.Entity("Backend.Models.Entities.Experience", b =>
                 {
                     b.HasOne("Backend.Models.Entities.Author", "Author")
@@ -888,6 +939,8 @@ namespace backend.Migrations
                     b.Navigation("ApiTokens");
 
                     b.Navigation("ContactChannels");
+
+                    b.Navigation("EmailVerificationCodes");
 
                     b.Navigation("Experiences");
 

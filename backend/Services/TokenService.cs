@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Backend.Common.Exceptions;
+using Backend.Common.Security;
 using Backend.Common.Options;
 using Backend.Mapping;
 using Backend.Models.DTOs.Auth;
@@ -130,6 +131,7 @@ public class TokenService : ITokenService
             AccessToken = CreateAccessToken(author, now, expiresAt),
             ExpiresIn = _options.AccessTokenMinutes * 60,
             RefreshToken = rawRefreshToken,
+            EmailConfirmed = author.EmailConfirmedAt is not null,
             Author = author.ToDto()
         };
     }
@@ -149,6 +151,7 @@ public class TokenService : ITokenService
                 [JwtRegisteredClaimNames.Sub] = author.Id.ToString(),
                 [JwtRegisteredClaimNames.Email] = author.Email,
                 [JwtRegisteredClaimNames.Name] = author.Name,
+                [AuthClaims.EmailVerified] = author.EmailConfirmedAt is not null ? "true" : "false",
                 // NOTE: GUID is .NET term for UUID, then convert to string object
                 // the "N" specifier says that the format should have no hyphens "-"
                 [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString("N")

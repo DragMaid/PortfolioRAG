@@ -31,6 +31,13 @@ public sealed class StubCurrentUser : ICurrentUser
 
     public ApiTokenScope? ApiTokenScope { get; set; }
 
+    /// <summary>
+    /// Defaults to true — most tests are about something other than confirmation, and an
+    /// account that cannot write would fail them for the wrong reason. The tests that are
+    /// about it set it false.
+    /// </summary>
+    public bool IsEmailConfirmed { get; set; } = true;
+
     public int RequireAuthorId() =>
         AuthorId ?? throw new Backend.Common.Exceptions.UnauthorizedException("Not signed in.");
 }
@@ -75,6 +82,38 @@ public sealed class StubGoogleTokenValidator : IGoogleTokenValidator
 }
 
 /// <summary>
+/// Keeps the mail instead of sending it, so a test can read the code out of the body the
+/// way the account owner would read it out of their inbox.
+/// </summary>
+public sealed class FakeEmailSender : IEmailSender
+{
+    public List<EmailMessage> Sent { get; } = new();
+
+    /// <summary>Whether the harness is pretending a relay is configured. See LoggingEmailSender.</summary>
+    public bool IsConfigured { get; set; } = true;
+
+    /// <summary>Set to make the next send throw — a relay that is down, or refusing.</summary>
+    public Exception? FailWith { get; set; }
+
+    public EmailMessage Last => Sent.Count > 0
+        ? Sent[^1]
+        : throw new InvalidOperationException("No message has been sent.");
+
+    /// <summary>The digits out of the most recent message.</summary>
+    public string LastCode =>
+        System.Text.RegularExpressions.Regex.Match(Last.TextBody, @"\b\d{4,9}\b").Value;
+
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    {
+        if (FailWith is not null)
+            throw FailWith;
+
+        Sent.Add(message);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>
 /// Wires the real services over a Postgres database of this harness's own, so tests
 /// exercise the production code paths — and the real schema, with its real constraints and
 /// cascades — rather than mocks of them.
@@ -114,6 +153,7 @@ public sealed class TestHarness : IAsyncDisposable
         Posts = new PostRepository(Context);
         RefreshTokens = new RefreshTokenRepository(Context);
         ApiTokens = new ApiTokenRepository(Context);
+        VerificationCodes = new EmailVerificationRepository(Context);
         Medias = new FailingSaveMediaRepository(new MediaRepository(Context));
         PageViews = new AnalyticsRepository(Context);
 
@@ -171,7 +211,29 @@ public sealed class TestHarness : IAsyncDisposable
             TimeProvider,
             analyticsOptions);
 
-        Auth = new AuthService(Authors, ApiTokens, Tokens, Google, CurrentUser, TimeProvider);
+        Emails = new FakeEmailSender();
+
+        EmailVerificationOptions = new EmailVerificationOptions();
+
+        Verification = new EmailVerificationService(
+            VerificationCodes,
+            Authors,
+            Tokens,
+            Emails,
+            CurrentUser,
+            TimeProvider,
+            Options.Create(EmailVerificationOptions),
+            NullLogger<EmailVerificationService>.Instance);
+
+        Auth = new AuthService(
+            Authors,
+            ApiTokens,
+            Tokens,
+            Google,
+            CurrentUser,
+            Verification,
+            TimeProvider,
+            NullLogger<AuthService>.Instance);
 
         // ------------------------------------------------------------------
         // Retrieval
@@ -236,6 +298,14 @@ public sealed class TestHarness : IAsyncDisposable
     public IRefreshTokenRepository RefreshTokens { get; }
 
     public IApiTokenRepository ApiTokens { get; }
+
+    public IEmailVerificationRepository VerificationCodes { get; }
+
+    public FakeEmailSender Emails { get; }
+
+    public EmailVerificationOptions EmailVerificationOptions { get; }
+
+    public IEmailVerificationService Verification { get; }
 
     public FailingSaveMediaRepository Medias { get; }
 

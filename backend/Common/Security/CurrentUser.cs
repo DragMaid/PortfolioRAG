@@ -61,6 +61,14 @@ public class CurrentUser : ICurrentUser
             ? scope
             : null;
 
+    // NOTE: absent means unconfirmed. A credential minted before this claim existed, or by
+    // anything other than the two places that mint it, gets the cautious answer.
+    public bool IsEmailConfirmed =>
+        string.Equals(
+            Principal?.FindFirstValue(AuthClaims.EmailVerified),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
     public int RequireAuthorId() =>
         AuthorId ?? throw new UnauthorizedException("The request is not associated with a signed-in author.");
 }

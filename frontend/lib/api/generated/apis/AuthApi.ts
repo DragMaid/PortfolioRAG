@@ -35,10 +35,20 @@ import {
     AuthResultDtoToJSON,
 } from '../models/AuthResultDto';
 import {
+    type ConfirmEmailDto,
+    ConfirmEmailDtoFromJSON,
+    ConfirmEmailDtoToJSON,
+} from '../models/ConfirmEmailDto';
+import {
     type CreateApiTokenDto,
     CreateApiTokenDtoFromJSON,
     CreateApiTokenDtoToJSON,
 } from '../models/CreateApiTokenDto';
+import {
+    type EmailVerificationChallengeDto,
+    EmailVerificationChallengeDtoFromJSON,
+    EmailVerificationChallengeDtoToJSON,
+} from '../models/EmailVerificationChallengeDto';
 import {
     type GoogleSignInDto,
     GoogleSignInDtoFromJSON,
@@ -69,6 +79,13 @@ import {
     SetPasswordDtoFromJSON,
     SetPasswordDtoToJSON,
 } from '../models/SetPasswordDto';
+
+export interface AuthConfirmEmailRequest {
+    /**
+     * 
+     */
+    confirmEmailDto: ConfirmEmailDto;
+}
 
 export interface AuthCreateApiTokenRequest {
     /**
@@ -151,6 +168,61 @@ export interface AuthSetPasswordRequest {
  * 
  */
 export class AuthApi extends runtime.BaseAPI {
+
+    /**
+     * Creates request options for authConfirmEmail without sending the request
+     */
+    async authConfirmEmailRequestOpts(requestParameters: AuthConfirmEmailRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['confirmEmailDto'] == null) {
+            throw new runtime.RequiredError(
+                'confirmEmailDto',
+                'Required parameter "confirmEmailDto" was null or undefined when calling authConfirmEmail().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/email/verify`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ConfirmEmailDtoToJSON(requestParameters['confirmEmailDto']),
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authConfirmEmailRaw(requestParameters: AuthConfirmEmailRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AuthResultDto>> {
+        const requestOptions = await this.authConfirmEmailRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AuthResultDtoFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authConfirmEmail(requestParameters: AuthConfirmEmailRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AuthResultDto> {
+        const response = await this.authConfirmEmailRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Creates request options for authCreateApiToken without sending the request
@@ -623,6 +695,51 @@ export class AuthApi extends runtime.BaseAPI {
      */
     async authRegister(requestParameters: AuthRegisterRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AuthResultDto> {
         const response = await this.authRegisterRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for authResendEmailVerification without sending the request
+     */
+    async authResendEmailVerificationRequestOpts(): Promise<runtime.RequestOpts> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.accessToken) {
+            const token = this.configuration.accessToken;
+            const tokenString = await token("Bearer", []);
+
+            if (tokenString) {
+                headerParameters["Authorization"] = `Bearer ${tokenString}`;
+            }
+        }
+
+        let urlPath = `/api/auth/email/verify/resend`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authResendEmailVerificationRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<EmailVerificationChallengeDto>> {
+        const requestOptions = await this.authResendEmailVerificationRequestOpts();
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => EmailVerificationChallengeDtoFromJSON(jsonValue));
+    }
+
+    /**
+     * Requires a signed-in session: an API token is refused here.
+     */
+    async authResendEmailVerification(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<EmailVerificationChallengeDto> {
+        const response = await this.authResendEmailVerificationRaw(initOverrides);
         return await response.value();
     }
 

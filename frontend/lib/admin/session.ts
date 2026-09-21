@@ -17,6 +17,12 @@ export type Session = {
   authorEmail: string;
   /** Where this account's portfolio is published: `/{handle}`. */
   authorHandle: string;
+  /**
+   * Whether anything has vouched for the address on this account. False for an account
+   * that signed up with a password and has not typed its code back yet — the API refuses
+   * every write from one, so the studio says so rather than letting the buttons fail.
+   */
+  emailConfirmed: boolean;
 };
 
 // NOTE: the Symnol operation always return a unique identifier no matter what string is passed in
@@ -64,6 +70,7 @@ export function writeSession(result: AuthResultDto): Session | null {
     authorName: result.author.name ?? "",
     authorEmail: result.author.email ?? "",
     authorHandle: result.author.handle ?? "",
+    emailConfirmed: result.emailConfirmed ?? false,
   };
 
   persist(session);

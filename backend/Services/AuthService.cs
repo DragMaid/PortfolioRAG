@@ -24,7 +24,9 @@ public class AuthService : IAuthService
     // TODO: this really just hard coded the google handler instead of a generic external provider but good for now
     private readonly IGoogleTokenValidator _google;
     private readonly ICurrentUser _currentUser;
+    private readonly IEmailVerificationService _verification;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IAuthorRepository authors,
@@ -32,14 +34,18 @@ public class AuthService : IAuthService
         ITokenService tokens,
         IGoogleTokenValidator google,
         ICurrentUser currentUser,
-        TimeProvider timeProvider)
+        IEmailVerificationService verification,
+        TimeProvider timeProvider,
+        ILogger<AuthService> logger)
     {
         _authors = authors;
         _apiTokens = apiTokens;
         _tokens = tokens;
         _google = google;
         _currentUser = currentUser;
+        _verification = verification;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public async Task<AuthResultDto> RegisterAsync(
@@ -68,6 +74,18 @@ public class AuthService : IAuthService
 
         await _authors.AddAsync(author, cancellationToken);
         await _authors.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _verification.IssueAsync(author, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Could not send the verification code for new author {AuthorId}.",
+                author.Id);
+        }
 
         return await _tokens.IssueAsync(author, cancellationToken);
     }

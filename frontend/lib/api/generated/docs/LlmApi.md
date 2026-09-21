@@ -1,6 +1,6 @@
 # LlmApi
 
-All URIs are relative to *http://localhost:5009*
+All URIs are relative to *http://localhost:5019*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
@@ -8,6 +8,7 @@ All URIs are relative to *http://localhost:5009*
 | [**llmGetCredential**](LlmApi.md#llmgetcredential) | **GET** /api/llm/credential |  |
 | [**llmGetJob**](LlmApi.md#llmgetjob) | **GET** /api/llm/jobs/{id} |  |
 | [**llmGetProviders**](LlmApi.md#llmgetproviders) | **GET** /api/llm/providers |  |
+| [**llmRetrieve**](LlmApi.md#llmretrieve) | **POST** /api/llm/retrieval |  |
 | [**llmRevalidate**](LlmApi.md#llmrevalidate) | **POST** /api/llm/credential/validate |  |
 | [**llmSaveCredential**](LlmApi.md#llmsavecredential) | **PUT** /api/llm/credential |  |
 | [**llmTryJobFit**](LlmApi.md#llmtryjobfit) | **POST** /api/llm/job-fit |  |
@@ -153,8 +154,6 @@ This endpoint does not need any parameter.
 
 
 
-Requires a signed-in session: an API token is refused here.
-
 ### Example
 
 ```ts
@@ -280,6 +279,78 @@ This endpoint does not need any parameter.
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 | **200** |  |  -  |
+| **401** |  |  -  |
+| **403** |  |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## llmRetrieve
+
+> RagJobDto llmRetrieve(retrievalRequestDto)
+
+
+
+### Example
+
+```ts
+import {
+  Configuration,
+  LlmApi,
+} from '';
+import type { LlmRetrieveRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: Bearer
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new LlmApi(config);
+
+  const body = {
+    // RetrievalRequestDto
+    retrievalRequestDto: ...,
+  } satisfies LlmRetrieveRequest;
+
+  try {
+    const data = await api.llmRetrieve(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **retrievalRequestDto** | [RetrievalRequestDto](RetrievalRequestDto.md) |  | |
+
+### Return type
+
+[**RagJobDto**](RagJobDto.md)
+
+### Authorization
+
+[Bearer](../README.md#Bearer)
+
+### HTTP request headers
+
+- **Content-Type**: `application/json`
+- **Accept**: `application/json`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **202** |  |  -  |
+| **400** |  |  -  |
 | **401** |  |  -  |
 | **403** |  |  -  |
 
@@ -434,8 +505,6 @@ example().catch(console.error);
 
 
 
-Requires a signed-in session: an API token is refused here.
-
 ### Example
 
 ```ts
@@ -585,8 +654,6 @@ example().catch(console.error);
 > RagJobDto llmWriteCoverLetter(coverLetterRequestDto)
 
 
-
-Requires a signed-in session: an API token is refused here.
 
 ### Example
 

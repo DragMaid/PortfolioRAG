@@ -8,7 +8,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { authApi, describeError } from "./client";
+import { authAccountApi, authApi, describeError } from "./client";
+import type { EmailVerificationChallengeDto } from "@/lib/api/generated";
 import {
   clearSession,
   getServerSessionSnapshot,
@@ -34,6 +35,14 @@ type AuthValue = {
   session: Session | null;
   signIn: (email: string, password: string) => Promise<void>;
   register: (registration: Registration) => Promise<void>;
+  /**
+   * Trades the emailed code for a session that may write. The API answers with a fresh
+   * pair on purpose: the one this call is made with says the address is unconfirmed, and
+   * would go on saying so for the rest of its fifteen minutes.
+   */
+  verifyEmail: (code: string) => Promise<void>;
+  /** Asks for another code. Refused by the API while the cooldown is still running. */
+  resendVerification: () => Promise<EmailVerificationChallengeDto>;
   /** Exchanges a Google ID token for this API's own pair. Creates the account on first use. */
   signInWithGoogle: (idToken: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -86,6 +95,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const verifyEmail = useCallback(async (code: string) => {
+    try {
+      const result = await authAccountApi.authConfirmEmail({
+        confirmEmailDto: { code: code.trim() },
+      });
+
+      const next = writeSession(result);
+      if (!next) throw new Error("The server did not return a usable session.");
+    } catch (error) {
+      throw new Error(await describeError(error, "Could not confirm that code."));
+    }
+  }, []);
+
+  const resendVerification = useCallback(async () => {
+    try {
+      return await authAccountApi.authResendEmailVerification();
+    } catch (error) {
+      throw new Error(await describeError(error, "Could not send another code."));
+    }
+  }, []);
+
   /*
    * One call for both signing up and signing in. The backend decides which it is — a
    * Google subject it has never seen creates an account, one it knows signs in — so the
@@ -116,8 +146,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // useMemo is used to cache a calc between re-renders
   const value = useMemo<AuthValue>(
-    () => ({ status, session, signIn, register, signInWithGoogle, signOut }),
-    [status, session, signIn, register, signInWithGoogle, signOut],
+    () => ({
+      status,
+      session,
+      signIn,
+      register,
+      verifyEmail,
+      resendVerification,
+      signInWithGoogle,
+      signOut,
+    }),
+    [status, session, signIn, register, verifyEmail, resendVerification, signInWithGoogle, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

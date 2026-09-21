@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import type { ComponentPropsWithRef, ReactNode, TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 /** A labelled control. The label is always rendered — none of these are self-evident. */
@@ -33,7 +33,9 @@ export function Field({
 export function TextInput({
   className,
   ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+  // NOTE: with-ref, so a caller can put the cursor back in the box — the code form does
+  // it after a wrong code. React 19 passes a ref straight through as a prop.
+}: ComponentPropsWithRef<"input">) {
   return (
     <input
       className={cn(

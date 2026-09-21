@@ -23,6 +23,8 @@ public class BlogDbContext : DbContext
 
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
+    public DbSet<EmailVerificationCode> EmailVerificationCodes => Set<EmailVerificationCode>();
+
     public DbSet<PageView> PageViews => Set<PageView>();
 
     public DbSet<LlmCredential> LlmCredentials => Set<LlmCredential>();
@@ -103,6 +105,22 @@ public class BlogDbContext : DbContext
             entity.HasOne(t => t.Author)
                 .WithMany(a => a.ApiTokens)
                 .HasForeignKey(t => t.AuthorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmailVerificationCode>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Email).IsRequired().HasMaxLength(256);
+            entity.Property(c => c.CodeHash).IsRequired().HasMaxLength(512);
+
+            // Every read is "the newest code for this author", and the daily ceiling is a
+            // count over the same two columns.
+            entity.HasIndex(c => new { c.AuthorId, c.CreatedAt });
+
+            entity.HasOne(c => c.Author)
+                .WithMany(a => a.EmailVerificationCodes)
+                .HasForeignKey(c => c.AuthorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

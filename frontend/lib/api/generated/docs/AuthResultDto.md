@@ -10,6 +10,7 @@ Name | Type
 `tokenType` | string
 `expiresIn` | number
 `refreshToken` | string
+`emailConfirmed` | boolean
 `author` | [AuthorDto](AuthorDto.md)
 
 ## Example
@@ -23,6 +24,7 @@ const example = {
   "tokenType": null,
   "expiresIn": null,
   "refreshToken": null,
+  "emailConfirmed": null,
   "author": null,
 } satisfies AuthResultDto
 
