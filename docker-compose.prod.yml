@@ -42,7 +42,7 @@ x-api-environment: &api-environment
   Smtp__UseStartTls: ${SMTP_USE_STARTTLS:-true}
   Smtp__FromAddress: ${SMTP_FROM_ADDRESS:-}
   Smtp__FromName: ${SMTP_FROM_NAME:-Portfolio}
-  Cors__AllowedOrigins__0: https://${SITE_DOMAIN:?}
+  Cors__AllowedOrigins__0: "*"
   Analytics__VisitorSalt: ${ANALYTICS_VISITOR_SALT:?}
   Analytics__SelfHosts__0: ${SITE_DOMAIN:?}
 
