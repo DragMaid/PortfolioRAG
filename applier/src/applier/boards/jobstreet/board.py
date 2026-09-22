@@ -377,13 +377,47 @@ class JobStreet:
             FlowError(f"No resume on the JobStreet profile is named like {wanted!r}.")
         )
 
-    def _questions(self, context: ApplyContext, role: str) -> dict:
-        """Handle filling in forms (except cover letter)."""
+    def _read_questions(self) -> list[FieldHandle]:
+        """Every question on the current step. Reads the page and changes nothing on it.
+
+        Shared by filling the form in and by a probing run, which wants the questions and
+        nothing else.
+        """
         page = self.browser.page
         # The form that moves the flow on, not the first one: a header search is a form too.
         forms = page.locator("form").filter(has=page.get_by_role("button", name=sel.CONTINUE))
         root = forms.first if forms.count() else page.locator("main").first
-        handles: list[FieldHandle] = read_fields(root, prefix="q")
+        return read_fields(root, prefix="q")
+
+    def _resume_names(self) -> list[str]:
+        """The resumes already on the profile, read off the documents step.
+
+        For setting up, so that choosing one is picking from a list rather than typing a
+        filename from memory. The radio has to be checked for JobStreet to draw the select at
+        all, which changes nothing that is ever sent: a probing run never leaves this step.
+        """
+        page = self.browser.page
+
+        try:
+            chooser = page.get_by_role("radio", name=sel.RESUME_SELECT)
+            if not chooser.count():
+                return []
+            chooser.check(force=True)
+
+            names: list[str] = []
+            for select in page.locator("select").filter(visible=True).all():
+                names += [text.strip() for text in select.locator("option").all_inner_texts()]
+        except PlaywrightError:
+            # Setting up is not the place to fail over a list that is only a convenience.
+            return []
+
+        # The first option is usually a "select one" placeholder rather than a resume.
+        return [name for name in dict.fromkeys(names) if name and not name.startswith("Select")]
+
+    def _questions(self, context: ApplyContext, role: str) -> dict:
+        """Handle filling in forms (except cover letter)."""
+        page = self.browser.page
+        handles: list[FieldHandle] = self._read_questions()
 
         try:
             answers = context.answerer.answer(handles, role=role)

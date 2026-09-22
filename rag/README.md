@@ -132,14 +132,19 @@ The pipeline can also run entirely on your own machine, with no provider key and
 
 ```sh
 uv run python -m rag.webchat login        # once, to sign in to the chat site
-uv run rag-local --site gemini            # then open http://127.0.0.1:5173
+uv run rag-local --site gemini            # then POST to http://127.0.0.1:5173/api/runs
 ```
+
+`rag-local` is an API and nothing else — there is no page here. The page that drives it is
+the applier's, which serves this under `/api/rag` beside its own controller; see
+[`applier/`](../applier), where `applier serve` needs no configuration to start. Begin there
+unless you are writing your own client.
 
 ```
   your machine                                    the deployment
   ┌──────────────────────────────┐                ┌──────────────┐
   │ rag-local (FastAPI, 5173)    │── retrieval ──▶│  ASP.NET API │
-  │   page + run state           │◀── passages ───│              │
+  │   API + run state            │◀── passages ───│              │
   │        │                     │                └──────────────┘
   │        ▼                     │                        │
   │ chat site in your browser    │                ┌───────────────┐
@@ -157,12 +162,16 @@ a model happens on your machine, in a chat site you are already signed in to, th
 Three things are worth knowing:
 
 * **It needs an API token**, the `pfl_…` kind from the studio's access tab, with the write
-  scope. The page holds it for its tab and sends it with each run; the service keeps it for
-  the length of that run and never writes it down. A token cannot read or replace a provider
-  key — those endpoints are session-only — so the most it can do here is search an index of
+  scope. Each request carries its own in an `Authorization` header, or the service is
+  started with one (`create_app(token=…)`) for a host that already holds it — which is what
+  the applier does, so that its page never handles a credential. Either way it is kept for
+  the length of a run and never written down. A token cannot read or replace a provider key
+  — those endpoints are session-only — so the most it can do here is search an index of
   published work.
-* **It is one run at a time.** One browser profile holds one lock, and the pipeline opens a
-  fresh conversation per stage. A second run is refused rather than queued.
+* **It is one run at a time, and one browser per machine.** A chat site's profile holds a
+  lock, so a second run is refused rather than queued. A host that is already driving that
+  session lends it instead of opening another: `Runs(..., provider=…, submit=…)` takes the
+  provider and the thread it must be touched from.
 * **The reports stay local.** Nothing is posted back, and a locally-produced report is never
   served to a visitor: the citation checking behind it is the same code, but it ran on your
   machine, and the server has not seen the passages it claims to quote.

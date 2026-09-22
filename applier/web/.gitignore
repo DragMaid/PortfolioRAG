@@ -1,0 +1,6 @@
+node_modules/
+# tsc -b's incremental cache. Machine-local, and rebuilt on every run.
+tsconfig.tsbuildinfo
+# dist/ is committed on purpose: it is what `applier serve` serves, so the tool runs
+# without Node. Rebuild it with `npm run build` whenever anything under src/ changes.
+dist/
