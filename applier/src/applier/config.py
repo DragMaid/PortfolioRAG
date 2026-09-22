@@ -186,8 +186,10 @@ class Config(BaseModel):
 
         if VERDICTS.index(verdict) < VERDICTS.index(policy.min_verdict):
             return f"verdict {verdict} is below {policy.min_verdict}"
+
         if score < policy.min_score:
             return f"score {score} is below {policy.min_score}"
+
         if missing_essentials > policy.allow_missing_essentials:
             return (
                 f"{missing_essentials} essential requirements have no evidence "
