@@ -457,12 +457,13 @@ if (!smtpOptions.IsConfigured)
         SmtpOptions.SectionName);
 }
 
+// Always use openapi and swagger ui for doc referece
+app.UseOpenApi();
+app.UseSwaggerUi();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseOpenApi();
-    app.UseSwaggerUi();
-
     // NOTE: development brings its own database up to date and seeds it, so a fresh clone
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<BlogDbContext>();
