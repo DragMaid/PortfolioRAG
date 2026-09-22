@@ -26,7 +26,7 @@ from ...errors import (
     NotApplicableError,
 )
 from ...forms import FieldHandle, fill, read_fields
-from ...models import ApplyMethod, Listing, Posting, Resume, Search, Submission
+from ...models import ApplyMethod, Listing, Posting, Probe, Resume, Search, Submission
 from ..base import ApplyContext
 from . import selectors as sel
 
@@ -198,6 +198,7 @@ class JobStreet:
         handled: list[str] = []
 
         browser.goto(f"{self.host}/job/{job_id}/apply", settle_ms=2500)
+        resumes: list[str] = []
 
         for _ in range(_MAX_STEPS):
             self._check_challenge()
@@ -218,9 +219,26 @@ class JobStreet:
             try:
                 match step:
                     case "documents":
+                        # Read before filling: checking the resume chooser is what makes
+                        # JobStreet draw the list, and a probe never gets a second chance.
+                        if context.probe:
+                            resumes = self._resume_names()
                         self._documents(context.packet.cover_letter, context.packet.resume)
 
                     case "questions":
+                        if context.probe:
+                            # As far as a mock application goes. Nothing is answered here and
+                            # nothing is continued past this step.
+                            return Submission(
+                                submitted=False,
+                                probe=Probe(
+                                    questions=[h.field for h in self._read_questions()],
+                                    resumes=resumes,
+                                    role=role,
+                                    company=posting.company or posting.listing.company,
+                                    url=posting.listing.url,
+                                ),
+                            )
                         answers |= self._questions(context, role)
 
                     case "review":
@@ -234,8 +252,12 @@ class JobStreet:
 
                         return self._submit(answers)
 
-                    case _:
-                        self._continue(step)
+                # Every step that did not return still has to be got past, this one included:
+                # "profile" asks nothing this should change and only needs passing. Calling
+                # this inside `case _` instead would leave documents and questions filled in
+                # and never submitted, and the next turn of the loop would report that the
+                # step would not move on.
+                self._continue(step)
 
             except ApplierError:
                 raise
@@ -300,13 +322,12 @@ class JobStreet:
         # NOTE: the check(force=True) directly click the button even if its not fully loaded
         # or covered by another element
         # First time user and need to upload resume
-        if resume.upload:
+        if upload := resume.upload:
             page.get_by_role("radio", name=sel.RESUME_UPLOAD).check(force=True)
             resume_input = page.locator("input[type=file]").first
-            resume_input.set_input_files(str(resume.upload))
+            resume_input.set_input_files(str(upload))
 
             # The upload finishes when the file's name shows up on the page.
-            assert (upload := resume.upload) is not None
             self.browser.poll(lambda: page.get_by_text(upload.name).count(), timeout=60)
 
         # Just use the old file now

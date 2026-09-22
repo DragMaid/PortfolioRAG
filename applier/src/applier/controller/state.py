@@ -178,45 +178,26 @@ class Job:
         }
 
 
-@dataclass
-class RunSettings:
-    """The toggles, and the policy numbers a session may hold against the file's.
+def settings_of(config: Any) -> dict[str, Any]:
+    """The page's settings, read straight out of the config.
 
-    Overrides live here and only here: ``applier.yaml`` is read at startup and never written,
-    so a session's thresholds are this run's, and the next run starts from the file again.
+    There is no second copy. What the toggles show is what the file says, and changing one
+    writes the file — so the settings page and ``applier.yaml`` can never disagree, and a run
+    you tuned from the page is the run the command line would make tomorrow.
     """
-
-    # False puts every posting that clears the policy into PENDING, for a person to pick.
-    auto_pick: bool = True
-    # False fills each form to its review page and hands it over instead of submitting.
-    auto_submit: bool = True
-    # True shows every employer question and its checked answer before the form is filled.
-    review_answers: bool = False
-    # Hand-offs a person may have open at once. Applying pauses at the cap rather than
-    # burying them in tabs.
-    max_open_handoffs: int = 5
-
-    # Which of the file's searches this run uses, by their index in the config.
-    searches: list[int] = field(default_factory=list)
-    max_applications: int | None = None
-    max_assessments: int | None = None
-    min_verdict: Verdict | None = None
-    min_score: int | None = None
-    allow_missing_essentials: int | None = None
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "autoPick": self.auto_pick,
-            "autoSubmit": self.auto_submit,
-            "reviewAnswers": self.review_answers,
-            "maxOpenHandoffs": self.max_open_handoffs,
-            "searches": list(self.searches),
-            "maxApplications": self.max_applications,
-            "maxAssessments": self.max_assessments,
-            "minVerdict": self.min_verdict,
-            "minScore": self.min_score,
-            "allowMissingEssentials": self.allow_missing_essentials,
-        }
+    policy, run = config.policy, config.run
+    return {
+        "autoPick": run.auto_pick,
+        "autoSubmit": run.auto_submit,
+        "answers": run.answers,
+        "maxOpenHandoffs": run.max_open_handoffs,
+        "searches": [index for index, search in enumerate(config.searches) if search.enabled],
+        "maxApplications": policy.max_applications,
+        "maxAssessments": policy.max_assessments,
+        "minVerdict": policy.min_verdict,
+        "minScore": policy.min_score,
+        "allowMissingEssentials": policy.allow_missing_essentials,
+    }
 
 
 def listing_of(job: Job) -> Listing:

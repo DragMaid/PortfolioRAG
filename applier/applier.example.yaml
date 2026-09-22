@@ -1,4 +1,12 @@
-# Copy to applier.yaml (gitignored — it holds your details) and fill it in.
+# You do not have to write this by hand. `applier serve` writes one of these if there is
+# none, and its setup run does a mock application — walking a real posting's form as far as
+# its questions, and asking you those — to fill in the facts below.
+#
+# This file is the source of truth for both ways of running it, and both ends write it: you
+# in an editor, and the page when you change something on it. Saving from the page goes
+# through a round-trip loader, so these comments and your own key order survive.
+#
+# Copy it to applier.yaml (gitignored — it holds your details) if you would rather start here.
 #
 # This file is the source of truth for both ways of running it. `applier serve` reads it at
 # startup and never writes it back: the thresholds, searches and facts you change on the page
@@ -19,6 +27,18 @@ searches:
 boards:
   jobstreet:
     region: sg
+
+# How much of a run happens without you. The page's toggles are these.
+run:
+  auto_pick: true        # false: every posting that fits waits for you to pick it
+  auto_submit: true      # false: each form is filled to its review page and left open in a
+                         #        tab, for you to read and submit yourself
+  # When a run stops to ask you about an employer's question:
+  #   never   — a required question no fact answers skips the posting and is recorded
+  #   missing — the run stops and asks, there and then, and keeps what you type
+  #   always  — every question and its answer, with the fact behind it, before the form
+  answers: missing
+  max_open_handoffs: 5   # with auto_submit off, how many may be waiting on you at once
 
 # What counts as a fit. Verdict and score are computed in code by the rag pipeline:
 # weak < partial < promising < strong.
@@ -45,6 +65,10 @@ llm:
 
 # Retrieval runs against your portfolio's index through its API, under a pfl_ token with
 # the write scope. The API and the rag worker must be running.
+#
+# The token itself is not in this file and never is. Paste it into `applier serve`, which
+# keeps it in .applier/secrets.yaml with owner-only permissions — or export it as the
+# variable named here, which is what the command line reads when nothing was pasted.
 portfolio:
   api: http://localhost:5009
   token_env: APPLIER_PORTFOLIO_TOKEN
@@ -63,8 +87,13 @@ candidate:
   resume:
     select: My_Resume          # part of the name of a resume already on your JobStreet profile
     # upload: ./resume.pdf     # or a file to upload with each application
+  # Steers the letter's wording. Not a fact, and grants nothing.
   cover_letter_notes: >
     Mention I can start within a month.
+  # Steers how employer questions get answered — which option to take where two fit, how to
+  # phrase a number. Also not a fact: an answer still has to point at one.
+  answer_notes: >
+    When two options both fit, take the conservative one. Never give a salary range.
   # Employer questions are answered from these and nothing else. A required question these
   # do not answer skips the posting and is listed by `applier questions`, so you can add
   # the fact and run again with --retry-skipped.

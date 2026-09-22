@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-Kind = Literal["job", "log", "settings", "run", "review", "boards"]
+Kind = Literal["job", "log", "settings", "run", "review", "boards", "sites", "setup"]
 
 # Deep enough to ride out a slow render or a paused tab, short enough that a page which
 # stopped reading is noticed rather than buffered for ever.

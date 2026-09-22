@@ -22,6 +22,7 @@ from collections.abc import Callable
 from typing import Any
 
 from ..answering import Answerer
+from ..config import Intervention
 from ..errors import ApplierError, UnanswerableError
 from ..forms import FieldHandle, match_option
 from ..models import Answer
@@ -122,13 +123,13 @@ class ReviewingAnswerer:
         self,
         inner: Answerer,
         *,
-        review: bool,
+        level: Intervention,
         ask: Callable[[list[dict[str, Any]]], dict[str, Any]],
         add_facts: Callable[[dict[str, str]], None],
         log: Callable[[str], None] = print,
     ):
         self.inner = inner
-        self.review = review
+        self.level = level
         self.ask = ask
         self.add_facts = add_facts
         self.log = log
@@ -143,11 +144,14 @@ class ReviewingAnswerer:
         while True:
             answers, unanswered = self._propose(questions, role)
 
-            # Nothing to show and nothing missing: the unattended path, unchanged.
-            if not self.review and not unanswered:
+            if self.level == "never":
+                if unanswered:
+                    raise UnanswerableError(unanswered)
                 return answers
-            if not self.review:
-                raise UnanswerableError(unanswered)
+
+            # Missing shows information that have yet been clarified by user
+            if self.level == "missing" and not unanswered:
+                return answers
 
             rejected = self.inner.last.rejected if self.inner.last else []
             decision = self.ask(describe(questions, answers, unanswered, rejected))

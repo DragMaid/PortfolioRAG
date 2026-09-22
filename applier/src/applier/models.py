@@ -116,6 +116,24 @@ Answer = str | list[str]
 
 
 @dataclass(slots=True)
+class Probe:
+    """What a mock application found, without answering or sending anything.
+
+    The setup run's whole product. It is how somebody gets a working profile without being
+    asked to imagine, in advance, what an employer might want to know: the form is walked as
+    far as its questions and then abandoned, and what it asked for becomes the list you fill
+    in. ``resumes`` is the same trick for the resume — the names already on the board profile,
+    read off the page, rather than a filename typed from memory.
+    """
+
+    questions: list[FormField] = field(default_factory=list)
+    resumes: list[str] = field(default_factory=list)
+    role: str = ""
+    company: str | None = None
+    url: str = ""
+
+
+@dataclass(slots=True)
 class Submission:
     """What a board reports back from an apply attempt."""
 
@@ -126,3 +144,5 @@ class Submission:
     # The form is filled and left sitting at its review page, in a tab nobody closed. Only
     # a person can settle it now, by submitting it themselves or saying they will not.
     handed_off: bool = False
+    # What a probing run found. Set only when ``ApplyContext.probe`` asked for one.
+    probe: Probe | None = None

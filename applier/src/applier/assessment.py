@@ -54,10 +54,23 @@ class Fit:
 
 
 class Assessor:
-    def __init__(self, llm: Llm, *, api: str, token: str, log=print):
+    def __init__(self, llm: Llm, *, api: str, token: str = "", log=print):
         self.llm = llm
         self.retriever = ApiRetriever(PortfolioApi(api, token))
         self.log = log
+
+    @property
+    def token(self) -> str:
+        return self.retriever.api.token
+
+    @token.setter
+    def token(self, value: str) -> None:
+        """Swapped in while the session runs, because the page can supply one at any point.
+
+        A controller starts without a token — pasting it is a box on the page, not a reason
+        to refuse to start — so the first assessment may well be the first time there is one.
+        """
+        self.retriever.api.token = value.strip()
 
     def fit(self, posting_text: str) -> Fit:
         def run() -> dict[str, Any]:

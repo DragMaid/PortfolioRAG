@@ -65,6 +65,26 @@ class Llm:
         """Runs ``work`` on the model thread and waits for it."""
         return self._thread.submit(work, *args, **kwargs).result()
 
+    def submit(self, work: Callable[..., Any], *args: Any) -> None:
+        """Queues ``work`` on the model thread without waiting for it.
+
+        For the things that take as long as a person does — signing in to a chat site, above
+        all. A request that waited for that would be holding a connection open for ten
+        minutes; the page hears how it went on the event stream instead.
+        """
+        self._thread.submit(work, *args)
+
+    def release(self) -> None:
+        """Closes the chat site's browser, keeping the thread. Call on the model thread.
+
+        A profile can only be open once, so anything that needs to drive that browser itself
+        — a sign-in, in a window where somebody can type — has to be given it first. The
+        provider reopens on its next use, so releasing it costs a page load and nothing else.
+        """
+        if isinstance(self._provider, WebProvider):
+            self._provider.close()
+        self._provider = None
+
     def job_fit(self) -> JobFitPipeline:
         return JobFitPipeline(
             settings=self.settings,

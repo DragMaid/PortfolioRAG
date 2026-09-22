@@ -6,8 +6,9 @@ portfolio, employer questions answered from facts you wrote down, submitted thro
 board's own form. It runs on your machine, in browsers you are signed in to.
 
 There are two ways to run it. `applier serve` opens a page and runs it with you watching,
-which is where to start; `applier run` does the whole thing from the command line, deciding
-everything itself.
+which is where to start — and where setting it up happens, by answering the questions a real
+form asked rather than by writing a config. `applier run` does the whole thing from the
+command line, deciding everything itself, out of the same file.
 
 ```
   ┌───────────── applier (your machine) ─────────────┐
@@ -52,21 +53,61 @@ answer to an employer does.
 
 ## Setup
 
-Needs the portfolio API and the rag worker running (retrieval runs there, under your
-token), exactly as for `rag-local`.
-
 ```sh
 cd applier
 uv sync
 uv run camoufox fetch                           # once, if rag has not already
-cp applier.example.yaml applier.yaml            # then fill it in: searches, facts, resume
-export APPLIER_PORTFOLIO_TOKEN=pfl_...          # studio → access, write scope
-
-uv run --project ../rag python -m rag.webchat login gemini   # the model's chat site
-uv run applier login jobstreet                               # the board; profile is kept
+uv run applier serve                            # then open http://127.0.0.1:8765
 ```
 
-## Using it
+That is the whole of it. There is nothing to write and nothing to export first: `applier
+serve` writes a config if there is none and opens on a setup run, which does the rest —
+signing in to the board, one **mock application**, the questions that came off it, and the
+portfolio token, which you paste into the page.
+
+Assessing a posting does need the portfolio API and the rag worker running, exactly as for
+`rag-local`. Nothing before that does, including all of setup bar its last step.
+
+### The setup run
+
+Nobody can write down in advance the facts an employer will ask them for, so this does not
+ask them to.
+
+1. **Sign in to the board.** A window opens; you sign in once and the profile is kept.
+2. **One mock application.** Paste a posting you are happy to have opened. Its form is walked
+   as far as its questions and abandoned there — nothing answered, nothing continued, nothing
+   sent — and the tab closes. The posting is not recorded, so it is still yours to apply to
+   properly later.
+3. **Answer what it found.** That employer's own questions, word for word, plus the handful
+   nearly every board asks. Each answer becomes a fact, named after what it states rather
+   than how it was asked: *"Do you have a valid driving licence?"* is kept as
+   `Valid driving licence`. The resumes already on your board profile are read off the same
+   form, so choosing one is picking from a list rather than typing a filename.
+4. **Searches.** Keywords and a location, or a search URL you have refined in the board's own
+   interface. *Preview* shows the first page before you commit to anything.
+
+It needs no portfolio API, no rag worker and no model — which matters, because otherwise
+getting four things running would come before finding out whether any of this suits you.
+
+**It does not finish the job, and says so.** One form asks three or four things; employers
+keep asking new ones. That is what `run.answers: missing` is for — the run stops, asks, and
+keeps what you type. Setup gets you to a working profile; the runs themselves keep it working.
+
+### Credentials
+
+| | Where it lives | Why |
+|---|---|---|
+| **Portfolio token** (`pfl_…`) | Pasted into the page; kept in `.applier/secrets.yaml`, mode 0600 | Retrieval runs under it, so nothing can be assessed without one — and demanding it in the environment meant the controller could not start, and so could not show the box that asks for it. Exporting `APPLIER_PORTFOLIO_TOKEN` still works, and is what `applier run` reads when nothing was pasted. A pasted one wins, so replacing an expired export actually takes effect. |
+| **Provider key** (anthropic, openai, …) | The environment only | Worth real money if it leaks, and nothing here needs it before it can start. The page names the variable and says whether it is set; the key never reaches the page, the config or the disk. |
+| **Chat site sign-in** (the `web` provider) | A browser profile | *Settings → Model & access* opens a window to sign in, or `uv run --project ../rag python -m rag.webchat login gemini`. |
+
+Neither credential ever goes into `applier.yaml`. That file is the one you would hand
+somebody to show how this is set up.
+
+## Using it from the command line
+
+The page is where to start, and everything below reads the same `applier.yaml` it writes —
+so a run tuned on the page behaves the same way here.
 
 ```sh
 uv run applier run --dry-run --limit 2          # fill up to the review page, submit nothing
@@ -92,18 +133,23 @@ window you can see, each posting gets a tab of its own, and the table's *Show ta
 any of them to the front — so a row you are reading and the page it was filled in on stay
 connected.
 
-Three toggles decide how much happens without you:
+Three settings decide how much happens without you, and all three live in `applier.yaml`
+under `run:` — so what the page's toggles say and what `applier run` would do tomorrow are
+the same thing read twice.
 
-| Toggle | Off |
+| Setting | What turning it down means |
 |---|---|
-| **Pick postings itself** | Everything that clears the policy waits in the table until you press *Apply* on its row. |
-| **Submit applications itself** | Each form is filled to its review page and left open in a tab. You read it and press submit yourself. |
-| **Check employer answers first** | — (off by default) On, every question and the answer it would give is shown, with the fact behind it, before the form is filled. |
+| **Pick postings itself** | Off: everything that clears the policy waits in the table until you press *Apply* on its row. |
+| **Submit applications itself** | Off: each form is filled to its review page and left open in a tab. You read it and press submit yourself. |
+| **When to ask about an answer** | `never` — a required question no fact answers skips the posting. `missing` *(default)* — the run stops and asks, and keeps what you type. `always` — every question and its answer, with the fact behind it, before the form is filled. |
 
-Both halves can be turned down independently: pick by hand and let it submit, or let it
-pick and send nothing without you. With sending turned off the run keeps going while you
-work through the tabs, pausing at five open hand-offs (configurable) rather than burying
-you in them.
+The first two are independent: pick by hand and let it submit, or let it pick and send
+nothing without you. With sending turned off the run keeps going while you work through the
+tabs, pausing at five open hand-offs (configurable) rather than burying you in them.
+
+`missing` is the one that makes a thin profile workable. A fact you type into that pause is
+written into the config immediately, so the next posting that asks the same thing — and the
+next run, and the command line tomorrow — is answered without stopping.
 
 **A hand-off settles itself.** The tab you were given is watched: submit it there and the
 row becomes `applied` without you pressing anything. The row's buttons are for when that
@@ -115,8 +161,18 @@ the cover letter behind every row, the whole ledger with the unanswered-question
 a box to paste a posting into and get a report or a letter for it — `rag-local`'s two
 pipelines, mounted under `/api/rag` and run through the same signed-in chat session.
 
-`applier.yaml` is read at startup and **never written back**. The panel's thresholds,
-searches and facts are this session's; the page shows you what to paste to keep them.
+### Settings
+
+Everything the config holds is editable on the page: your details and the two notes boxes,
+the facts, the searches, which model answers, and the file itself as text. Structured
+editors are the main path; the raw view is the escape hatch, checked against the same loader
+the server started with and refused whole if it would not load — so nothing you type there
+can leave the tool unable to start.
+
+Saving goes through a round-trip loader, so a config you hand-edited still has its comments
+afterwards. The one thing that stays out is a provider key: the page names the environment
+variable it should come from and reports whether that variable is set. The key itself never
+reaches the page, the config, or the disk.
 
 ### Building the page
 
@@ -165,20 +221,24 @@ What a new board gets for free:
 - **Answering.** `context.answerer.answer(handles, role=...)` returns checked answers, or
   raises `UnanswerableError`, which the pipeline records as `needs_input`.
 - **Failure capture.** `browser.fail(error)` saves the page onto the error before raising.
-- **The controller, whole.** Picking, the table, hand-offs, tabs and the answer review are
-  all in terms of `JobBoard`, so a new adapter gets every one of them without knowing they
-  exist. Two things make it work: `apply` honours `context.hand_off` by stopping at its
-  review page and leaving it exactly as it is (`Submission(handed_off=True)`), and
-  `submitted()` reads whether the page in front of it shows a sent application — that is
-  what lets a tab you submitted yourself settle its own row.
+- **The controller, whole.** Picking, the table, hand-offs, tabs, the answer review and the
+  setup run are all in terms of `JobBoard`, so a new adapter gets every one of them without
+  knowing they exist. Three things make it work, all on `ApplyContext`:
+  `hand_off` stops at the review page and leaves it exactly as it is
+  (`Submission(handed_off=True)`); `probe` stops one step earlier and reports the questions
+  and the profile's resumes instead of answering anything (`Submission(probe=Probe(...))`),
+  which is the whole of the setup run; and `submitted()` reads whether the page in front of
+  it shows a sent application, which is what lets a tab you submitted yourself settle its
+  own row.
 - **Tabs.** An adapter never opens one. The controller runs `apply` inside
   `browser.on(<the posting>)`, and `browser.page` — which is all an adapter reaches for —
   points at that tab for the whole flow.
 
 For LinkedIn Easy Apply, the adapter's `apply` walks the modal's steps and calls
 `read_fields` on the modal for each one; `hand_off` means stopping on the modal's review
-step instead of clicking through it, and `submitted` looks for its "Application sent"
-panel. Search and posting pages are the only LinkedIn-specific code.
+step instead of clicking through it, `probe` means stopping on its first question step and
+returning what `read_fields` found, and `submitted` looks for its "Application sent" panel.
+Search and posting pages are the only LinkedIn-specific code.
 
 ## JobStreet notes
 
@@ -196,7 +256,7 @@ panel. Search and posting pages are the only LinkedIn-specific code.
 
 ```sh
 uv run pytest                 # unit: config, answer checking, ledger, pipeline, controller,
-                              # server — all with fakes: no browser, no model, no board
+                              # setup, server — all with fakes: no browser, no model, no board
 uv run pytest -m browser      # the form reader and filler, in camoufox, on a local page
 uv run ruff check .
 cd web && npm run lint        # the page's types
@@ -207,3 +267,10 @@ browser. What it pins down is the bookkeeping either side of a hand-off, because
 where a double application would come from: handed over is on record *before* you can touch
 it, a tab you closed without a confirmation is `unconfirmed` rather than applied, and the
 hand-off cap really does hold the queue back.
+
+`tests/test_setup.py` covers the other half — arriving at a working profile without writing
+a config, and the config surviving being written. One of those tests exists because of a
+genuinely nasty bug: *"Do you have a driving licence?"* is answered **No**, and YAML reads a
+bare `No` as the boolean false, so the fact came back as `False` and the config stopped
+loading altogether. Anything whose own spelling would not survive the round trip is now
+written quoted.

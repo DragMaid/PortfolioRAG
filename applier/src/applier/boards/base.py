@@ -5,7 +5,8 @@ deciding, writing, recording:
 
     search(search)          -> the listings a search turns up, lazily, page by page
     fetch(listing)          -> the posting: its text, and whether it can be applied to here
-    apply(posting, context) -> fill the board's form and submit it (or stop short, on a dry run)
+    apply(posting, context) -> fill the board's form and submit it (or stop short: on a dry
+                               run, at a hand-off, or at a probe — see ApplyContext)
     ensure_signed_in()      -> raise LoginRequiredError unless the profile is signed in
     submitted()             -> whether the page in front of it shows a sent application
 
@@ -43,6 +44,12 @@ class ApplyContext:
     # to read and send themselves. The adapter returns ``Submission(handed_off=True)`` and
     # must not navigate away — the page it stops on is the whole of what is handed over.
     hand_off: bool = False
+    # A mock application: walk as far as the questions, report them, and stop. Nothing is
+    # answered, nothing is continued past that step, and nothing is ever sent. The adapter
+    # returns ``Submission(probe=Probe(...))`` carrying the questions it found and the names
+    # of the resumes on the profile. This is what setup runs, so that a profile is built from
+    # a form a real employer wrote rather than from guesses about what they might ask.
+    probe: bool = False
 
 
 @runtime_checkable
