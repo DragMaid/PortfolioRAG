@@ -8,10 +8,12 @@ push to main ─► CI suite ─► build api/frontend/rag ─► GHCR ─► ss
 ```
 
 - **`docker-compose.prod.yml`** (repo root) — the whole stack: Postgres/pgvector, a one-shot
-  `migrate`, the API, the frontend, the rag worker. Only binds `127.0.0.1`; the host's nginx is
+  `migrate`, the API, the frontend, the rag worker. Publishes no ports; the API and frontend
+  join the external `traefik` network and route themselves with labels. The host's Traefik is
   the public entry point, shared with the other sites on the box.
 - **`ansible/`** — one-time (and re-runnable) server setup: Docker, the `deploy` user,
-  `/opt/portfolio`, nginx vhost + Let's Encrypt, unattended security upgrades, nightly backups.
+  `/opt/portfolio`, a shared Traefik at `/opt/traefik` (Let's Encrypt via HTTP challenge),
+  unattended security upgrades, nightly backups.
 - **`deploy.sh` / `backup.sh`** — copied to `/opt/portfolio` on every deploy and run there.
 - **`.github/workflows/deploy.yml`** — the pipeline.
 
@@ -39,6 +41,10 @@ push to main ─► CI suite ─► build api/frontend/rag ─► GHCR ─► ss
    | var    | `GOOGLE_CLIENT_ID` | optional                                                  |
 
 5. Push to `main` (or run **Deploy** by hand). The first run creates the database from scratch.
+
+Traefik claims ports 80/443. If another proxy (e.g. a host nginx) holds them, stop it and move
+its sites behind Traefik first: attach their containers to the `traefik` network with
+`traefik.enable=true` labels, or add a file-provider route for non-container upstreams.
 
 ## Day to day
 

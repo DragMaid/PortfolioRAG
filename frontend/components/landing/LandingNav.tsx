@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 export function LandingNav() {
@@ -26,27 +27,7 @@ export function LandingNav() {
       <div className="mx-auto max-w-7xl px-6 sm:px-12 flex items-center justify-between">
         {/* Brand Logo & Emblem */}
         <Link href="/" className="group flex items-center gap-2.5 focus:outline-none">
-          {/* Dual Emblem: Gear meets Petal */}
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 border border-slate-800">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-              {/* Left gear quadrant */}
-              <path
-                d="M12 4V2M8 5L6.5 3.5M5 8L3.5 6.5M4 12H2"
-                stroke="#94a3b8"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-              <circle cx="12" cy="12" r="4" stroke="#94a3b8" strokeWidth="1.5" />
-              {/* Right organic petal arch */}
-              <path
-                d="M12 4C16.4 4 20 7.6 20 12C20 16.4 16.4 20 12 20"
-                stroke="#c9b8a0"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-              <circle cx="15" cy="9" r="1.5" fill="#c9b8a0" />
-            </svg>
-          </div>
+          <Image src="/logo.webp" alt="" width={32} height={32} loading="eager" className="h-8 w-8" />
 
           <div className="flex flex-col">
             <span className="font-sans font-semibold tracking-tight text-sm sm:text-base text-slate-100 group-hover:text-white transition-colors">
