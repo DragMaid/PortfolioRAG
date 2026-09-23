@@ -30,8 +30,7 @@ env_value() {
 new_tag="$(env_value IMAGE_TAG)"
 # Get tag, pipe error log to null and || true to return 0 on error so pipeline don't fail
 previous_tag="$(cat .current-tag 2>/dev/null || true)"
-api_port="$(env_value API_PORT)"; api_port="${api_port:-5100}"
-frontend_port="$(env_value FRONTEND_PORT)"; frontend_port="${frontend_port:-3100}"
+site_domain="$(env_value SITE_DOMAIN)"
 
 echo "==> Deploying ${new_tag} (previous: ${previous_tag:-none})"
 
@@ -57,11 +56,16 @@ if [[ -n "$("${compose[@]}" ps --status running --quiet db)" ]]; then
     ./backup.sh pre-deploy
 fi
 
-# Pinging the health endpoint until it succeed
+# Pinging the health endpoint until it succeed. Goes through Traefik on this host, so the
+# routing labels are checked too; -k because a certificate may not be issued yet (or is
+# self-signed), and it is our own loopback anyway.
+probe() {
+    curl -fsSk -o /dev/null --resolve "$1:443:127.0.0.1" "https://$1$2"
+}
+
 healthy() {
     for _ in $(seq 1 30); do
-        if curl -fsS -o /dev/null "http://127.0.0.1:${api_port}/healthz" &&
-           curl -fsS -o /dev/null "http://127.0.0.1:${frontend_port}/"; then
+        if probe "api.${site_domain}" /healthz && probe "$site_domain" /; then
             return 0
         fi
         sleep 2

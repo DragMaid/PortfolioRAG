@@ -2,9 +2,10 @@
 # docker-compose.yml; this one runs everything from the images CI pushes to GHCR.
 #
 # It lives on the VPS at /opt/portfolio next to a .env the deploy workflow writes — see
-# deploy/.env.example for every variable. Nothing here listens publicly: the API and the
-# frontend bind to 127.0.0.1 and the host's nginx terminates TLS in front of them, so this
-# stack shares ports 80/443 with the other sites on the machine instead of claiming them.
+# deploy/.env.example for every variable. Nothing here publishes a port: the API and the
+# frontend join the host's shared `traefik` network (created by the Ansible playbook) and
+# route themselves with labels, so this stack shares 80/443 with the other sites on the
+# machine instead of claiming them.
 #
 #   docker compose -f docker-compose.prod.yml ps
 #   docker compose -f docker-compose.prod.yml logs -f api
@@ -20,9 +21,9 @@ x-logging: &logging
 
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Production
-  # Trusts X-Forwarded-For/-Proto from whoever connects. Safe only because the port is
-  # bound to loopback and nginx is the only thing that can reach it; without it every
-  # visitor has nginx's address and analytics collapses them into one.
+  # Trusts X-Forwarded-For/-Proto from whoever connects. Safe only because no port is
+  # published and Traefik is the only thing that can reach it; without it every visitor
+  # has Traefik's address and analytics collapses them into one.
   ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
   ConnectionStrings__Postgres: Host=db;Port=5432;Database=portfolio;Username=portfolio;Password=${POSTGRES_PASSWORD:?}
   Jwt__Key: ${JWT_KEY:?}
@@ -80,8 +81,12 @@ services:
     image: ${IMAGE_PREFIX:?}/portfolio-api:${IMAGE_TAG:?}
     restart: unless-stopped
     environment: *api-environment
-    ports:
-      - "127.0.0.1:${API_PORT:-5100}:8080"
+    networks: [default, traefik]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.portfolio-api.rule: Host(`api.${SITE_DOMAIN:?}`)
+      traefik.http.routers.portfolio-api.entrypoints: websecure
+      traefik.http.services.portfolio-api.loadbalancer.server.port: "8080"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -90,8 +95,12 @@ services:
   frontend:
     image: ${IMAGE_PREFIX:?}/portfolio-frontend:${IMAGE_TAG:?}
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:${FRONTEND_PORT:-3100}:3000"
+    networks: [default, traefik]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.portfolio-frontend.rule: Host(`${SITE_DOMAIN:?}`)
+      traefik.http.routers.portfolio-frontend.entrypoints: websecure
+      traefik.http.services.portfolio-frontend.loadbalancer.server.port: "3000"
     depends_on:
       - api
     logging: *logging
@@ -112,3 +121,7 @@ services:
 
 volumes:
   db-data:
+
+networks:
+  traefik:
+    external: true

@@ -4,34 +4,32 @@
 #
 # What it touches, and deliberately what it does not, because other sites share the host:
 #   - installs Docker only when no `docker` binary exists yet (never swaps an existing one)
-#   - adds ONE nginx vhost + its certificate; nginx.conf and other sites are left alone,
-#     and every reload is preceded by `nginx -t`
+#   - runs ONE shared Traefik at /opt/traefik on ports 80/443 (Let's Encrypt included);
+#     sites join the `traefik` Docker network and route themselves with container labels.
+#     Anything else holding 80/443 (e.g. a host nginx) has to be moved behind it first
 #   - creates a `deploy` user that owns /opt/portfolio (docker group = root-equivalent;
 #     the key is dedicated to this purpose so it can be revoked on its own)
 #   - installs unattended-upgrades for OS security patches and a nightly DB dump cron
-#   - does NOT manage the firewall: the stack binds to 127.0.0.1 only, and Docker
-#     bypasses ufw rules for published ports anyway
+#   - does NOT manage the firewall: only Traefik publishes ports, and Docker bypasses
+#     ufw rules for published ports anyway
 
 - name: Prepare VPS for the portfolio stack
   hosts: portfolio
   become: true
 
   vars:
-    portfolio_api_domain: "api.{{ portfolio_domain }}"
     deploy_user: deploy
     app_dir: /opt/portfolio
-    api_port: 5100
-    frontend_port: 3100
-    # Largest upload the API accepts (Media:MaxVideoBytes) plus multipart overhead.
-    client_max_body_size: 110m
+    traefik_dir: /opt/traefik
+    traefik_version: v3.6
+    # Must match the external network docker-compose.prod.yml joins.
+    traefik_network: traefik
     # letsencrypt needs DNS for both names pointing here. selfsigned is for before that:
-    # browsers will warn, but the stack is reachable (e.g. via /etc/hosts). Switching back
-    # to letsencrypt later just works — the self-signed files stay in place until then.
+    # Traefik serves its default certificate and browsers warn, but the stack is reachable
+    # (e.g. via /etc/hosts). Switching to letsencrypt later is a re-run of this playbook.
     # Play vars outrank inventory vars, so the default lives in a filter rather than
     # as `tls_mode:` here — otherwise tls_mode set in inventory.ini would be ignored.
     tls: "{{ tls_mode | default('letsencrypt') }}"
-    selfsigned_dir: /etc/ssl/portfolio
-    tls_cert_dir: "{{ selfsigned_dir if tls == 'selfsigned' else '/etc/letsencrypt/live/' ~ portfolio_domain }}"
 
   tasks:
     - name: Install base packages
@@ -41,9 +39,6 @@
           - curl
           - gnupg
           - unattended-upgrades
-          - nginx
-          - certbot
-          - python3-certbot-nginx
         state: present
         update_cache: true
         cache_valid_time: 3600
@@ -147,55 +142,47 @@
         that: tls in ['letsencrypt', 'selfsigned']
         fail_msg: "tls_mode must be 'letsencrypt' or 'selfsigned', got '{{ tls }}'"
 
-    - name: Create the self-signed certificate directory
-      when: tls == 'selfsigned'
+    - name: Check for the shared proxy network
+      ansible.builtin.command: docker network inspect {{ traefik_network }}
+      register: traefik_network_check
+      changed_when: false
+      failed_when: false
+
+    - name: Create the shared proxy network
+      when: traefik_network_check.rc != 0
+      ansible.builtin.command: docker network create {{ traefik_network }}
+
+    - name: Create the Traefik directories
       ansible.builtin.file:
-        path: "{{ selfsigned_dir }}"
+        path: "{{ item }}"
         state: directory
         mode: "0700"
+      loop:
+        - "{{ traefik_dir }}"
+        # acme.json holds the certificates' private keys.
+        - "{{ traefik_dir }}/letsencrypt"
 
-    # Same file names as Let's Encrypt so the vhost only differs by directory.
-    - name: Generate a self-signed TLS certificate
-      when: tls == 'selfsigned'
-      ansible.builtin.command: >-
-        openssl req -x509 -nodes -newkey rsa:2048 -days 365
-        -keyout {{ selfsigned_dir }}/privkey.pem
-        -out {{ selfsigned_dir }}/fullchain.pem
-        -subj "/CN={{ portfolio_domain }}"
-        -addext "subjectAltName=DNS:{{ portfolio_domain }},DNS:{{ portfolio_api_domain }}"
-      args:
-        creates: "{{ selfsigned_dir }}/fullchain.pem"
-      notify: Reload nginx
-
-    # certonly: certbot obtains the certificate without rewriting any config. The vhost
-    # below references it, so this has to happen first — and DNS for both names must
-    # already point at this server.
-    - name: Obtain the TLS certificate
-      when: tls == 'letsencrypt'
-      ansible.builtin.command: >-
-        certbot certonly --nginx --non-interactive --agree-tos
-        --email {{ letsencrypt_email }}
-        --cert-name {{ portfolio_domain }}
-        -d {{ portfolio_domain }} -d {{ portfolio_api_domain }}
-        --deploy-hook "systemctl reload nginx"
-      args:
-        creates: "/etc/letsencrypt/live/{{ portfolio_domain }}/fullchain.pem"
-
-    - name: Install the portfolio vhost
+    - name: Install the Traefik config
       ansible.builtin.template:
-        src: templates/nginx-portfolio.conf.j2
-        dest: /etc/nginx/sites-available/portfolio.conf
+        src: "templates/{{ item.src }}"
+        dest: "{{ traefik_dir }}/{{ item.dest }}"
         mode: "0644"
-      notify: Reload nginx
+      loop:
+        - { src: traefik.yml.j2, dest: traefik.yml }
+        - { src: traefik-compose.yml.j2, dest: docker-compose.yml }
+      notify: Restart Traefik
 
-    - name: Enable the portfolio vhost
-      ansible.builtin.file:
-        src: /etc/nginx/sites-available/portfolio.conf
-        dest: /etc/nginx/sites-enabled/portfolio.conf
-        state: link
-      notify: Reload nginx
+    - name: Start Traefik
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: "{{ traefik_dir }}"
+      register: traefik_up
+      changed_when: "'Started' in traefik_up.stderr or 'Recreated' in traefik_up.stderr"
 
   handlers:
-    - name: Reload nginx
-      ansible.builtin.shell: nginx -t && systemctl reload nginx
+    # Static config is only read at startup.
+    - name: Restart Traefik
+      ansible.builtin.command: docker compose up -d --force-recreate
+      args:
+        chdir: "{{ traefik_dir }}"
       changed_when: true
