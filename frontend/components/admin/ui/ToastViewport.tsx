@@ -13,7 +13,8 @@ const ICONS: Record<ToastTone, IconName> = {
 const ICON_TONES: Record<ToastTone, string> = {
   info: "text-warm-accent",
   success: "text-warm-accent",
-  error: "text-[#e8a19b]",
+  // The toast is inverted, so its danger tone is the other theme's.
+  error: "text-[#e8a19b] dark:text-[#a3372f]",
 };
 
 /**

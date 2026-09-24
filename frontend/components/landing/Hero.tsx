@@ -173,7 +173,7 @@ export function Hero() {
             >
               You express yourself to the fullest
             </h2>
-            <p className="relative mt-3 sm:mt-5 text-sm sm:text-base lg:text-lg text-warm-slate max-w-md font-sans leading-relaxed">
+            <p className="relative mt-3 sm:mt-5 text-sm sm:text-base lg:text-lg theme-light text-warm-slate max-w-md font-sans leading-relaxed">
               Design freely, write boldly, and shape immersive digital spaces.
               Your vision commands the front; zero cognitive drag from servers
               or migrations.
@@ -238,7 +238,7 @@ export function Hero() {
           <span>zero-config headless backend</span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-warm-slate pointer-events-auto">
+        <div className="flex items-center gap-2 text-xs font-mono theme-light text-warm-slate pointer-events-auto">
           <span>built for next-generation platforms</span>
         </div>
       </div>

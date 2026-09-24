@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* `dark:` follows the site's theme (data-theme on <html>, see lib/themeScript.ts), not only the OS. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* --color-warm-bg convert into css rules for bg-warm-bg */
 @theme {
   --color-warm-bg: #f7f5f0;
@@ -456,7 +459,7 @@
  */
 .role-card {
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 1px 0 var(--paper-edge),
     0 1px 2px rgb(36 35 33 / 0.04),
     0 10px 24px -14px rgb(36 35 33 / 0.14);
   transition:
@@ -478,7 +481,7 @@
 .role[data-active="true"] .role-card {
   border-color: color-mix(in oklab, var(--color-warm-black) 22%, var(--color-warm-border));
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 1px 0 var(--paper-edge),
     0 2px 4px rgb(36 35 33 / 0.05),
     0 28px 48px -22px rgb(36 35 33 / 0.28),
     0 12px 30px -18px color-mix(in oklab, var(--color-thread-glow) 60%, transparent);
@@ -492,7 +495,7 @@
   opacity: 0;
   background: radial-gradient(
     22rem circle at var(--mx, 50%) var(--my, 0%),
-    rgb(255 255 255 / 0.85),
+    var(--paper-sheen),
     transparent 60%
   );
   mix-blend-mode: soft-light;
@@ -514,7 +517,7 @@
 /* The write-up beside the thread, lit from above where the light is. */
 .role-panel {
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 1px 0 var(--paper-edge),
     0 2px 4px rgb(36 35 33 / 0.04),
     0 40px 80px -40px rgb(36 35 33 / 0.22);
   background-image: radial-gradient(
@@ -788,6 +791,49 @@
 
 :root {
   color-scheme: light;
+  /* The lit top edge of a paper card. */
+  --paper-edge: rgb(255 255 255 / 0.9);
+  --paper-sheen: rgb(255 255 255 / 0.85);
+}
+
+/*
+ * Dark mode: the same warm neutrals, run the other way, like the paper at night under the
+ * same brass lamp. Every token keeps its role (warm-black is still "ink", warm-surface still
+ * the card), so components written against the tokens need no dark: variants of their own.
+ *
+ * The marquee screen and code windows are dark in both themes; the screen only steps deeper
+ * so it still reads as a screen set into the page.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-warm-bg: #181614;
+  --color-warm-surface: #211f1c;
+  --color-warm-black: #ece7dd;
+  --color-warm-slate: #a39d92;
+  --color-warm-border: #3a3631;
+  --color-warm-accent: #a89c85;
+  --color-warm-hover: #2a2724;
+  --color-warm-sunken: #1c1a18;
+  --color-warm-raised: #2d2a26;
+  --color-warm-hairline: #2b2824;
+  --color-warm-accent-ink: #cabea6;
+
+  --color-thread-core: #e0b36a;
+  --color-marquee: #0e0d0c;
+
+  --color-warm-success: #86c7a0;
+  --color-warm-success-bg: #1a2a20;
+  --color-warm-danger: #eb958c;
+  --color-warm-danger-bg: #301c1a;
+
+  --shadow-subtle: 0 8px 30px rgb(0 0 0 / 0.25);
+  --shadow-hover: 0 16px 36px rgb(0 0 0 / 0.35);
+  --shadow-card: 0 2px 8px rgb(0 0 0 / 0.2), 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-elevated: 0 20px 40px -12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+
+  --paper-edge: rgb(255 255 255 / 0.05);
+  --paper-sheen: rgb(255 255 255 / 0.18);
 }
 
 /*
@@ -796,6 +842,28 @@
  */
 .studio-theme {
   --color-warm-slate: #65615a;
+}
+
+/*
+ * A panel that is light in both themes (the landing hero's creative world) puts the light
+ * tokens back for whatever sits on it. Mirrors the @theme values above.
+ */
+.theme-light {
+  --color-warm-bg: #f7f5f0;
+  --color-warm-surface: #fcfbf8;
+  --color-warm-black: #242321;
+  --color-warm-slate: #77736c;
+  --color-warm-border: #dedad2;
+  --color-warm-accent: #9a8f7a;
+  --color-warm-hover: #f2efe9;
+  --color-warm-sunken: #f3f0ea;
+  --color-warm-raised: #ede9e1;
+  --color-warm-hairline: #ebe8e1;
+  --color-warm-accent-ink: #6a604d;
+}
+
+[data-theme="dark"] .studio-theme {
+  --color-warm-slate: #aaa499;
 }
 
 /*
@@ -966,6 +1034,359 @@ body {
       background: var(--color-warm-sunken);
       font-weight: 600;
     }
+  }
+}
+
+/*
+ * Fenced code, framed as a macOS window (components/markdown/CodeWindow.tsx). Dark, on the
+ * same warm near-black the selected works play on, with a token palette drawn from the
+ * portfolio's brass and paper rather than a stock editor theme.
+ */
+@layer components {
+  .code-window {
+    --code-bg: var(--color-marquee);
+    --code-bar: #211e1b;
+    --code-ink: #e8e2d6;
+    --code-dim: #8d867a;
+    --code-keyword: #e0a66b;
+    --code-string: #b5c48a;
+    --code-number: #d4a95f;
+    --code-title: #8fb8c9;
+    --code-type: #d9c38f;
+    --code-attr: #c7a3c9;
+    --code-meta: #9fb0a0;
+    --code-deleted: #e08a7d;
+
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid color-mix(in oklab, var(--color-marquee) 80%, white);
+    background: var(--code-bg);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.04) inset,
+      0 18px 40px -18px rgb(22 20 18 / 0.45),
+      0 4px 12px -6px rgb(22 20 18 / 0.25);
+  }
+
+  .code-window__bar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--code-bar);
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  }
+
+  .code-window__lights {
+    display: flex;
+    gap: 0.45rem;
+
+    & > span {
+      width: 0.75rem;
+      height: 0.75rem;
+      border-radius: 9999px;
+      box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.25);
+    }
+  }
+
+  .code-window__title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--code-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .code-window__copy {
+    justify-self: end;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--code-dim);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    transition:
+      color 150ms,
+      border-color 150ms;
+
+    &:hover {
+      color: var(--code-ink);
+      border-color: rgb(255 255 255 / 0.2);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-thread-glow);
+      outline-offset: 2px;
+    }
+  }
+
+  /* Beats `.prose-studio pre` / `code`, which style inline code for the light page. */
+  .prose-studio .code-window pre,
+  .code-window pre {
+    margin: 0;
+    padding: 1rem 1.125rem;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    color: var(--code-ink);
+    tab-size: 2;
+  }
+
+  .prose-studio .code-window code {
+    font-size: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+  }
+
+  .code-window {
+    & .hljs-comment,
+    & .hljs-quote {
+      color: var(--code-dim);
+      font-style: italic;
+    }
+
+    & .hljs-keyword,
+    & .hljs-selector-tag,
+    & .hljs-built_in,
+    & .hljs-literal,
+    & .hljs-doctag {
+      color: var(--code-keyword);
+    }
+
+    & .hljs-string,
+    & .hljs-regexp,
+    & .hljs-addition,
+    & .hljs-template-tag,
+    & .hljs-char.escape_ {
+      color: var(--code-string);
+    }
+
+    & .hljs-number,
+    & .hljs-symbol,
+    & .hljs-bullet,
+    & .hljs-variable.constant_ {
+      color: var(--code-number);
+    }
+
+    & .hljs-title,
+    & .hljs-section {
+      color: var(--code-title);
+    }
+
+    & .hljs-type,
+    & .hljs-title.class_,
+    & .hljs-class .hljs-title {
+      color: var(--code-type);
+    }
+
+    & .hljs-attr,
+    & .hljs-attribute,
+    & .hljs-property,
+    & .hljs-name,
+    & .hljs-selector-class,
+    & .hljs-selector-id,
+    & .hljs-variable,
+    & .hljs-template-variable {
+      color: var(--code-attr);
+    }
+
+    & .hljs-meta,
+    & .hljs-tag,
+    & .hljs-params,
+    & .hljs-subst {
+      color: var(--code-meta);
+    }
+
+    & .hljs-deletion {
+      color: var(--code-deleted);
+    }
+
+    & .hljs-emphasis {
+      font-style: italic;
+    }
+
+    & .hljs-strong {
+      font-weight: 600;
+    }
+  }
+
+  /* A Mermaid diagram (components/markdown/MermaidDiagram.tsx), on a sheet of the page's paper. */
+  .mermaid-diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding: 1.25rem;
+    border-radius: 10px;
+    border: 1px solid var(--color-warm-border);
+    background: var(--color-warm-surface);
+
+    & svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+
+  /* Once drawn, the sheet becomes a window onto the diagram (DiagramViewport.tsx). */
+  .mermaid-diagram--interactive {
+    position: relative;
+    display: block;
+    padding: 0;
+    overflow: hidden;
+
+    &:fullscreen {
+      display: flex;
+      border: 0;
+      border-radius: 0;
+    }
+  }
+
+  .mermaid-diagram__viewport {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 10rem;
+    padding: 1.25rem 1.25rem 1.25rem;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+
+    &[data-dragging] {
+      cursor: grabbing;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-warm-accent);
+      outline-offset: -2px;
+      border-radius: 10px;
+    }
+
+    .mermaid-diagram:fullscreen & {
+      flex: 1;
+    }
+  }
+
+  .mermaid-diagram__canvas {
+    width: 100%;
+    transform-origin: 0 0;
+
+    & svg {
+      display: block;
+      margin-inline: auto;
+    }
+
+    /* Filled out to the screen, the diagram may grow past its drawn width. */
+    .mermaid-diagram:fullscreen & svg {
+      max-width: 100% !important;
+      max-height: calc(100vh - 2.5rem);
+      width: 100%;
+    }
+  }
+
+  .mermaid-diagram__controls {
+    position: absolute;
+    right: 0.625rem;
+    bottom: 0.625rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.375rem;
+    opacity: 0.55;
+    transition: opacity 150ms;
+
+    .mermaid-diagram:hover &,
+    .mermaid-diagram:focus-within & {
+      opacity: 1;
+    }
+  }
+
+  .mermaid-diagram__pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1.75rem);
+    grid-auto-rows: 1.75rem;
+    gap: 0.125rem;
+  }
+
+  .mermaid-diagram__zoom {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .mermaid-diagram__button {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-warm-border);
+    background: color-mix(in oklab, var(--color-warm-surface) 92%, transparent);
+    color: var(--color-warm-slate);
+    box-shadow: 0 1px 2px rgb(36 35 33 / 0.06);
+    transition:
+      color 150ms,
+      background-color 150ms,
+      border-color 150ms;
+
+    & svg {
+      width: 0.875rem;
+      height: 0.875rem;
+    }
+
+    &:hover:not(:disabled) {
+      color: var(--color-warm-black);
+      background: var(--color-warm-hover);
+      border-color: var(--color-warm-accent);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-warm-accent);
+      outline-offset: 1px;
+    }
+  }
+
+  .mermaid-diagram__zoom-level {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.625rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    color: var(--color-warm-slate);
+    pointer-events: none;
+  }
+
+  .prose-studio .mermaid-diagram__source,
+  .mermaid-diagram__source {
+    align-self: stretch;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.78125rem;
+    color: var(--color-warm-slate);
+    background: none;
+    border: 0;
+    padding: 0;
+    white-space: pre-wrap;
+  }
+
+  .mermaid-diagram__error {
+    align-self: stretch;
+    font-size: 0.8125rem;
+    color: var(--color-warm-danger);
   }
 }
 
