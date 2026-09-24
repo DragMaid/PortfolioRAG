@@ -10,7 +10,11 @@
 </p>
 
 <p align="center">
-  Next.js 16 &middot; ASP.NET (.NET 10) &middot; Postgres + pgvector &middot; Python RAG worker &middot; Traefik
+  <img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/ASP.NET-.NET_10-512BD4?logo=dotnet&logoColor=white" alt="ASP.NET (.NET 10)" />
+  <img src="https://img.shields.io/badge/Postgres-pgvector-4169E1?logo=postgresql&logoColor=white" alt="Postgres + pgvector" />
+  <img src="https://img.shields.io/badge/Python-RAG_worker-3776AB?logo=python&logoColor=white" alt="Python RAG worker" />
+  <img src="https://img.shields.io/badge/Traefik-edge-24A1C1?logo=traefikproxy&logoColor=white" alt="Traefik" />
 </p>
 
 ---
