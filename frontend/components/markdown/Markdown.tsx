@@ -1,7 +1,10 @@
 import type { Element, ElementContent } from "hast";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
 import { CodeWindow } from "./CodeWindow";
 import { MermaidDiagram } from "./MermaidDiagram";
 
@@ -9,8 +12,9 @@ import { MermaidDiagram } from "./MermaidDiagram";
 const DIAGRAM_LANGUAGES = new Set(["mermaid", "mmd", "sequence"]);
 
 /**
- * Markdown as a reader gets it: GFM, fenced code in a highlighted window, and Mermaid
- * fences drawn as diagrams. The studio's preview renders through this too, so what the
+ * Markdown as a reader gets it: GFM, fenced code in a highlighted window, Mermaid
+ * fences drawn as diagrams, and TeX — `$inline$`, `$$display$$` or a ```math fence —
+ * typeset by KaTeX. The studio's preview renders through this too, so what the
  * author sees is what gets published.
  *
  * Works from a server component — the diagram and the copy button hydrate on their own.
@@ -24,8 +28,11 @@ export function Markdown({
 }) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[
+        // NOTE: before the highlighter, so a math block is typeset rather than coloured as
+        // code — and no longer reaches the `pre` override below.
+        [rehypeKatex, { throwOnError: false }],
         // No guessing: an unlabelled fence stays plain text rather than being coloured as
         // whichever language the detector happens to prefer.
         [rehypeHighlight, { detect: false, plainText: [...DIAGRAM_LANGUAGES] }],
