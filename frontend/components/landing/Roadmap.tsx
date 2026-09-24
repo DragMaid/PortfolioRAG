@@ -78,11 +78,11 @@ export function Roadmap() {
               <path
                 d="M 80 0 L 0 0 0 80"
                 fill="none"
-                stroke="#dedad2"
+                className="stroke-warm-border"
                 strokeWidth="0.75"
                 strokeDasharray="2 6"
               />
-              <circle cx="0" cy="0" r="1.5" fill="#9a8f7a" />
+              <circle cx="0" cy="0" r="1.5" className="fill-warm-accent" />
             </pattern>
           </defs>
 
@@ -90,7 +90,7 @@ export function Roadmap() {
           <rect width="100%" height="100%" fill="url(#cartoGrid)" opacity="0.6" />
 
           {/* Topographic Elevation Contour Lines */}
-          <g fill="none" stroke="#dedad2" strokeWidth="1.25" opacity="0.8" className="animate-contour-drift">
+          <g fill="none" strokeWidth="1.25" opacity="0.8" className="animate-contour-drift stroke-warm-border">
             <path d="M -100 200 C 200 150, 450 350, 700 220 C 950 90, 1100 250, 1300 200" />
             <path d="M -100 450 C 150 420, 380 600, 680 480 C 980 360, 1150 520, 1300 460" />
             <path d="M -100 700 C 250 680, 500 850, 800 720 C 1050 590, 1200 750, 1300 700" />
@@ -112,12 +112,12 @@ export function Roadmap() {
           </p>
 
           {/* Visual Route Breadcrumbs: Create & Connect -> Build -> Automate */}
-          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-warm-border/80 bg-white/70 px-5 py-2 text-xs sm:text-sm font-semibold text-warm-black shadow-sm backdrop-blur-md">
-            <span className="text-amber-600">Create & Connect</span>
+          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-warm-border/80 bg-warm-surface/70 px-5 py-2 text-xs sm:text-sm font-semibold text-warm-black shadow-sm backdrop-blur-md">
+            <span className="text-amber-600 dark:text-amber-400">Create & Connect</span>
             <span className="text-warm-slate/40">→</span>
-            <span className="text-indigo-600">Build</span>
+            <span className="text-indigo-600 dark:text-indigo-300">Build</span>
             <span className="text-warm-slate/40">→</span>
-            <span className="text-emerald-600">Automate</span>
+            <span className="text-emerald-600 dark:text-emerald-400">Automate</span>
           </div>
         </div>
 

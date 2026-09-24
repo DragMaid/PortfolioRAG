@@ -3,6 +3,7 @@
 import type { PostDto } from "@/lib/api/generated";
 import { useAuth } from "@/lib/admin/useAuth";
 import { cn } from "@/lib/cn";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "./ui/Button";
 import { Icon } from "./ui/Icon";
 import { StatusDot } from "./ui/StatusDot";
@@ -183,6 +184,8 @@ export function TopBar({
               </Button>
             </>
           ) : null}
+
+          <ThemeToggle className="rounded text-warm-slate hover:bg-warm-sunken hover:text-warm-black" />
 
           <Button
             variant="ghost"

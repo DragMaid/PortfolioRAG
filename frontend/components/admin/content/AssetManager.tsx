@@ -168,6 +168,7 @@ function AssetRow({
   const { showToast } = useToast();
   const [caption, setCaption] = useState(item.caption ?? "");
   const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const kind = item.extension !== undefined ? KINDS[item.extension] : undefined;
   // The signed link the API minted for the author; the content route hides a draft's files
@@ -179,6 +180,19 @@ function AssetRow({
   // TODO(review): the prototype copied a "{{asset:name}}" template token instead. Nothing
   // on the backend expands such a token, so this copies a real embed that renders as-is.
   const markdown = `![${caption || item.filename || "asset"}](${item.url ?? ""})`;
+
+  async function remove() {
+    if (item.id === undefined) return;
+
+    setDeleting(true);
+    try {
+      // Failures are toasted upstream; on success the row unmounts with the file.
+      await onDelete(item.id);
+    } finally {
+      setDeleting(false);
+      setConfirming(false);
+    }
+  }
 
   async function copy(text: string, description: string) {
     try {
@@ -194,9 +208,11 @@ function AssetRow({
   return (
     <div className="flex flex-col gap-3 p-3 transition-colors hover:bg-warm-sunken/60 md:flex-row md:items-center md:justify-between">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded border border-warm-border bg-warm-sunken">
-          <Icon name={kind?.icon ?? "image"} className="text-[20px] text-warm-accent" />
-        </div>
+        <AssetPreview
+          src={item.previewUrl ?? null}
+          icon={kind?.icon ?? "image"}
+          filename={item.filename ?? "asset"}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -239,18 +255,18 @@ function AssetRow({
         ) : null}
 
         {/* Two-step rather than a confirm() dialog: this deletes the file from the bucket. */}
-        {confirming ? (
+        {confirming || deleting ? (
           <Button
             variant="danger"
             icon="trash"
-            onClick={() => {
-              if (item.id !== undefined) void onDelete(item.id);
-              setConfirming(false);
+            busy={deleting}
+            onClick={() => void remove()}
+            onBlur={() => {
+              if (!deleting) setConfirming(false);
             }}
-            onBlur={() => setConfirming(false)}
             autoFocus
           >
-            Confirm
+            {deleting ? "Removing…" : "Confirm"}
           </Button>
         ) : (
           <Button
@@ -264,5 +280,62 @@ function AssetRow({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A small still of the file, drawn from the signed link. Falls back to the kind's glyph
+ * when there is no link or it fails to load — an expired signature, say.
+ */
+function AssetPreview({
+  src,
+  icon,
+  filename,
+}: {
+  src: string | null;
+  icon: IconName;
+  filename: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const frame =
+    "flex size-12 shrink-0 items-center justify-center overflow-hidden rounded border border-warm-border bg-warm-sunken";
+
+  if (!src || failed) {
+    return (
+      <div className={frame}>
+        <Icon name={icon} className="text-[20px] text-warm-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Open ${filename}`}
+      className={cn(frame, "transition-opacity hover:opacity-85")}
+    >
+      {icon === "video" ? (
+        <video
+          src={src}
+          muted
+          playsInline
+          preload="metadata"
+          onError={() => setFailed(true)}
+          className="size-full object-cover"
+        />
+      ) : (
+        /* Plain <img>: the signed link expires, which the Next image optimizer would outlive. */
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="size-full object-cover"
+        />
+      )}
+    </a>
   );
 }

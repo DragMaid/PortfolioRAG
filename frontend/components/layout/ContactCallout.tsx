@@ -22,7 +22,7 @@ export function ContactCallout({ profile }: { profile: Profile }) {
       <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center md:w-auto">
         <a
           href={`mailto:${profile.email}`}
-          className="flex items-center justify-center gap-2 rounded-xl bg-warm-black px-6 py-3.5 text-center font-mono text-xs font-medium text-warm-bg shadow-sm transition-colors hover:bg-black"
+          className="flex items-center justify-center gap-2 rounded-xl bg-warm-black px-6 py-3.5 text-center font-mono text-xs font-medium text-warm-bg shadow-sm transition-colors hover:bg-black dark:hover:bg-white"
         >
           <span>{profile.email}</span>
           <span aria-hidden>↗</span>
