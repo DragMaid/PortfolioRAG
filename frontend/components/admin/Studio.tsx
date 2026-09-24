@@ -22,7 +22,6 @@ import { VerifyEmailNotice } from "./VerifyEmailScreen";
  * third tab, a site-wide asset registry, is gone — the API scopes every file to a post, so
  * those live in the editor, which is where the prototype's own later revision put them.
  */
-// TODO(review): the two deviations above.
 export function Studio() {
   const studio = useStudio();
   const profile = useProfile();

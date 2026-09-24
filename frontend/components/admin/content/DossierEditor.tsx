@@ -56,6 +56,9 @@ export function DossierEditor({
 }: DossierEditorProps) {
   const ids = useId();
 
+  // Anything the body can embed, the two leading slots included.
+  const embeddable = [...media, thumbnail, trailer].filter((item): item is MediaDto => !!item);
+
   if (state === "loading") return <EditorSkeleton />;
 
   if (state === "error") {
@@ -237,6 +240,7 @@ export function DossierEditor({
         value={draft.body}
         disabled={locked}
         onChange={(body) => onChange({ body })}
+        media={embeddable}
       />
 
       {/* Where a reader is sent from the preview banner. All optional. */}

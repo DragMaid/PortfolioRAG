@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Markdown } from "@/components/markdown/Markdown";
+import type { MediaDto } from "@/lib/api/generated";
+import { apiUrl } from "@/lib/api/generated/client";
 import { cn } from "@/lib/cn";
 import { Icon } from "../ui/Icon";
 
@@ -17,12 +19,28 @@ export function MarkdownEditor({
   value,
   onChange,
   disabled,
+  media,
 }: {
   value: string;
   onChange: (next: string) => void;
   disabled?: boolean;
+  /** The post's files, so the preview can draw their embeds from the signed links. */
+  media?: MediaDto[];
 }) {
   const [mode, setMode] = useState<Mode>("markdown");
+
+  // NOTE: an embed points at the API's content route, which hides a draft's files from an
+  // <img> request — it carries no token. Swap in the link the API signed for the author.
+  const signed = useMemo(() => {
+    const links = new Map<string, string>();
+    for (const item of media ?? []) {
+      if (!item.url || !item.previewUrl) continue;
+      links.set(item.url, item.previewUrl);
+      const absolute = apiUrl(item.url);
+      if (absolute) links.set(absolute, item.previewUrl);
+    }
+    return links;
+  }, [media]);
 
   return (
     <div className="flex flex-col overflow-hidden rounded border border-warm-border">
@@ -67,7 +85,22 @@ export function MarkdownEditor({
         <div className="bg-warm-surface p-5">
           {value.trim() ? (
             <div className="prose-studio">
-              <Markdown>{value}</Markdown>
+              <Markdown
+                components={{
+                  img: ({ src, alt }) =>
+                    typeof src === "string" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={signed.get(src) ?? apiUrl(src) ?? undefined}
+                        alt={alt ?? ""}
+                        loading="lazy"
+                        className="rounded-lg border border-warm-border"
+                      />
+                    ) : null,
+                }}
+              >
+                {value}
+              </Markdown>
             </div>
           ) : (
             <p className="text-[13px] text-warm-slate">Nothing written yet.</p>
