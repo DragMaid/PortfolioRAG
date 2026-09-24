@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { ArrowUpRightIcon, ChevronLeftIcon, GitHubIcon, GlobeIcon } from "@/components/icons";
 import { Footer } from "@/components/layout/Footer";
+import { Markdown } from "@/components/markdown/Markdown";
 import { Monogram } from "@/components/ui/Monogram";
 import { MediaExtension } from "@/lib/api/generated";
 import { apiUrl } from "@/lib/api/generated/client";
@@ -164,8 +163,7 @@ export default async function PostPage({ params }: PageProps<"/[handle]/posts/[s
             ) : null}
 
             <div className="prose-studio prose-article mt-12 md:mt-14">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+              <Markdown
                 components={{
                   // Embeds copied from the studio point at the API's own media route, which
                   // is relative. Resolved against the API rather than this site.
@@ -181,7 +179,7 @@ export default async function PostPage({ params }: PageProps<"/[handle]/posts/[s
                 }}
               >
                 {post.body ?? ""}
-              </ReactMarkdown>
+              </Markdown>
             </div>
 
             <nav

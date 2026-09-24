@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "@/components/markdown/Markdown";
 import { cn } from "@/lib/cn";
 import { Icon } from "../ui/Icon";
 
@@ -68,7 +67,7 @@ export function MarkdownEditor({
         <div className="bg-warm-surface p-5">
           {value.trim() ? (
             <div className="prose-studio">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+              <Markdown>{value}</Markdown>
             </div>
           ) : (
             <p className="text-[13px] text-warm-slate">Nothing written yet.</p>
