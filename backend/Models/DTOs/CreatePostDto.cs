@@ -17,7 +17,7 @@ public class CreatePostDto
     public string? Summary { get; init; }
 
     [Required]
-    [StringLength(50000, MinimumLength = 1)]
+    [StringLength(100000, MinimumLength = 1)]
     public string Body { get; init; } = string.Empty;
 
     [StringLength(500)]
