@@ -77,7 +77,7 @@ export function JobFitSection({
               disabled={!canSubmit}
               className={cn(
                 "rounded-xl bg-warm-black px-5 py-3 text-sm font-medium text-warm-bg shadow-subtle transition-[background-color,opacity,transform] duration-150",
-                "hover:bg-black active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
+                "hover:bg-black dark:hover:bg-white active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
                 "disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:bg-warm-black disabled:active:scale-100",
               )}
             >

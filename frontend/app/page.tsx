@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen w-full bg-white text-gray-900 flex flex-col selection:bg-gray-200 selection:text-black">
+    <div className="min-h-screen w-full bg-white text-gray-900 dark:bg-warm-bg dark:text-warm-black flex flex-col selection:bg-gray-200 selection:text-black dark:selection:bg-warm-raised dark:selection:text-warm-black">
       <LandingNav />
       <main className="flex-1 w-full flex flex-col">
         <Hero />

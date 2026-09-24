@@ -1,5 +1,6 @@
 import { Monogram } from "@/components/ui/Monogram";
 import { navItems } from "@/components/layout/navigation";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 type NavBarProps = {
   monogram: string;
@@ -24,21 +25,24 @@ export function NavBar({ monogram, handle }: NavBarProps) {
           </span>
         </a>
 
-        <nav
-          aria-label="Sections"
-          className="flex items-center gap-4 font-mono text-xs uppercase tracking-wider text-warm-slate sm:gap-7"
-        >
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="rounded-sm transition-colors hover:text-warm-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-accent"
-            >
-              <span className="sm:hidden">{item.shortLabel}</span>
-              <span className="hidden sm:inline">{item.label}</span>
-            </a>
-          ))}
-        </nav>
+        <div className="flex items-center gap-3 sm:gap-5">
+          <nav
+            aria-label="Sections"
+            className="flex items-center gap-4 font-mono text-xs uppercase tracking-wider text-warm-slate sm:gap-7"
+          >
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="rounded-sm transition-colors hover:text-warm-black focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-warm-accent"
+              >
+                <span className="sm:hidden">{item.shortLabel}</span>
+                <span className="hidden sm:inline">{item.label}</span>
+              </a>
+            ))}
+          </nav>
+          <ThemeToggle className="-mr-1.5 text-warm-slate hover:bg-warm-hover hover:text-warm-black" />
+        </div>
       </div>
     </header>
   );

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -37,19 +38,22 @@ export function LandingNav() {
         </Link>
 
         {/* Right CTA Actions */}
-        <div className="hidden sm:flex items-center gap-3">
-          <Link
-            href="/admin"
-            className="px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-slate-100 transition-colors"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/admin"
-            className="px-4 py-2 rounded-full text-xs font-medium text-[#0b0f19] bg-slate-100 hover:bg-white transition-colors duration-150"
-          >
-            Launch Studio
-          </Link>
+        <div className="flex items-center gap-1 sm:gap-3">
+          <ThemeToggle className="text-slate-400 hover:bg-slate-800/60 hover:text-slate-100" />
+          <div className="hidden sm:flex items-center gap-3">
+            <Link
+              href="/admin"
+              className="px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-slate-100 transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/admin"
+              className="px-4 py-2 rounded-full text-xs font-medium text-[#0b0f19] bg-slate-100 hover:bg-white transition-colors duration-150"
+            >
+              Launch Studio
+            </Link>
+          </div>
         </div>
 
         {/* Mobile Menu Toggle Button */}
