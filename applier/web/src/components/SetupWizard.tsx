@@ -36,7 +36,7 @@ import { IconArrowRight, IconSearch, IconWand } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 
 import { api } from "../api";
-import { PortfolioToken } from "./PortfolioToken";
+import { PortfolioAccess } from "./PortfolioAccess";
 import type { Describe, SearchDraft, SetupQuestion, SetupState } from "../types";
 
 interface Props {
@@ -517,7 +517,7 @@ function Searches({
   return (
     <Stack gap="md" mt="md">
       {/* Nothing before this step needed the portfolio; from here on everything does. */}
-      <PortfolioToken describe={describe} onSaved={() => void api.describe()} />
+      <PortfolioAccess describe={describe} onSaved={() => void api.describe()} />
 
       <Card withBorder padding="md">
         <Group justify="space-between" mb={suggested ? "sm" : 0}>

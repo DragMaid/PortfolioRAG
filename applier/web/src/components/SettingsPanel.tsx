@@ -33,7 +33,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 
 import { api } from "../api";
-import { PortfolioToken } from "./PortfolioToken";
+import { PortfolioAccess } from "./PortfolioAccess";
 import type { Describe, Providers, SearchDraft } from "../types";
 
 const say = (error: unknown) => String((error as Error).message ?? error);
@@ -72,7 +72,7 @@ export function SettingsPanel({ describe, onSaved }: { describe: Describe; onSav
       </Tabs.Panel>
       <Tabs.Panel value="model">
         <Stack gap="md">
-          <PortfolioToken describe={describe} onSaved={onSaved} />
+          <PortfolioAccess describe={describe} onSaved={onSaved} />
           <Model onSave={save} />
         </Stack>
       </Tabs.Panel>
