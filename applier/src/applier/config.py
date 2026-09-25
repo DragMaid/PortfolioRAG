@@ -150,7 +150,7 @@ class PortfolioConfig(BaseModel):
     pasting it into the page.
     """
 
-    api: str = "http://localhost:5009"
+    api: str = "https://api.blograg.pbh-dev.tech"
     token_env: str = "APPLIER_PORTFOLIO_TOKEN"
 
 
@@ -338,7 +338,7 @@ llm:
 
 # Retrieval runs against your portfolio's index through its API, under a pfl_ token.
 portfolio:
-  api: http://localhost:5009
+  api: https://api.blograg.pbh-dev.tech   # where retrieval asks; a local one works too
   token_env: APPLIER_PORTFOLIO_TOKEN
 
 # The job board's browser. Visible, because a hand-off needs a window to hand over in.

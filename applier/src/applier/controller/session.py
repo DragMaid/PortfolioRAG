@@ -35,6 +35,7 @@ from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from rag.settings import get_settings
 
@@ -330,7 +331,8 @@ class Session:
         return self.read_config_text()
 
     def update_profile(self, patch: dict[str, Any]) -> dict[str, Any]:
-        """The settings page's structured editors: details, facts, notes, resume, searches."""
+        """The settings page's structured editors: details, facts, notes, resume, searches,
+        the model and the portfolio API."""
         candidate = self.config.candidate
 
         with self._lock:
@@ -359,6 +361,9 @@ class Session:
                     SearchConfig.model_validate(one) for one in (patch["searches"] or [])
                 ]
 
+            if "portfolioApi" in patch:
+                self._set_portfolio_api(patch["portfolioApi"] or "")
+
             if "llm" in patch:
                 for key, value in (patch["llm"] or {}).items():
                     if hasattr(self.config.llm, key):
@@ -368,6 +373,24 @@ class Session:
 
         self._announce_settings()
         return self.describe()
+
+    def _set_portfolio_api(self, url: str) -> None:
+        """Where retrieval asks. Changed from the page, and live for the next assessment.
+
+        Only the shape is checked here. Whether anything answers at that address is the
+        API's business, and it says so in the first assessment rather than in a box.
+        """
+        address = url.strip().rstrip("/")
+        if not address:
+            raise ControllerError("The portfolio API needs an address.")
+        parts = urlsplit(address)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ControllerError(
+                f"{url.strip()} is not an API address — it wants to start http:// or https://."
+            )
+
+        self.config.portfolio.api = address
+        self.assessor.api = address
 
     def _set_resume(self, resume: dict[str, Any]) -> None:
         select = (resume.get("select") or "").strip() or None
@@ -854,14 +877,22 @@ class Session:
         application, and the tab comes forward as soon as it comes up for air.
         """
         job = self._job(key)
-        if not job.tab:
+        # A posting being filled for submission has no tab of its own — it is driven in the
+        # working tab, which is the one worth bringing forward while it happens.
+        working = not job.tab and job.state in (JobState.APPLYING, JobState.REVIEWING)
+        if not job.tab and not working:
             raise ControllerError("Nothing has opened a tab for that posting.")
 
         def bring() -> None:
             browser = self._workers[job.board].browser
-            found = browser is not None and browser.focus(job.tab or "")
+            if browser is None:
+                found = False
+            elif working:
+                found = browser.focus_working()
+            else:
+                found = browser.focus(job.tab or "")
             with self._lock:
-                job.tab_open = found
+                job.tab_open = found and not working
             if not found:
                 self.log(f"The tab for {job.title or job.key} is no longer open.")
             self._publish(job)
@@ -956,6 +987,10 @@ class Session:
                     signed_in = worker.board.is_signed_in()
                 except ApplierError:
                     signed_in = False
+                # The sign-in page has done its job; leaving it open is one more tab between
+                # the person and the application they are meant to be watching.
+                if signed_in and worker.browser is not None:
+                    worker.browser.close_tab(f"login:{name}")
                 self.bus.publish("boards", board=name, signedIn=signed_in)
 
             worker.submit(IMMEDIATE, f"signed-in {name}", check)
@@ -1191,9 +1226,12 @@ class Session:
             company=job.company,
         )
 
-        tab = job.key
+        # A tab of its own only when the form is going to be left standing for a person to
+        # read. Filling one that will be submitted a moment later in a tab nobody will ever
+        # look at just puts another tab in front of them for every posting of the run.
+        tab = job.key if hand_off else None
         with self._lock:
-            job.tab = tab
+            job.tab = tab or ""
             self._enter(job, JobState.APPLYING)
         self._publish(job)
 
@@ -1213,12 +1251,15 @@ class Session:
 
         if submission.handed_off:
             with self._lock:
-                job.tab_open = True
+                job.tab_open = tab is not None
                 self._enter(
                     job, JobState.AWAITING_HUMAN, "filled in — read it and send it yourself"
                 )
                 self._settle(job)
-            browser.focus(tab)
+            if tab is not None:
+                browser.focus(tab)
+            else:
+                browser.focus_working()
             self._publish(job)
             self.log(f"HANDED OVER: {job.title or job.key} — the tab is open at its review page.")
             return
@@ -1301,6 +1342,11 @@ class Session:
         board = worker.board
         if browser is None or board is None:
             return
+
+        # Anything the board opened behind its own back goes first: a tab nobody named is a
+        # tab nobody will drive, and they accumulate one per posting if left alone.
+        if gone := browser.reap():
+            logger.debug("Closed %d stray tab(s) on %s.", gone, worker.name)
 
         with self._lock:
             handoffs = [

@@ -11,6 +11,10 @@ on to the next posting, and the named tab stays exactly where a person left off 
 read, to submit, or to close. ``focus`` brings one to the front when the table's *Show tab*
 button is pressed.
 
+Everything else that turns up in the window is litter — a posting whose apply button opens
+itself in a new tab, an interstitial, a tracker's popup — and ``reap`` closes it between
+commands, so the run stays a window a person can actually read.
+
 Every Playwright object here belongs to the thread that opened the browser. Nothing in this
 module is safe to call from anywhere else; see ``controller.worker`` for the loop that owns it.
 """
@@ -174,6 +178,51 @@ class BrowserSession:
                 page.close()
         if self._page is not None and self._page.is_closed():
             self._page = self._working
+
+    def focus_working(self) -> bool:
+        """Brings the working tab to the front: what to show while a form is being filled."""
+        if self._working is None or self._working.is_closed():
+            return False
+        with contextlib.suppress(PlaywrightError):
+            self._working.bring_to_front()
+        return True
+
+    def reap(self) -> int:
+        """Closes every tab nothing asked for, and returns how many went.
+
+        Boards open tabs this never named: a posting whose apply button carries
+        ``target=_blank``, an interstitial, a tracker that pops a window and leaves it. None
+        of them is ever driven again — board commands only reach for ``page`` — so they pile
+        up in front of the person for the length of a run. The working tab and the named ones
+        are the whole of what this window is for; anything else is litter.
+        """
+        if self._context is None:
+            return 0
+
+        keep = {id(page) for page in self._tabs.values()}
+        if self._working is not None:
+            keep.add(id(self._working))
+        if self._page is not None:
+            keep.add(id(self._page))
+
+        closed = 0
+        for page in list(self._context.pages):
+            if id(page) in keep or page.is_closed():
+                continue
+            with contextlib.suppress(PlaywrightError):
+                page.close()
+                closed += 1
+
+        # A window with nothing left in it is a browser that looks shut. If the working tab
+        # was the one the person closed, the next command opens another rather than raising.
+        if self._working is None or self._working.is_closed():
+            with contextlib.suppress(PlaywrightError):
+                self._working = self._context.new_page()
+                self._watch(self._working)
+            if self._page is None or self._page.is_closed():
+                self._page = self._working
+
+        return closed
 
     def goto(self, url: str, *, settle_ms: int = 1500) -> None:
         try:

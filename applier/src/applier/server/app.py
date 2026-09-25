@@ -75,8 +75,8 @@ def _rag_app(session: Session) -> FastAPI:
 
     The applier is already driving the chat site — its assessments and cover letters go
     through the same signed-in session — and a chat site's profile can only be open once. So
-    the provider and the thread are lent rather than opened again, and the portfolio token
-    comes from the environment the run was started with instead of from the page.
+    the provider and the thread are lent rather than opened again, and the portfolio API and
+    its token are read from this session rather than sent with every request.
     """
     config = session.config
     runs = Runs(
@@ -89,12 +89,12 @@ def _rag_app(session: Session) -> FastAPI:
     )
     return create_rag_app(
         settings=get_settings(),
-        api_base=config.portfolio.api,
+        # Callables, not values: the page can move the portfolio API or paste a token at any
+        # point, including after this app was mounted, and a run afterwards picks both up.
+        api_base=lambda: session.config.portfolio.api,
         site=session.llm.model_name,
         browser=config.llm.browser,
         headless=config.llm.headless,
-        # A callable, not a value: the page can paste a token at any point, including after
-        # this app was mounted, and a run started afterwards has to pick it up.
         token=lambda: session.secrets.portfolio_token,
         runs=runs,
     )

@@ -60,6 +60,19 @@ class Assessor:
         self.log = log
 
     @property
+    def api(self) -> str:
+        return self.retriever.api.base_url
+
+    @api.setter
+    def api(self, value: str) -> None:
+        """Where retrieval asks, changed while the session runs.
+
+        Same reason as the token: the page owns both, and a portfolio that moved — or a
+        local one started for an afternoon — must not mean restarting a run to reach it.
+        """
+        self.retriever.api.base_url = value.strip().rstrip("/")
+
+    @property
     def token(self) -> str:
         return self.retriever.api.token
 
