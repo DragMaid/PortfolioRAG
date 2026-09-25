@@ -49,12 +49,13 @@ class FakePage:
 
 
 class FakeBrowser:
-    """Only the parts of BrowserSession the controller uses: named tabs and focus."""
+    """Only the parts of BrowserSession the controller uses: named tabs, focus and reaping."""
 
     def __init__(self) -> None:
         self.pages: dict[str, FakePage] = {}
         self.focused: list[str] = []
         self.closed = False
+        self.reaped = 0
 
     @property
     def tabs(self) -> list[str]:
@@ -85,6 +86,15 @@ class FakeBrowser:
         page = self.pages.pop(name, None)
         if page is not None:
             page.close()
+
+    def focus_working(self) -> bool:
+        self.focused.append("")
+        return True
+
+    def reap(self) -> int:
+        """Nothing opens tabs behind this one's back, so there is never anything to close."""
+        self.reaped += 1
+        return 0
 
     def close(self) -> None:
         self.closed = True
@@ -180,8 +190,12 @@ class FakeBoard:
 class FakeAssessor:
     """A fit good enough to clear any policy, with no model behind it."""
 
-    def __init__(self, score: int = 90) -> None:
+    def __init__(self, score: int = 90, api: str = "") -> None:
         self.score = score
+        # The two the page can change under a running session, kept here so that the
+        # server's tests can see one arrive without a portfolio to arrive from.
+        self.api = api
+        self.token = ""
 
     def fit(self, _text: str) -> Fit:
         return Fit(
@@ -337,6 +351,22 @@ def test_skipping_a_pending_posting_settles_it(make_session):
 
 
 # --- handing over -----------------------------------------------------------
+
+
+def test_an_application_that_is_sent_needs_no_tab_of_its_own(make_session):
+    """Only a form left standing gets its own tab.
+
+    A run that submits for you opens and closes a tab per posting, and every one of them is
+    in front of the person for as long as it takes to fill a form. There is nothing in them
+    to read — the thing worth watching is the working tab, which is where it now happens.
+    """
+    session, board, browser = make_session(1, autoPick=True, autoSubmit=True)
+    session.start()
+    wait_for(lambda: state_at(session, "fake:0") == "applied", "it should be applied to")
+
+    assert board.applied == ["fake:0"], "and the form was filled all the same"
+    assert browser.tabs == [], "with no tab of its own opened for it"
+    assert session._jobs["fake:0"].tab == ""
 
 
 def test_hand_off_leaves_the_tab_open_and_records_it_first(make_session):

@@ -29,7 +29,7 @@ def build(tmp_path):
 
     app = create_app(config, headless=True)
     session = app.state.session
-    session.assessor = FakeAssessor()
+    session.assessor = FakeAssessor(api=config.portfolio.api)
     session.answerer.answer = lambda handles, *, role: {}
     session._make_board = lambda _name: board
     session._make_browser = lambda _name: browser
@@ -98,6 +98,33 @@ def test_a_token_that_is_not_one_is_refused(client):
 
     assert refused.status_code == 422
     assert "pfl_" in refused.json()["detail"]
+
+
+def test_the_portfolio_api_can_be_pointed_somewhere_else(client):
+    """It defaults to the deployed portfolio, and the page may move it.
+
+    Nobody should have to open the config file to run against a portfolio on their own
+    machine, and a run already under way should not have to be restarted for it: the
+    assessor is holding the address, so it is changed there as well as in the file.
+    """
+    opened, session, _ = client
+    assert session.config.portfolio.api == "https://api.blograg.pbh-dev.tech"
+
+    body = opened.patch("/api/profile", json={"portfolioApi": "http://localhost:5009/"}).json()
+
+    assert body["portfolio"]["api"] == "http://localhost:5009", "the trailing slash goes"
+    assert session.assessor.api == "http://localhost:5009", "the next assessment asks there"
+    assert "api: http://localhost:5009" in session.config.source_path.read_text()
+
+
+def test_an_address_that_is_not_one_is_refused(client):
+    opened, session, _ = client
+
+    refused = opened.patch("/api/profile", json={"portfolioApi": "api.example.com"})
+
+    assert refused.status_code == 409
+    assert "https://" in refused.json()["detail"]
+    assert session.assessor.api == "https://api.blograg.pbh-dev.tech", "and nothing moved"
 
 
 def test_settings_round_trip(client):
