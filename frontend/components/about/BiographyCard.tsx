@@ -19,7 +19,7 @@ export function BiographyCard({
   showJobFitCta?: boolean;
 }) {
   return (
-    <SurfaceCard accentEdge className="flex h-full flex-col p-8 sm:p-10">
+    <SurfaceCard accentEdge className="flex h-full flex-col p-8 sm:p-10 rounded-sm">
       <h2 className="animate-ink-in-late max-w-[28ch] font-serif text-[1.75rem] leading-[1.2] tracking-tight text-balance text-warm-black sm:text-[2.25rem]">
         {profile.headline}
       </h2>

@@ -62,13 +62,13 @@ export function RoleCard({
       data-active={isActive}
     >
       <span ref={ref} aria-hidden className="role-node">
-        <span className="role-node-mark">
+        <span className="role-node-mark rounded-all">
           <CompanyMark company={entry.company} logoUrl={entry.logoUrl} />
         </span>
       </span>
 
       <article
-        className="role-card group relative rounded-2xl border border-warm-border bg-warm-surface p-5 sm:p-6"
+        className="role-card group relative rounded-sm border border-warm-border bg-warm-surface p-5 sm:p-6"
         onPointerMove={lean}
         onPointerLeave={settle}
       >
@@ -78,7 +78,6 @@ export function RoleCard({
           <span className="tabular-nums">{entry.period}</span>
           {isOngoing && isCurrent ? (
             <span className="flex items-center gap-1.5 text-warm-black">
-              <span aria-hidden className="role-now" />
               Current role
             </span>
           ) : null}

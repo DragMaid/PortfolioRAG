@@ -38,7 +38,6 @@
   --color-thread-core: #a8742a;
   --color-marquee: #161412;
   --color-marquee-ink: #f7f5f0;
-  --color-marquee-dim: #cbc5b9;
 
   --color-warm-success: #2e6b47;
   --color-warm-success-bg: #ebf4ee;
@@ -361,8 +360,7 @@
 /*
  * The career thread (components/experience). A hairline rail runs through the centre of the
  * nodes, and light travels down it to `--lit` (0–1, written by the section as the reader
- * scrolls; 1 with no script or reduced motion). A node the light has reached lights up, and
- * its card lifts off the page as paper would under a lamp.
+ * scrolls; 1 with no script or reduced motion). A node the light has reached lights up.
  */
 .thread {
   --node: 3.5rem;
@@ -377,7 +375,6 @@
   left: var(--rail-x);
   width: 2px;
   translate: -50% 0;
-  border-radius: 2px;
 }
 
 .thread-rail {
@@ -386,32 +383,10 @@
 }
 
 .thread-light {
-  background: linear-gradient(
-    to bottom,
-    color-mix(in oklab, var(--color-thread-glow) 25%, transparent),
-    var(--color-thread-glow) 70%,
-    var(--color-thread-core)
-  );
+  background: var(--color-thread-glow);
   transform-origin: top;
   transform: scaleY(var(--lit));
-  box-shadow: 0 0 10px 1px color-mix(in oklab, var(--color-thread-glow) 55%, transparent);
-}
-
-/* The leading edge of the light: a small bright bead with a soft bloom around it. */
-.thread-spark {
-  position: absolute;
-  top: calc(var(--lit) * 100%);
-  left: var(--rail-x);
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  translate: -50% -50%;
-  background: var(--color-thread-core);
-  box-shadow:
-    0 0 0 3px color-mix(in oklab, var(--color-thread-glow) 35%, transparent),
-    0 0 18px 6px color-mix(in oklab, var(--color-thread-glow) 50%, transparent);
-  /* Spent once the light has run the whole thread. */
-  opacity: clamp(0, (1 - var(--lit)) * 40, 1);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--color-thread-glow) 45%, transparent);
 }
 
 .role-node {
@@ -422,7 +397,6 @@
   width: var(--node);
   height: var(--node);
   margin-top: 1.25rem;
-  border-radius: 9999px;
   background: var(--color-warm-bg);
   border: 1px solid var(--color-warm-border);
   color: var(--color-warm-slate);
@@ -444,19 +418,14 @@
 .role[data-lit="true"] .role-node {
   border-color: color-mix(in oklab, var(--color-thread-glow) 70%, var(--color-warm-black));
   color: var(--color-warm-black);
-  box-shadow:
-    0 0 0 4px color-mix(in oklab, var(--color-thread-glow) 22%, transparent),
-    0 6px 16px -4px color-mix(in oklab, var(--color-thread-glow) 70%, transparent);
+  box-shadow: 0 4px 14px -4px color-mix(in oklab, var(--color-thread-glow) 60%, transparent);
 }
 
 .role[data-lit="true"] .role-node-mark {
   filter: none;
 }
 
-/*
- * The card is paper: a lit top edge, a contact shadow and a long soft one. It leans toward
- * the pointer (--rx/--ry, set by RoleCard) and a sheen follows it (--mx/--my).
- */
+/* A contact shadow and a long soft one. It leans toward the pointer (--rx/--ry, set by RoleCard). */
 .role-card {
   box-shadow:
     inset 0 1px 0 var(--paper-edge),
@@ -475,7 +444,7 @@
 }
 
 .role[data-lit="false"] .role-card {
-  opacity: 0.62;
+  opacity: 0.75;
 }
 
 .role[data-active="true"] .role-card {
@@ -487,25 +456,6 @@
     0 12px 30px -18px color-mix(in oklab, var(--color-thread-glow) 60%, transparent);
 }
 
-.role-sheen {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(
-    22rem circle at var(--mx, 50%) var(--my, 0%),
-    var(--paper-sheen),
-    transparent 60%
-  );
-  mix-blend-mode: soft-light;
-  transition: opacity 400ms ease;
-}
-
-.role-card:hover .role-sheen {
-  opacity: 1;
-}
-
 .role-now {
   width: 0.4375rem;
   height: 0.4375rem;
@@ -514,17 +464,12 @@
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-thread-glow) 35%, transparent);
 }
 
-/* The write-up beside the thread, lit from above where the light is. */
+/* The write-up beside the thread. */
 .role-panel {
   box-shadow:
     inset 0 1px 0 var(--paper-edge),
     0 2px 4px rgb(36 35 33 / 0.04),
     0 40px 80px -40px rgb(36 35 33 / 0.22);
-  background-image: radial-gradient(
-    40rem 18rem at 12% -10%,
-    color-mix(in oklab, var(--color-thread-glow) 16%, transparent),
-    transparent 70%
-  );
 }
 
 @keyframes role-develop {
@@ -541,19 +486,19 @@
 
 /*
  * The selected-works screen (components/projects). The ambient light is a 32×18 canvas
- * blown up and blurred into a glow; the screen's backdrops cross-fade, the title card is
+ * blown up and blurred into a soft glow; the screen's backdrops cross-fade, the title card is
  * inked in, and a chosen poster morphs onto the screen through a view transition.
  */
 .marquee-ambient {
-  filter: blur(56px) saturate(1.7);
-  opacity: 0.7;
+  filter: blur(56px) saturate(1.5);
+  opacity: 0.45;
   transform: scale(0.94, 0.86);
 }
 
 .marquee {
   box-shadow:
-    0 2px 4px rgb(21 20 18 / 0.1),
-    0 40px 80px -30px rgb(21 20 18 / 0.45);
+    0 2px 4px rgb(36 35 33 / 0.05),
+    0 30px 60px -30px rgb(36 35 33 / 0.3);
 }
 
 .marquee-layer {
@@ -576,24 +521,6 @@
 /* During the morph the screen is already in its final state; the view transition animates it. */
 [data-morphing] .marquee-layer {
   transition: none;
-}
-
-.marquee-scrim {
-  z-index: 2;
-  background: linear-gradient(to top, var(--color-marquee) 0%, transparent 45%);
-}
-
-@media (min-width: 64rem) {
-  .marquee-scrim {
-    background:
-      linear-gradient(
-        to right,
-        color-mix(in oklab, var(--color-marquee) 92%, transparent) 0%,
-        color-mix(in oklab, var(--color-marquee) 65%, transparent) 32%,
-        transparent 62%
-      ),
-      linear-gradient(to top, color-mix(in oklab, var(--color-marquee) 85%, transparent) 0%, transparent 55%);
-  }
 }
 
 .marquee-credit {
@@ -628,19 +555,15 @@
   isolation: auto;
 }
 
-/* The poster shelf. The shelf fades out at whichever edge has more films past it. */
-.shelf {
-  mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 3rem), transparent);
-}
-
+/* The poster shelf: cards whose art is dimmed until they are on screen or pointed at. */
 .poster {
   box-shadow:
-    0 1px 2px rgb(21 20 18 / 0.08),
-    0 14px 28px -16px rgb(21 20 18 / 0.4);
+    0 1px 2px rgb(36 35 33 / 0.05),
+    0 14px 28px -18px rgb(36 35 33 / 0.25);
   transition:
     transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 400ms ease;
+    border-color 300ms ease;
 }
 
 .poster-art {
@@ -649,22 +572,13 @@
     filter 500ms ease;
 }
 
-.poster-shade {
-  background: linear-gradient(
-    to top,
-    color-mix(in oklab, var(--color-marquee) 94%, transparent) 0%,
-    color-mix(in oklab, var(--color-marquee) 70%, transparent) 45%,
-    transparent 85%
-  );
-}
-
 .poster:hover,
 .poster:focus-visible,
 .poster[data-active="true"] {
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   box-shadow:
-    0 2px 4px rgb(21 20 18 / 0.1),
-    0 26px 40px -18px rgb(21 20 18 / 0.55);
+    0 2px 4px rgb(36 35 33 / 0.06),
+    0 24px 40px -20px rgb(36 35 33 / 0.35);
 }
 
 .poster:hover .poster-art,
@@ -673,20 +587,23 @@
   filter: none;
 }
 
-/* The rest of the shelf is in the dark; the film on screen, and the one pointed at, are lit. */
+/* The film on screen, and the one pointed at, are in full colour; the rest are muted. */
 .poster:not([data-active="true"]):not(:hover):not(:focus-visible) .poster-art {
-  filter: saturate(0.5) brightness(0.62);
+  filter: saturate(0.6) brightness(0.85);
 }
 
 .poster[data-active="true"] {
-  outline: 2px solid var(--color-warm-black);
-  outline-offset: 4px;
+  border-color: var(--color-warm-black);
+  box-shadow:
+    inset 0 0 0 1px var(--color-warm-black),
+    0 2px 4px rgb(36 35 33 / 0.06),
+    0 24px 40px -20px rgb(36 35 33 / 0.35);
 }
 
 /* Keyboard focus has to read differently from "on screen", which is also a ring. */
 .poster:focus-visible {
   outline: 3px solid var(--color-warm-accent);
-  outline-offset: 6px;
+  outline-offset: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -793,7 +710,6 @@
   color-scheme: light;
   /* The lit top edge of a paper card. */
   --paper-edge: rgb(255 255 255 / 0.9);
-  --paper-sheen: rgb(255 255 255 / 0.85);
 }
 
 /*
@@ -833,7 +749,6 @@
   --shadow-elevated: 0 20px 40px -12px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
 
   --paper-edge: rgb(255 255 255 / 0.05);
-  --paper-sheen: rgb(255 255 255 / 0.18);
 }
 
 /*

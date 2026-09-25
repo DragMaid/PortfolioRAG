@@ -7,7 +7,7 @@ export function ContactCallout({ profile }: { profile: Profile }) {
   const linkedin = profile.contacts.find((contact) => contact.icon === "LinkedIn");
 
   return (
-    <SurfaceCard className="mb-16 flex flex-col items-start justify-between gap-8 p-8 sm:p-12 md:flex-row md:items-center">
+    <SurfaceCard className="mb-16 flex flex-col items-start justify-between gap-8 p-8 sm:p-12 md:flex-row md:items-center rounded-sm">
       <div className="max-w-xl space-y-3">
         <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wider text-warm-accent">
           <StatusDot variant="pulse" />
@@ -22,7 +22,7 @@ export function ContactCallout({ profile }: { profile: Profile }) {
       <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center md:w-auto">
         <a
           href={`mailto:${profile.email}`}
-          className="flex items-center justify-center gap-2 rounded-xl bg-warm-black px-6 py-3.5 text-center font-mono text-xs font-medium text-warm-bg shadow-sm transition-colors hover:bg-black dark:hover:bg-white"
+          className="flex items-center justify-center gap-2 bg-warm-black px-6 py-3.5 text-center font-mono text-xs font-medium text-warm-bg shadow-sm transition-colors hover:bg-black dark:hover:bg-white rounded-sm"
         >
           <span>{profile.email}</span>
           <span aria-hidden>↗</span>
@@ -32,9 +32,9 @@ export function ContactCallout({ profile }: { profile: Profile }) {
             href={linkedin.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-xl border border-warm-border bg-warm-surface px-5 py-3.5 text-center font-mono text-xs text-warm-black transition-colors hover:bg-warm-hover"
+            className="border border-warm-border bg-warm-surface px-5 py-3.5 text-center font-mono text-xs text-warm-black transition-colors hover:bg-warm-hover rounded-sm"
           >
-            LinkedIn Profile
+            LinkedIn
           </a>
         ) : null}
       </div>

@@ -72,6 +72,14 @@ export function ChevronRightIcon(props: IconProps) {
   );
 }
 
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden {...strokeProps} {...props}>
+      <path d="M5 9l7 7 7-7" />
+    </svg>
+  );
+}
+
 export function ArrowDownIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden {...strokeProps} {...props}>

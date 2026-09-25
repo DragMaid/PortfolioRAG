@@ -37,7 +37,7 @@ function ContactRow({
 /** Avatar, identity, availability and contact handles. */
 export function ProfileCard({ profile }: { profile: Profile }) {
   return (
-    <SurfaceCard className="flex h-full flex-col items-start justify-between p-7 text-left sm:p-8">
+    <SurfaceCard className="flex h-full flex-col items-start justify-between p-7 text-left sm:p-8 rounded-sm">
       <div className="flex w-full flex-col items-start">
         <div className="relative mx-auto mb-6 size-36 shrink-0 sm:mx-0 sm:size-40">
           <div className="group flex size-full items-center justify-center overflow-hidden rounded-full border-2 border-warm-border bg-gradient-to-br from-warm-hover via-warm-bg to-warm-border/30 shadow-subtle">
