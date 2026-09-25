@@ -22,7 +22,7 @@ export function RoadmapLocation({
 }: RoadmapLocationProps) {
   return (
     <article
-      className={`relative flex flex-col rounded-2xl bg-warm-surface p-5 sm:p-7 shadow-card ring-1 ring-warm-border/70 transition-shadow duration-300 hover:shadow-subtle ${className}`}
+      className={`relative flex flex-col rounded-sm bg-warm-surface p-5 sm:p-7 shadow-card ring-1 ring-warm-border/70 transition-shadow duration-300 hover:shadow-subtle ${className}`}
     >
       {/* Cartographic Header */}
       <div className="flex items-center justify-between border-b border-warm-hairline pb-3">

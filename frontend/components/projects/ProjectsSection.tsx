@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   PauseIcon,
@@ -17,6 +18,7 @@ import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import type { Project } from "@/lib/types";
 
 const PANEL_ID = "project-preview";
+const SHELF_ID = "project-shelf";
 const AUTOPLAY_MS = 6000;
 /** The name the chosen poster and the screen share for the length of the morph. */
 const MORPH_NAME = "marquee-art";
@@ -27,10 +29,10 @@ const DECODE_BUDGET_MS = 250;
 const PAGE_FRACTION = 0.85;
 
 const sideArrowClasses =
-  "absolute top-[calc(50%-0.25rem)] z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-warm-border bg-warm-surface/90 text-warm-black shadow-lg backdrop-blur transition-[opacity,background-color] duration-300 hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";
+  "absolute top-[calc(50%-0.25rem)] z-10 flex size-11 -translate-y-1/2 items-center justify-center border border-warm-border bg-warm-surface/90 text-warm-black shadow-lg backdrop-blur transition-[opacity,background-color] duration-300 hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";
 
 const controlClasses =
-  "flex size-9 items-center justify-center rounded-full border border-warm-border bg-warm-surface text-warm-black transition-colors hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";
+  "flex size-9 items-center justify-center border border-warm-border bg-warm-surface text-warm-black transition-colors hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";
 
 /**
  * Selected works, browsed like films: a screen showing the chosen project's trailer, and a
@@ -40,6 +42,10 @@ const controlClasses =
  * into the backdrop. Everything else that changes the film (the rotation, the arrows,
  * lingering on a poster) cross-fades instead: a morph is an answer to a click, and a page
  * that morphs on its own while somebody reads elsewhere is just moving.
+ *
+ * "Show all" lays the shelf out as a grid, every project at once. The rotation stops there:
+ * a screen changing above a list somebody is reading is noise. Choosing a card brings the
+ * screen back into view instead of morphing across the page to it.
  */
 export function ProjectsSection({ projects }: { projects: Project[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -50,6 +56,7 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
      without clearing the user's own play/pause choice. */
   const [isInteracting, setIsInteracting] = useState(false);
   const [isPageHidden, setIsPageHidden] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const shelfRef = useRef<HTMLDivElement>(null);
   /* Whether the shelf has films past either edge, which is what the side arrows show. */
@@ -78,6 +85,14 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
 
   /** A click on a poster: morph it up onto the screen where the browser can. */
   const choose = (index: number) => {
+    if (expanded) {
+      show(index);
+      marqueeRef.current?.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      return;
+    }
     if (index === activeIndex) return;
 
     const poster = posterArt.current[index];
@@ -123,7 +138,7 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
   useEffect(() => {
     const shelf = shelfRef.current;
     const poster = posterRefs.current[activeIndex];
-    if (!shelf || !poster) return;
+    if (!shelf || !poster || expanded) return;
 
     const left = poster.offsetLeft;
     const right = left + poster.offsetWidth;
@@ -134,7 +149,7 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
     /* `posterRefs` is a stable ref object; listed only to satisfy the lint rule. */
-  }, [activeIndex, prefersReducedMotion, posterRefs]);
+  }, [activeIndex, prefersReducedMotion, posterRefs, expanded]);
 
   const measureShelf = useCallback(() => {
     const shelf = shelfRef.current;
@@ -180,6 +195,7 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
     !isInteracting &&
     !isPageHidden &&
     !prefersReducedMotion &&
+    !expanded &&
     count > 1;
 
   /* A fresh countdown per film, so a manual step restarts it and the bar on the poster
@@ -229,19 +245,21 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
                 >
                   <ChevronRightIcon className="size-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setAutoplayEnabled((value) => !value)}
-                  aria-pressed={!autoplayEnabled}
-                  aria-label={autoplayEnabled ? "Pause auto-rotation" : "Resume auto-rotation"}
-                  className={controlClasses}
-                >
-                  {autoplayEnabled ? (
-                    <PauseIcon className="size-3.5" />
-                  ) : (
-                    <PlayIcon className="size-3.5" />
-                  )}
-                </button>
+                {expanded ? null : (
+                  <button
+                    type="button"
+                    onClick={() => setAutoplayEnabled((value) => !value)}
+                    aria-pressed={!autoplayEnabled}
+                    aria-label={autoplayEnabled ? "Pause auto-rotation" : "Resume auto-rotation"}
+                    className={controlClasses}
+                  >
+                    {autoplayEnabled ? (
+                      <PauseIcon className="size-3.5" />
+                    ) : (
+                      <PlayIcon className="size-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           ) : undefined
@@ -250,6 +268,7 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
 
       <div
         ref={marqueeRef}
+        className="scroll-mt-28"
         onMouseEnter={suspend}
         onMouseLeave={resume}
         onFocusCapture={suspend}
@@ -268,67 +287,98 @@ export function ProjectsSection({ projects }: { projects: Project[] }) {
       {count > 1 ? (
         /* The rotation pauses for the arrows too, so it lives on the wrapper, not the shelf. */
         <div
-          className="relative mt-10"
+          className="mt-10"
           onMouseEnter={suspend}
           onMouseLeave={resume}
           onFocusCapture={suspend}
           onBlurCapture={resume}
         >
-          <div
-            ref={shelfRef}
-            role="tablist"
-            aria-label="Selected works"
-            onScroll={measureShelf}
-            className="shelf no-scrollbar -mx-6 flex snap-x gap-4 overflow-x-auto scroll-px-6 px-6 pb-6 pt-4 sm:-mx-8 sm:scroll-px-8 sm:px-8 sm:gap-5"
-          >
-            {projects.map((project, index) => (
-              <ProjectPoster
-                key={project.slug}
-                ref={registerRef(index)}
-                artRef={(element) => {
-                  posterArt.current[index] = element;
-                }}
-                project={project}
-                isActive={index === activeIndex}
-                countdownMs={isPlaying && index === activeIndex ? AUTOPLAY_MS : null}
-                onChoose={() => choose(index)}
-                onPreview={() => show(index)}
-                onKeyDown={(event) => onKeyDown(event, index)}
-                panelId={PANEL_ID}
-              />
-            ))}
+          <div className="relative">
+            <div
+              ref={shelfRef}
+              id={SHELF_ID}
+              role="tablist"
+              aria-label="Selected works"
+              onScroll={measureShelf}
+              className={cn(
+                expanded
+                  ? "grid grid-cols-1 gap-5 pt-4 sm:grid-cols-2 lg:grid-cols-3"
+                  : "no-scrollbar -mx-6 flex snap-x gap-4 overflow-x-auto scroll-px-6 px-6 pb-6 pt-4 sm:-mx-8 sm:scroll-px-8 sm:px-8 sm:gap-5",
+              )}
+            >
+              {projects.map((project, index) => (
+                <ProjectPoster
+                  key={project.slug}
+                  ref={registerRef(index)}
+                  artRef={(element) => {
+                    posterArt.current[index] = element;
+                  }}
+                  project={project}
+                  isActive={index === activeIndex}
+                  countdownMs={isPlaying && index === activeIndex ? AUTOPLAY_MS : null}
+                  onChoose={() => choose(index)}
+                  onPreview={() => show(index)}
+                  onKeyDown={(event) => onKeyDown(event, index)}
+                  panelId={PANEL_ID}
+                  className={expanded ? "w-full" : "w-72 shrink-0 snap-start sm:w-80 lg:w-96"}
+                  summaryLines={expanded ? 3 : 2}
+                />
+              ))}
+            </div>
+
+            {/* Scroll the shelf, not the film: the screen changes only when a poster is chosen.
+                Each arrow fades out at its end, so its presence says whether there is more. */}
+            {expanded ? null : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => pageShelf(-1)}
+                  aria-label="Scroll works back"
+                  aria-hidden={!overflow.start}
+                  tabIndex={overflow.start ? 0 : -1}
+                  className={cn(
+                    sideArrowClasses,
+                    "-left-3 sm:-left-5 rounded-full",
+                    !overflow.start && "pointer-events-none opacity-0",
+                  )}
+                >
+                  <ChevronLeftIcon className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => pageShelf(1)}
+                  aria-label="Scroll works forward"
+                  aria-hidden={!overflow.end}
+                  tabIndex={overflow.end ? 0 : -1}
+                  className={cn(
+                    sideArrowClasses,
+                    "-right-3 sm:-right-5 rounded-full",
+                    !overflow.end && "pointer-events-none opacity-0",
+                  )}
+                >
+                  <ChevronRightIcon className="size-5" />
+                </button>
+              </>
+            )}
           </div>
 
-          {/* Scroll the shelf, not the film: the screen changes only when a poster is chosen.
-              Each arrow fades out at its end, so its presence says whether there is more. */}
-          <button
-            type="button"
-            onClick={() => pageShelf(-1)}
-            aria-label="Scroll works back"
-            aria-hidden={!overflow.start}
-            tabIndex={overflow.start ? 0 : -1}
-            className={cn(
-              sideArrowClasses,
-              "-left-3 sm:-left-5",
-              !overflow.start && "pointer-events-none opacity-0",
-            )}
-          >
-            <ChevronLeftIcon className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => pageShelf(1)}
-            aria-label="Scroll works forward"
-            aria-hidden={!overflow.end}
-            tabIndex={overflow.end ? 0 : -1}
-            className={cn(
-              sideArrowClasses,
-              "-right-3 sm:-right-5",
-              !overflow.end && "pointer-events-none opacity-0",
-            )}
-          >
-            <ChevronRightIcon className="size-5" />
-          </button>
+          {/* Offered only when the shelf is hiding some of the work. */}
+          {expanded || overflow.start || overflow.end ? (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setExpanded((value) => !value)}
+                aria-expanded={expanded}
+                aria-controls={SHELF_ID}
+                className="flex items-center gap-2 border border-warm-border bg-warm-surface px-5 py-2.5 text-sm font-medium text-warm-black transition-colors hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent"
+              >
+                {expanded ? "Show fewer" : `Show all ${count} projects`}
+                <ChevronDownIcon
+                  className={cn("size-4 transition-transform duration-300", expanded && "rotate-180")}
+                />
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 type SurfaceCardProps = React.ComponentPropsWithoutRef<"div"> & {
-  /** Adds the gradient hairline across the top edge. */
+  /** Adds the accent hairline across the top edge, swept in on arrival. */
   accentEdge?: boolean;
 };
 
@@ -15,14 +15,14 @@ export function SurfaceCard({
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-warm-border bg-warm-surface shadow-card",
+        "relative border border-warm-border bg-warm-surface shadow-card",
         accentEdge && "overflow-hidden",
         className,
       )}
       {...props}
     >
       {accentEdge ? (
-        <div className="animate-edge-sweep absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-warm-accent/40 via-warm-border to-transparent" />
+        <div className="animate-edge-sweep absolute inset-x-0 top-0 h-0.5 bg-warm-accent" />
       ) : null}
       {children}
     </div>

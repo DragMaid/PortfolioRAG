@@ -62,7 +62,7 @@ export function JobFitReport({ report }: { report: JobFitReportDto }) {
           Requirements, one by one
         </h3>
 
-        <ul className="divide-y divide-warm-hairline overflow-hidden rounded-xl border border-warm-border bg-warm-bg">
+        <ul className="divide-y divide-warm-hairline overflow-hidden border border-warm-border bg-warm-bg">
           {essential.map((requirement, index) => (
             <li key={`essential-${index}`}>
               <Requirement requirement={requirement} />
@@ -75,7 +75,7 @@ export function JobFitReport({ report }: { report: JobFitReportDto }) {
             <h4 className="mt-2 font-mono text-[11px] tracking-wider text-warm-slate uppercase">
               Nice to have
             </h4>
-            <ul className="divide-y divide-warm-hairline overflow-hidden rounded-xl border border-warm-border bg-warm-bg">
+            <ul className="divide-y divide-warm-hairline overflow-hidden border border-warm-border bg-warm-bg">
               {optional.map((requirement, index) => (
                 <li key={`optional-${index}`}>
                   <Requirement requirement={requirement} />
@@ -98,7 +98,7 @@ function ScoreHeader({ report }: { report: JobFitReportDto }) {
   return (
     <header
       className={cn(
-        "flex flex-wrap items-start gap-5 rounded-xl border p-5",
+        "flex flex-wrap items-start gap-5 border p-5",
         TONE_RING[verdict.tone],
       )}
     >

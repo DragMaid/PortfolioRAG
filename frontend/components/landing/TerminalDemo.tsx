@@ -87,7 +87,7 @@ console.log("Published & Indexed:", post.id);`,
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-3xl border border-slate-700/50 bg-[#090d16] shadow-[0_25px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl ${className}`}
+      className={`relative w-full overflow-hidden rounded-sm border border-slate-700/50 bg-[#090d16] shadow-[0_25px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl ${className}`}
     >
       {/* ----------------------------------------------------------- */}
       {/* macOS Sequoia Style Terminal Header                         */}

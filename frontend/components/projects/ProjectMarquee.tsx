@@ -109,8 +109,8 @@ function useAmbientLight(
 }
 
 /**
- * The screen at the top of the section: the chosen project's trailer, full bleed, with its
- * title card laid over it and its light spilling out onto the page.
+ * The screen at the top of the section: the chosen project's trailer beside its title card,
+ * with the footage's light spilling out onto the page around it.
  *
  * Every backdrop that has been shown stays mounted underneath, so going back to a project
  * cross-fades to footage that is already loaded instead of fetching it again — and a trailer
@@ -162,9 +162,9 @@ export function ProjectMarquee({
         role="tabpanel"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className="marquee relative isolate flex flex-col overflow-hidden rounded-3xl bg-marquee text-marquee-ink lg:aspect-[2.39/1] lg:min-h-[27rem]"
+        className="marquee relative isolate grid overflow-hidden border border-warm-border bg-warm-surface lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] rounded-sm"
       >
-        <div className="relative aspect-video w-full lg:absolute lg:inset-0 lg:aspect-auto">
+        <div className="relative aspect-video w-full bg-marquee lg:aspect-auto lg:min-h-[24rem]">
           {projects.map((project, index) => {
             if (!mounted.has(index) && index !== activeIndex) return null;
             const isActive = index === activeIndex;
@@ -220,15 +220,12 @@ export function ProjectMarquee({
             );
           })}
 
-          {/* Shades the footage where the title card sits. */}
-          <div aria-hidden className="marquee-scrim pointer-events-none absolute inset-0" />
-
           {active.trailer.isVideo ? (
             <button
               type="button"
               onClick={() => setPausedByReader(!trailerPaused)}
               aria-pressed={trailerPaused}
-              className="absolute right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-marquee/55 px-3 py-1.5 font-mono text-[11px] text-marquee-ink backdrop-blur-md transition-colors hover:bg-marquee/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marquee-ink"
+              className="absolute right-3 top-3 z-10 flex items-center gap-2 bg-marquee/75 px-3 py-1.5 font-mono text-[11px] text-marquee-ink transition-colors hover:bg-marquee focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marquee-ink"
             >
               {trailerPaused ? <PlayIcon className="size-3" /> : <PauseIcon className="size-3" />}
               {trailerPaused ? "Play trailer" : "Pause trailer"}
@@ -239,34 +236,34 @@ export function ProjectMarquee({
         {/* The title card. Keyed, so each film's title is inked in as it comes up. */}
         <div
           key={active.slug}
-          className="relative z-10 flex max-w-xl flex-col gap-4 p-6 sm:p-8 lg:absolute lg:bottom-0 lg:left-0 lg:p-12"
+          className="flex flex-col gap-4 border-t border-warm-border p-6 sm:p-8 lg:justify-center lg:border-l lg:border-t-0 lg:p-10"
         >
-          <p className="marquee-credit flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.14em] text-marquee-dim">
+          <p className="marquee-credit flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.12em] text-warm-slate">
             <span className="tabular-nums">No. {active.index}</span>
             {active.year ? (
               <>
-                <span aria-hidden className="size-1 rounded-full bg-current" />
+                <span aria-hidden className="size-1 bg-current" />
                 <span className="tabular-nums">{active.year}</span>
               </>
             ) : null}
-            <span aria-hidden className="size-1 rounded-full bg-current" />
+            <span aria-hidden className="size-1 bg-current" />
             <span>{active.trailer.isVideo ? "Trailer" : "Still"}</span>
           </p>
 
-          <h3 className="marquee-title text-balance font-serif text-3xl leading-[1.05] tracking-[-0.02em] sm:text-4xl lg:text-5xl xl:text-6xl">
+          <h3 className="marquee-title text-balance font-serif text-3xl leading-[1.08] tracking-[-0.02em] text-warm-black sm:text-4xl xl:text-5xl">
             {active.title}
           </h3>
 
           {active.summary ? (
-            <p className="marquee-summary line-clamp-3 max-w-md text-sm leading-relaxed text-marquee-dim sm:text-base">
+            <p className="marquee-summary line-clamp-6 max-w-prose text-[15px] leading-relaxed text-warm-black/80">
               {active.summary}
             </p>
           ) : null}
 
-          <div className="marquee-actions flex flex-wrap items-center gap-2.5 pt-2">
+          <div className="marquee-actions flex flex-wrap items-center gap-2.5 pt-2 rounded-sm">
             <Link
               href={active.href}
-              className="group flex items-center gap-2 rounded-full bg-marquee-ink px-5 py-2.5 text-sm font-semibold text-marquee transition-transform hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marquee-ink"
+              className="group flex items-center gap-2 bg-warm-black px-5 py-2.5 text-sm font-medium text-warm-surface transition-transform hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent"
             >
               Read the write-up
               <ChevronRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
@@ -301,4 +298,4 @@ export function ProjectMarquee({
 }
 
 const secondaryAction =
-  "flex items-center gap-2 rounded-full bg-marquee-ink/10 px-4 py-2.5 text-sm font-medium text-marquee-ink ring-1 ring-marquee-ink/20 backdrop-blur-md transition-colors hover:bg-marquee-ink/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marquee-ink";
+  "flex items-center gap-2 border border-warm-border bg-warm-surface px-4 py-2.5 text-sm font-medium text-warm-black transition-colors hover:bg-warm-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent";

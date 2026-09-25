@@ -15,7 +15,7 @@ export function ExperienceDetail({ entry, panelId }: { entry: ExperienceEntry; p
       id={panelId}
       role="region"
       aria-label={`${entry.role || "Role"} at ${entry.company}`}
-      className="role-panel relative overflow-hidden rounded-3xl border border-warm-border bg-warm-surface"
+      className="role-panel relative overflow-hidden rounded-sm border border-warm-border bg-warm-surface"
     >
       {/* Keyed, so each role develops in rather than its words changing in place. */}
       <div key={entry.id} className="animate-role-develop p-8 xl:p-10">

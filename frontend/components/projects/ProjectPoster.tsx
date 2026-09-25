@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/cn";
 import type { Project } from "@/lib/types";
 
 type ProjectPosterProps = {
@@ -17,14 +18,18 @@ type ProjectPosterProps = {
   /** The poster art, which the choosing morph starts from. */
   artRef?: React.Ref<HTMLImageElement>;
   panelId: string;
+  /** Sizing from the section: fixed on the shelf, the column's width in the grid. */
+  className?: string;
+  /** In the grid there is room for more of the pitch. */
+  summaryLines?: 2 | 3;
 };
 
 /** How long a pointer has to rest on a poster before the screen shows it. */
 const PREVIEW_DELAY_MS = 380;
 
 /**
- * One film on the shelf: the project's thumbnail as key art, with its title and summary set
- * over the foot of it like a poster's billing block.
+ * One film on the shelf: the project's thumbnail as key art, with its title and summary on
+ * the card beneath it, where they read on paper rather than over a picture.
  *
  * A tab, because choosing it changes the screen above. Resting on it previews it the way a
  * streaming shelf does; the delay keeps a pointer passing across the shelf from flicking
@@ -40,6 +45,8 @@ export function ProjectPoster({
   ref,
   artRef,
   panelId,
+  className,
+  summaryLines = 2,
 }: ProjectPosterProps) {
   const timer = useRef<number | undefined>(undefined);
 
@@ -68,46 +75,54 @@ export function ProjectPoster({
       onPointerLeave={leave}
       onKeyDown={onKeyDown}
       data-active={isActive}
-      className="poster group relative aspect-video w-72 shrink-0 snap-start overflow-hidden rounded-xl bg-marquee text-left sm:w-80 lg:w-96"
+      className={cn(
+        "poster group flex flex-col overflow-hidden border border-warm-border bg-warm-surface text-left rounded-sm",
+        className,
+      )}
     >
-      {/* Plain <img>: the src redirects to a signed link the image optimizer would outlive. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        ref={artRef}
-        src={project.thumbnailUrl}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        className="poster-art absolute inset-0 size-full object-cover"
-      />
+      <span className="relative block aspect-video overflow-hidden bg-marquee">
+        {/* Plain <img>: the src redirects to a signed link the image optimizer would outlive. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          ref={artRef}
+          src={project.thumbnailUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="poster-art absolute inset-0 size-full object-cover"
+        />
 
-      <span aria-hidden className="poster-shade absolute inset-0" />
-
-      <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-4 text-marquee-ink sm:p-5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-marquee-dim tabular-nums">
-          No. {project.index}
-          {project.year ? ` · ${project.year}` : ""}
-        </span>
-        <span className="line-clamp-1 text-balance font-serif text-xl leading-tight sm:text-2xl">
-          {project.title}
-        </span>
-        {/* The pitch, so a film can be judged from the shelf before it is put on screen. */}
-        {project.summary ? (
-          <span className="line-clamp-2 text-xs leading-relaxed text-marquee-dim sm:text-[13px]">
-            {project.summary}
+        {/* The rotation's countdown, on the film it is counting down. */}
+        {countdownMs !== null ? (
+          <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-marquee-ink/20">
+            <span
+              className="animate-autoplay-progress block h-full bg-marquee-ink"
+              style={{ animationDuration: `${countdownMs}ms` }}
+            />
           </span>
         ) : null}
       </span>
 
-      {/* The rotation's countdown, on the film it is counting down. */}
-      {countdownMs !== null ? (
-        <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-marquee-ink/15">
-          <span
-            className="animate-autoplay-progress block h-full bg-marquee-ink"
-            style={{ animationDuration: `${countdownMs}ms` }}
-          />
+      <span className="flex flex-1 flex-col gap-1.5 p-4 sm:p-5">
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-warm-slate tabular-nums">
+          No. {project.index}
+          {project.year ? ` · ${project.year}` : ""}
         </span>
-      ) : null}
+        <span className="line-clamp-1 text-balance font-serif text-xl leading-tight text-warm-black sm:text-2xl">
+          {project.title}
+        </span>
+        {/* The pitch, so a film can be judged from the shelf before it is put on screen. */}
+        {project.summary ? (
+          <span
+            className={cn(
+              "text-sm leading-relaxed text-warm-black/75",
+              summaryLines === 3 ? "line-clamp-3" : "line-clamp-2",
+            )}
+          >
+            {project.summary}
+          </span>
+        ) : null}
+      </span>
     </button>
   );
 }

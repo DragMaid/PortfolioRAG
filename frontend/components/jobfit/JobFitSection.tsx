@@ -55,7 +55,7 @@ export function JobFitSection({
 
       {/* In the same warm panel as the timeline and the works above it, so the one
           interactive section reads as part of the portfolio rather than a form bolted on. */}
-      <SurfaceCard className="p-6 sm:p-10">
+      <SurfaceCard className="p-6 sm:p-10 rounded-sm">
       <form
         className="grid gap-8 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:items-stretch lg:gap-12"
         onSubmit={(event) => {
@@ -76,9 +76,9 @@ export function JobFitSection({
               type="submit"
               disabled={!canSubmit}
               className={cn(
-                "rounded-xl bg-warm-black px-5 py-3 text-sm font-medium text-warm-bg shadow-subtle transition-[background-color,opacity,transform] duration-150",
+                "bg-warm-black px-5 py-3 text-sm font-medium text-warm-bg shadow-subtle transition-[background-color,opacity,transform] duration-150",
                 "hover:bg-black dark:hover:bg-white active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-accent",
-                "disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:bg-warm-black disabled:active:scale-100",
+                "disabled:cursor-not-allowed disabled:opacity-35 disabled:shadow-none disabled:hover:bg-warm-black disabled:active:scale-100 rounded-sm",
               )}
             >
               {fit.isBusy ? "Reading the portfolio…" : "Check job fit"}
@@ -194,7 +194,7 @@ function Disclosure({
   exhausted: boolean;
 }) {
   return (
-    <div className="mt-auto flex flex-col gap-2 rounded-xl bg-warm-bg px-4 py-3.5 text-[13px] leading-relaxed text-warm-slate">
+    <div className="mt-auto flex flex-col gap-2 bg-warm-bg px-4 py-3.5 text-[13px] leading-relaxed text-warm-slate">
       <p>
         {exhausted ? (
           <span className="text-warm-danger">
@@ -235,7 +235,7 @@ function Progress({ elapsed, estimate }: { elapsed: number; estimate: number }) 
   return (
     <div
       role="status"
-      className="flex flex-col gap-3 rounded-xl border border-warm-border bg-warm-bg p-5"
+      className="flex flex-col gap-3 border border-warm-border bg-warm-bg p-5"
     >
       <div className="flex items-center justify-between font-mono text-[11px] tracking-wider text-warm-slate uppercase">
         <span>{stages[stage]}…</span>
@@ -244,9 +244,9 @@ function Progress({ elapsed, estimate }: { elapsed: number; estimate: number }) 
         </span>
       </div>
 
-      <div className="h-1 overflow-hidden rounded-full bg-warm-border">
+      <div className="h-1 overflow-hidden bg-warm-border">
         <div
-          className="h-full rounded-full bg-warm-accent transition-[width] duration-1000 ease-linear"
+          className="h-full bg-warm-accent transition-[width] duration-1000 ease-linear"
           style={{ width: `${Math.min(96, (elapsed / estimate) * 100)}%` }}
         />
       </div>
@@ -262,7 +262,7 @@ function Progress({ elapsed, estimate }: { elapsed: number; estimate: number }) 
 
 function Failure({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-warm-danger/25 bg-warm-danger-bg p-5">
+    <div className="border border-warm-danger/25 bg-warm-danger-bg p-5">
       <p className="text-sm font-medium text-warm-danger">
         Could not finish
       </p>

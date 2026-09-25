@@ -76,15 +76,13 @@ export default async function AuthorPortfolio({ params }: PageProps<"/[handle]">
            * decided on the API — see JobFitService.GetAvailabilityAsync — so there is
            * nothing here to keep in step with them.
            */}
-          {jobFit?.isEnabled ? (
-            <Reveal>
-              <JobFitSection
-                handle={author.handle!}
-                name={profile.name}
-                availability={jobFit}
-              />
-            </Reveal>
-          ) : null}
+        <Reveal>
+          <JobFitSection
+            handle={author.handle!}
+            name={profile.name}
+            availability={jobFit}
+          />
+        </Reveal>
         </main>
         <Reveal>
           <Footer profile={profile} />
