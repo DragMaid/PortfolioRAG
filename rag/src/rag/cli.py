@@ -155,7 +155,7 @@ def local(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--api",
-        default="http://localhost:5009",
+        default="https://api.blograg.pbh-dev.tech",
         help="The portfolio API this asks for passages (default %(default)s).",
     )
     parser.add_argument(

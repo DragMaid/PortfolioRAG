@@ -70,7 +70,7 @@ llm:
 # keeps it in .applier/secrets.yaml with owner-only permissions — or export it as the
 # variable named here, which is what the command line reads when nothing was pasted.
 portfolio:
-  api: http://localhost:5009
+  api: https://api.blograg.pbh-dev.tech   # the deployed one; a local portfolio works too
   token_env: APPLIER_PORTFOLIO_TOKEN
 
 # The job board's browser. Visible by default so you can watch it the first few times, and

@@ -31,7 +31,7 @@ class RunRequest(BaseModel):
 def create_app(
     *,
     settings: Settings,
-    api_base: str,
+    api_base: str | Callable[[], str],
     site: str,
     browser: Browser,
     headless: bool,
@@ -39,6 +39,9 @@ def create_app(
     runs: Runs | None = None,
 ) -> FastAPI:
     """The local pipeline as an API. No page: whatever is serving one supplies it.
+
+    ``api_base`` may be a callable, for the same reason ``token`` may: a host whose page can
+    point retrieval somewhere else without being restarted.
 
     ``token`` is for a host that already holds one, so the page it serves need not send a
     credential with every request. It may be a callable, for a host whose token can change
@@ -50,6 +53,10 @@ def create_app(
     open. Passing the one already running is what lets the applier serve this beside its own.
     """
     runs = runs or Runs(settings, site=site, browser=browser, headless=headless)
+
+    def _base() -> str:
+        """Where retrieval asks. A callable for a host whose page can move it mid-session."""
+        return api_base() if callable(api_base) else api_base
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -63,7 +70,7 @@ def create_app(
     def config() -> dict[str, Any]:
         """What this service was started with, so the page can state it rather than ask."""
         return {
-            "api": api_base,
+            "api": _base(),
             "site": site,
             "browser": browser,
             "headless": headless,
@@ -96,7 +103,7 @@ def create_app(
             run = runs.start(
                 kind=request.kind,  # type: ignore[arg-type]
                 token=api_token,
-                api_base=api_base,
+                api_base=_base(),
                 job_description=posting,
                 notes=(request.notes or "").strip() or None,
             )

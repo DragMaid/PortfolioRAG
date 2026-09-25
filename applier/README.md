@@ -17,7 +17,7 @@ command line, deciding everything itself, out of the same file.
   │        │           one thread per board           │
   │        ▼                                          │
   │  board adapter ── camoufox, board profile ────────┼──▶ sg.jobstreet.com
-  │   search · fetch · apply       tabs, one per job  │
+  │   search · fetch · apply    a tab per hand-off    │
   │        │                                          │
   │        ▼                                          │
   │  pipeline ── ledger.sqlite                        │     ┌──────────────┐
@@ -65,8 +65,10 @@ serve` writes a config if there is none and opens on a setup run, which does the
 signing in to the board, one **mock application**, the questions that came off it, and the
 portfolio token, which you paste into the page.
 
-Assessing a posting does need the portfolio API and the rag worker running, exactly as for
-`rag-local`. Nothing before that does, including all of setup bar its last step.
+Assessing a posting does need the portfolio API, which it asks at
+`https://api.blograg.pbh-dev.tech` unless *Settings → Model & access* points it somewhere
+else — at one you are running yourself, say. Nothing before that step needs it, including
+all of setup bar its last.
 
 ### The setup run
 
@@ -129,9 +131,12 @@ uv run applier serve            # then open http://127.0.0.1:8765
 ```
 
 The same run, with the two decisions that matter handed back to you. Boards open in a
-window you can see, each posting gets a tab of its own, and the table's *Show tab* brings
-any of them to the front — so a row you are reading and the page it was filled in on stay
-connected.
+window you can see, and the table's *Show tab* brings the page a row was filled in on to the
+front — so a row you are reading and its form stay connected.
+
+A form only gets a tab of its own when it is going to be **left** for you: one tab per
+hand-off, not one per posting. Everything a run does for itself happens in the window's one
+working tab, and anything the board opens behind its own back is closed between commands.
 
 Three settings decide how much happens without you, and all three live in `applier.yaml`
 under `run:` — so what the page's toggles say and what `applier run` would do tomorrow are
@@ -164,7 +169,8 @@ pipelines, mounted under `/api/rag` and run through the same signed-in chat sess
 ### Settings
 
 Everything the config holds is editable on the page: your details and the two notes boxes,
-the facts, the searches, which model answers, and the file itself as text. Structured
+the facts, the searches, which model answers, where the portfolio API is, and the file itself
+as text. Structured
 editors are the main path; the raw view is the escape hatch, checked against the same loader
 the server started with and refused whole if it would not load — so nothing you type there
 can leave the tool unable to start.
@@ -231,8 +237,9 @@ What a new board gets for free:
   it shows a sent application, which is what lets a tab you submitted yourself settle its
   own row.
 - **Tabs.** An adapter never opens one. The controller runs `apply` inside
-  `browser.on(<the posting>)`, and `browser.page` — which is all an adapter reaches for —
-  points at that tab for the whole flow.
+  `browser.on(<the posting>)` when the form is to be handed over and `browser.on(None)` when
+  it is not, and `browser.page` — which is all an adapter reaches for — points at the right
+  one for the whole flow either way.
 
 For LinkedIn Easy Apply, the adapter's `apply` walks the modal's steps and calls
 `read_fields` on the modal for each one; `hand_off` means stopping on the modal's review
