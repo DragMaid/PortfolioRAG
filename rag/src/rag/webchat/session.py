@@ -18,6 +18,13 @@ on their own) and then raises.
 A reply counts as finished when a new reply exists, nothing is marked as generating, and
 its text has held still for a few polls. An error banner stops the wait early.
 
+**Tabs.** ``ask`` sends a prompt and waits for its reply, in the first tab. For several
+conversations at once there is ``send`` and ``check``: ``send`` puts a prompt into a tab of
+its own and returns as soon as it is submitted; ``check`` looks at that tab once and returns
+the reply when it has finished, or None. Playwright's objects all belong to the thread that
+opened the browser, so it is one thread taking turns between tabs — while the site writes
+one reply, the others are being written too. ``rag.providers.web`` runs that loop.
+
 Every failure captures the page before raising; see ``errors``.
 """
 
@@ -32,7 +39,7 @@ import time
 import traceback
 import urllib.request
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -66,6 +73,27 @@ class Reply:
     text: str
     code_blocks: list[str] = field(default_factory=list)
     duration_ms: int = 0
+
+
+@dataclass(slots=True)
+class Pending:
+    """A prompt sent into a tab, whose reply is still being written. See ``check``."""
+
+    page: Page
+    prompt: str
+    new_chat: bool
+    sent_at: float
+    before: int
+    start_by: float
+    deadline: float
+    timeout: float
+    replying: bool = False
+    last_text: str | None = None
+    stable: int = 0
+
+
+# Polls a reply's text must hold still for before it counts as finished.
+_SETTLE_POLLS = 3
 
 
 class _Timeout(Exception):
@@ -102,6 +130,8 @@ class WebChatSession:
         self._chrome: subprocess.Popen | None = None
         self._context: BrowserContext | None = None
         self._page: Page | None = None
+        # Every tab, the first one included. ``_page`` is whichever one is being worked on.
+        self._tabs: list[Page] = []
         self._console: deque[str] = deque(maxlen=100)
 
     def open(self) -> WebChatSession:
@@ -129,9 +159,9 @@ class WebChatSession:
 
         self._context = context
         page = context.pages[0] if context.pages else context.new_page()
-        page.on("console", lambda m: self._console.append(f"{m.type}: {m.text}"))
-        page.on("pageerror", lambda e: self._console.append(f"pageerror: {e}"))
+        self._watch(page)
         self._page = page
+        self._tabs = [page]
 
         try:
             self._goto_new_chat()
@@ -163,10 +193,48 @@ class WebChatSession:
 
         self._camoufox = self._playwright = self._chrome = None
         self._context = self._page = None
+        self._tabs = []
 
     @property
     def is_open(self) -> bool:
-        return self._page is not None and not self._page.is_closed()
+        return bool(self._tabs) and not self._tabs[0].is_closed()
+
+    def tab(self, index: int) -> Page:
+        """The ``index``-th tab, opened (or reopened, if someone closed it) when needed."""
+        if self._context is None or not self._tabs:
+            raise BrowserClosedError("The browser is not open.", site=self.site.name)
+        while len(self._tabs) <= index:
+            self._tabs.append(self._new_tab())
+        if self._tabs[index].is_closed():
+            self._tabs[index] = self._new_tab()
+        return self._tabs[index]
+
+    def _new_tab(self) -> Page:
+        assert self._context is not None
+        try:
+            page = self._context.new_page()
+        except PlaywrightError as error:
+            raise BrowserClosedError(
+                f"Could not open another tab: {error}", site=self.site.name
+            ) from error
+        self._watch(page)
+        return page
+
+    def _watch(self, page: Page) -> None:
+        page.on("console", lambda m: self._console.append(f"{m.type}: {m.text}"))
+        page.on("pageerror", lambda e: self._console.append(f"pageerror: {e}"))
+
+    @contextlib.contextmanager
+    def _on(self, page: Page | None) -> Iterator[None]:
+        """Points every helper here at ``page`` for the duration. One thread, so it is safe."""
+        if page is None:
+            yield
+            return
+        previous, self._page = self._page, page
+        try:
+            yield
+        finally:
+            self._page = previous
 
     def __enter__(self) -> WebChatSession:
         return self.open()
@@ -307,9 +375,26 @@ class WebChatSession:
         ``new_chat`` starts a fresh conversation first, so nothing from an earlier prompt
         leaks into this one. Pass False for a follow-up in the same conversation.
         """
-        started = time.monotonic()
+        pending = self.send(prompt, new_chat=new_chat, timeout=timeout)
+        while (reply := self.check(pending)) is None:
+            time.sleep(1)
+        return reply
 
-        try:
+    def send(
+        self,
+        prompt: str,
+        *,
+        new_chat: bool = True,
+        timeout: float = 300,
+        page: Page | None = None,
+    ) -> Pending:
+        """Types ``prompt`` into a tab (the first, unless ``page`` says) and submits it.
+
+        Returns once it is sent, without waiting for the reply: ``check`` does that.
+        """
+        sent_at = time.monotonic()
+
+        with self._on(page), self._converted():
             if new_chat:
                 self._goto_new_chat()
             self.wait_until_ready(timeout=60, quiet=True)
@@ -321,21 +406,85 @@ class WebChatSession:
 
             self._type(composer, prompt)
             self._submit(composer)
-            reply = self._wait_for_reply(before, timeout)
+            now = time.monotonic()
+            return Pending(
+                page=self.page,
+                prompt=prompt,
+                new_chat=new_chat,
+                sent_at=sent_at,
+                before=before,
+                start_by=now + min(60, timeout),
+                deadline=now + timeout,
+                timeout=timeout,
+            )
 
+    def check(self, pending: Pending) -> Reply | None:
+        """Looks at a sent prompt's tab once: its finished reply, or None while it is being
+        written. Raises when the site shows an error or the reply runs out of time."""
+        with self._on(pending.page):
+            try:
+                return self._check(pending)
+            except WebChatError:
+                raise
+            except PlaywrightError as error:
+                # Mid-redirect errors pass; a closed tab does not.
+                if pending.page.is_closed() or "has been closed" in str(error):
+                    raise BrowserClosedError(
+                        f"The browser closed mid-prompt: {error}", site=self.site.name
+                    ) from error
+                return None
+
+    def _check(self, pending: Pending) -> Reply | None:
+        self._raise_on_error_banner()
+        now = time.monotonic()
+
+        if not pending.replying:
+            if len(self._responses()) > pending.before or self._any_visible(self.site.generating):
+                pending.replying = True
+            elif now > pending.start_by:
+                raise self._fail(ResponseTimeoutError, f"{self.site.name} never started replying.")
+            else:
+                return None
+
+        responses = self._responses()
+        if len(responses) > pending.before:
+            last = responses[-1]
+            text = last.inner_text(timeout=5_000).strip()
+
+            if self._any_visible(self.site.generating) or not text or text != pending.last_text:
+                pending.last_text, pending.stable = text, 0
+            else:
+                pending.stable += 1
+                if pending.stable >= _SETTLE_POLLS:
+                    reply = Reply(text=text, code_blocks=last.locator("pre").all_inner_texts())
+                    reply.duration_ms = int((now - pending.sent_at) * 1000)
+                    self._record(pending.prompt, reply, pending.new_chat)
+                    return reply
+
+        if now > pending.deadline:
+            raise self._fail(
+                ResponseTimeoutError,
+                f"{self.site.name}'s reply did not finish within {pending.timeout:.0f}s.",
+            )
+        return None
+
+    @contextlib.contextmanager
+    def _converted(self) -> Iterator[None]:
+        """Playwright's own errors, as the WebChatError they amount to."""
+        try:
+            yield
         except WebChatError:
             raise
         except PlaywrightError as error:
-            if not self.is_open or "has been closed" in str(error):
+            if (
+                not self.is_open
+                or "has been closed" in str(error)
+                or (self._page is not None and self._page.is_closed())
+            ):
                 raise BrowserClosedError(
                     f"The browser closed mid-prompt: {error}", site=self.site.name
                 ) from error
             raise self._fail(SiteError, f"Browser automation failed: {error}", error) from error
-
-        assert reply is not None
-        reply.duration_ms = int((time.monotonic() - started) * 1000)
-        self._record(prompt, reply, new_chat)
-        return reply
 
     def _goto_new_chat(self) -> None:
         try:
@@ -370,52 +519,6 @@ class WebChatSession:
             button.click()
         except _Timeout:
             composer.press("Enter")
-
-    def _wait_for_reply(self, before: int, timeout: float, settle_polls: int = 3) -> Reply | None:
-        deadline = time.monotonic() + timeout
-
-        def started() -> bool:
-            self._raise_on_error_banner()
-            return len(self._responses()) > before or self._any_visible(self.site.generating)
-
-        try:
-            self._poll(started, timeout=min(60, timeout))
-        except _Timeout:
-            raise self._fail(
-                ResponseTimeoutError, f"{self.site.name} never started replying."
-            ) from None
-
-        last_text: str | None = None
-        stable = 0
-
-        def finished() -> Reply | None:
-            nonlocal last_text, stable
-            self._raise_on_error_banner()
-
-            responses = self._responses()
-            if len(responses) <= before:
-                return None
-
-            last = responses[-1]
-            text = last.inner_text(timeout=5_000).strip()
-
-            if self._any_visible(self.site.generating) or not text or text != last_text:
-                last_text, stable = text, 0
-                return None
-
-            stable += 1
-            if stable < settle_polls:
-                return None
-
-            return Reply(text=text, code_blocks=last.locator("pre").all_inner_texts())
-
-        try:
-            return self._poll(finished, timeout=max(1, deadline - time.monotonic()), interval=1)
-        except _Timeout:
-            raise self._fail(
-                ResponseTimeoutError,
-                f"{self.site.name}'s reply did not finish within {timeout:.0f}s.",
-            ) from None
 
     def _raise_on_error_banner(self) -> None:
         banner = self._first_visible(self.site.error_banners)
