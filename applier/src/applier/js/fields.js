@@ -65,6 +65,16 @@
     );
   };
 
+  // A text box that only takes a value picked from the list its typing brings up: an ARIA
+  // combobox (SuccessFactors' picklists, react-select, Downshift). Typing alone leaves it
+  // invalid; the filler has to type, wait for the matches, and pick one.
+  const isSearchBox = (el) =>
+    el.tagName === "INPUT" &&
+    (el.getAttribute("role") === "combobox" ||
+      !!el.closest("[role=combobox]") ||
+      ["list", "both"].includes(el.getAttribute("aria-autocomplete")) ||
+      el.getAttribute("aria-haspopup") === "listbox");
+
   let nextIndex = 0;
   const tagField = (el) => {
     const id = `${prefix}${nextIndex++}`;
@@ -131,6 +141,8 @@
       max_length: el.maxLength > 0 ? el.maxLength : null,
       members: [id],
     };
+
+    if (isSearchBox(el)) field.combobox = true;
 
     if (el.tagName === "SELECT") {
       field.options = [...el.options]

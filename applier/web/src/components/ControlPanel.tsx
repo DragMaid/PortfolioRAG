@@ -57,6 +57,15 @@ interface Props {
 
 const VERDICTS: Verdict[] = ["weak", "partial", "promising", "strong"];
 
+/** What the workers setting does, and what is running now when that differs from it. */
+function workersNote(wanted: number, running: number | null): string {
+  const what = `Browsers per board, 2 to 8: one always assesses, ${wanted - 1} apply.`;
+  if (running == null || running === wanted) return what;
+  return running < wanted
+    ? `${what} ${running} running now — the rest start with the next Start.`
+    : `${what} ${running} running now — fewer take effect after the controller restarts.`;
+}
+
 export function ControlPanel({
   describe,
   settings,
@@ -69,6 +78,9 @@ export function ControlPanel({
 }: Props) {
   const running = status?.running ?? false;
   const boards = [...new Set(describe.searches.map((search) => search.board))];
+  // Workers actually up: none until a board's browser has been opened this session.
+  const lanes = Object.values(status?.boards ?? {}).map((board) => board.lanes ?? 0);
+  const lanesUp = lanes.length ? Math.max(...lanes) : null;
 
   const toggle = (index: number, on: boolean) =>
     onChange({
@@ -188,6 +200,17 @@ export function ControlPanel({
                 ? "No window, unless you are needed — a sign-in or a bot check brings one up, and it goes again after."
                 : "Its window stays up throughout, so you can watch every form being filled."
             }
+          />
+          <NumberInput
+            label="Workers per board"
+            description={workersNote(settings.workers, lanesUp)}
+            min={2}
+            max={8}
+            clampBehavior="strict"
+            allowDecimal={false}
+            w={220}
+            value={settings.workers}
+            onChange={(value) => onChange({ workers: Math.min(8, Math.max(2, Number(value) || 2)) })}
           />
           <Select
             label="When to ask you about an answer"

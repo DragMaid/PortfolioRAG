@@ -21,13 +21,22 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { DataTable } from "mantine-datatable";
+import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 
 import { api } from "../api";
+import { fitRank, sortBy, useRemembered } from "../sorting";
 import type { HistoryEntry, QuestionDigest } from "../types";
 import { FitBadge } from "./FitBadge";
 import { StateBadge } from "./StateBadge";
 import type { JobState } from "../types";
+
+const SORT_KEYS = {
+  title: (entry: HistoryEntry) => (entry.title || entry.key).toLowerCase(),
+  verdict: (entry: HistoryEntry) => fitRank(entry.verdict, entry.score),
+  status: (entry: HistoryEntry) => entry.status,
+  // ISO timestamps sort as text.
+  updatedAt: (entry: HistoryEntry) => entry.updatedAt,
+};
 
 export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -37,6 +46,10 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sort, setSort] = useRemembered<DataTableSortStatus<HistoryEntry>>("history.sort", {
+    columnAccessor: "updatedAt",
+    direction: "desc",
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,11 +71,12 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
   }, [load]);
 
   const wanted = search.trim().toLowerCase();
-  const shown = wanted
+  const matching = wanted
     ? entries.filter((entry) =>
         `${entry.title} ${entry.company ?? ""} ${entry.reason ?? ""}`.toLowerCase().includes(wanted),
       )
     : entries;
+  const shown = sortBy(matching, sort, SORT_KEYS);
 
   return (
     <Stack gap="md">
@@ -151,10 +165,13 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
           noRecordsText="Nothing on record for that."
           records={shown}
           idAccessor="key"
+          sortStatus={sort}
+          onSortStatusChange={setSort}
           columns={[
             {
               accessor: "title",
               title: "Posting",
+              sortable: true,
               render: (entry) => (
                 <div>
                   <Anchor href={entry.url} target="_blank" rel="noreferrer" size="sm">
@@ -169,12 +186,14 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
             {
               accessor: "verdict",
               title: "Fit",
+              sortable: true,
               width: 130,
               render: (entry) => <FitBadge verdict={entry.verdict} score={entry.score} />,
             },
             {
               accessor: "status",
               title: "Status",
+              sortable: true,
               width: 150,
               render: (entry) => (
                 <StateBadge state={entry.status as JobState} reason={entry.reason} />
@@ -183,6 +202,7 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
             {
               accessor: "updatedAt",
               title: "When",
+              sortable: true,
               width: 170,
               render: (entry) => (
                 <Text size="xs" c="dimmed">
