@@ -15,6 +15,13 @@ Two honest limits, which the eval records rather than hides:
 * no usage metadata. Token counts are estimated at four characters a token so the reports
   still show relative load, and the cost is zero because no key is billed.
 
+**Several conversations at once.** With ``tabs`` above one, calls from different threads
+each get a tab of their own and are answered side by side. The browser still belongs to one
+thread — Playwright allows no other — which the provider starts for itself: it sends each
+prompt into a free tab and then goes round the tabs reading replies as they settle. Callers
+just block until theirs is done, from whatever thread they are on. A follow-up (a repair
+turn) goes back to the tab its conversation is in.
+
 Not registered in the provider registry: a stored credential can never select it, so no
 author's key can put a browser in a deployed worker's request path. The one thing that does
 drive a browser is ``rag.local`` — a service the author runs on their own machine, against
@@ -24,6 +31,12 @@ their own sign-ins.
 from __future__ import annotations
 
 import json
+import queue
+import threading
+import time
+from collections import deque
+from concurrent.futures import Future
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -35,7 +48,16 @@ from langchain_core.prompt_values import PromptValue
 from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from rag.webchat import SITES, Browser, Reply, WebChatError, WebChatSession, get_site
+from rag.webchat import (
+    SITES,
+    Browser,
+    Pending,
+    Reply,
+    SiteError,
+    WebChatError,
+    WebChatSession,
+    get_site,
+)
 
 from .base import Effort, ModelPrice
 
@@ -63,11 +85,29 @@ the schema given above.\
 """
 
 
+# How often the browser thread goes round the tabs it is waiting on.
+_TICK = 1.0
+
+
+@dataclass(slots=True, eq=False)
+class _Prompt:
+    site: str
+    prompt: str
+    new_chat: bool
+    timeout: float
+    caller: int
+    future: Future = field(default_factory=Future)
+
+
+_STOP = object()
+
+
 class WebProvider:
     """Sessions per site, opened on first use and shared by every model built from them.
 
     Sharing is required, not an optimisation: the browser profile holds a lock, so two
-    sessions on one profile cannot run at once — and the pipeline builds two models.
+    sessions on one profile cannot run at once — and the pipeline builds two models. What
+    can run at once is conversations, one per tab, up to ``tabs``.
     """
 
     name = "web"
@@ -81,6 +121,7 @@ class WebProvider:
         chrome_path: str = "chromium",
         login_timeout: float = 300,
         repair_attempts: int = 1,
+        tabs: int = 1,
         log=print,
     ):
         self.browser = browser
@@ -90,7 +131,17 @@ class WebProvider:
         self.login_timeout = login_timeout
         self.repair_attempts = repair_attempts
         self.log = log
+        # Read on every round, so it can be raised while prompts are in flight.
+        self.tabs = max(1, tabs)
         self._sessions: dict[str, WebChatSession] = {}
+
+        self._inbox: queue.Queue[_Prompt | object] = queue.Queue()
+        self._thread: threading.Thread | None = None
+        self._starting = threading.Lock()
+        # Browser-thread state: which caller's conversation each tab holds, and when each tab
+        # last finished, so a new chat takes the tab least likely to be followed up.
+        self._owner: dict[int, int] = {}
+        self._used: dict[int, float] = {}
 
     @property
     def default_model(self) -> str:
@@ -151,7 +202,23 @@ class WebProvider:
         # Langchain function to convert python function to runnable chain component
         return RunnableLambda(run, name=f"web_structured_{schema.__name__}")
 
+    def ask(self, site: str, prompt: str, *, new_chat: bool = True, timeout: float = 300) -> Reply:
+        """One prompt, answered in a tab of its own. Safe from any thread; blocks until done."""
+        if threading.current_thread() is self._thread:
+            raise RuntimeError("WebProvider.ask was called from its own browser thread.")
+        request = _Prompt(
+            site=site,
+            prompt=prompt,
+            new_chat=new_chat,
+            timeout=timeout,
+            caller=threading.get_ident(),
+        )
+        self._ensure_thread()
+        self._inbox.put(request)
+        return request.future.result()
+
     def session(self, site: str) -> WebChatSession:
+        """The open session for ``site``, opened if need be. On the browser thread only."""
         key = get_site(site).name.lower()
         session = self._sessions.get(key)
 
@@ -168,6 +235,8 @@ class WebProvider:
                 log=self.log,
             ).open()
             self._sessions[key] = session
+            self._owner.clear()
+            self._used.clear()
 
         return session
 
@@ -177,10 +246,157 @@ class WebProvider:
         for session in self._sessions.values():
             session.output_dir = output_dir
 
-    def close(self) -> None:
+    def close(self, timeout: float = 60.0) -> None:
+        """Closes the browser, failing anything still waiting on it. Safe from any thread.
+
+        Waits at most ``timeout`` for the browser thread to finish a Playwright call already
+        under way; it is a daemon, so a process that is exiting is not held by it.
+        """
+        thread = self._thread
+        if thread is None or not thread.is_alive():
+            self._close_sessions()
+            return
+        if threading.current_thread() is thread:
+            self._close_sessions()
+            return
+        self._inbox.put(_STOP)
+        thread.join(timeout=timeout)
+
+    def _close_sessions(self) -> None:
         for session in self._sessions.values():
             session.close()
         self._sessions.clear()
+        self._owner.clear()
+        self._used.clear()
+
+    def _ensure_thread(self) -> None:
+        with self._starting:
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(
+                    target=self._serve, name="webchat-browser", daemon=True
+                )
+                self._thread.start()
+
+    def _serve(self) -> None:
+        """Starts prompts in free tabs, and goes round the busy ones until their replies
+        settle. Every Playwright call in this provider happens here."""
+        waiting: deque[_Prompt] = deque()
+        active: dict[int, tuple[_Prompt, Pending]] = {}
+
+        try:
+            while True:
+                idle = not waiting and not active
+                try:
+                    item = self._inbox.get(timeout=0.5 if idle else _TICK)
+                except queue.Empty:
+                    item = None
+
+                while item is not None:
+                    if item is _STOP:
+                        self._fail_all(
+                            waiting, active, SiteError("The browser was closed.", site="web")
+                        )
+                        self._close_sessions()
+                        return
+                    if isinstance(item, _Prompt):
+                        waiting.append(item)
+                    try:
+                        item = self._inbox.get_nowait()
+                    except queue.Empty:
+                        item = None
+
+                self._start_waiting(waiting, active)
+                self._read_replies(active)
+        except BaseException as error:  # the thread must never leave a caller hanging
+            self._fail_all(waiting, active, error)
+            self._close_sessions()
+            raise
+
+    def _start_waiting(
+        self, waiting: deque[_Prompt], active: dict[int, tuple[_Prompt, Pending]]
+    ) -> None:
+        for request in list(waiting):
+            try:
+                tab = self._tab_for(request, active)
+            except WebChatError as error:
+                waiting.remove(request)
+                request.future.set_exception(error)
+                continue
+            if tab is None:
+                continue
+
+            waiting.remove(request)
+            try:
+                session = self.session(request.site)
+                page = session.tab(tab)
+                self._owner[tab] = request.caller
+                pending = session.send(
+                    request.prompt, new_chat=request.new_chat, timeout=request.timeout, page=page
+                )
+            except BaseException as error:
+                request.future.set_exception(error)
+                continue
+            active[tab] = (request, pending)
+
+    def _read_replies(self, active: dict[int, tuple[_Prompt, Pending]]) -> None:
+        for tab, (request, pending) in list(active.items()):
+            session = self._sessions.get(get_site(request.site).name.lower())
+            try:
+                if session is None:
+                    raise SiteError("The browser was closed mid-prompt.", site=request.site)
+                reply = session.check(pending)
+            except BaseException as error:
+                del active[tab]
+                self._used[tab] = time.monotonic()
+                request.future.set_exception(error)
+                continue
+            if reply is not None:
+                del active[tab]
+                self._used[tab] = time.monotonic()
+                request.future.set_result(reply)
+
+    def _tab_for(self, request: _Prompt, active: dict[int, tuple[_Prompt, Pending]]) -> int | None:
+        """The tab a prompt goes in, or None to wait for one.
+
+        A follow-up goes back to its own conversation's tab. A new chat takes a free tab,
+        preferring one nobody is likely to follow up in: never touched, then the caller's
+        own, then whichever finished longest ago.
+        """
+        key = get_site(request.site).name.lower()
+        if active and key not in self._sessions:
+            # Another site's session is open, and opening this one would close it.
+            return None
+
+        if not request.new_chat:
+            mine = [tab for tab, caller in self._owner.items() if caller == request.caller]
+            if not mine:
+                raise SiteError(
+                    "There is no conversation to follow up: its tab went to another prompt.",
+                    site=request.site,
+                )
+            tab = max(mine, key=lambda one: self._used.get(one, 0.0))
+            return None if tab in active else tab
+
+        free = [tab for tab in range(self.tabs) if tab not in active]
+        if not free:
+            return None
+        return min(
+            free,
+            key=lambda tab: (
+                tab in self._owner and self._owner[tab] != request.caller,
+                self._used.get(tab, 0.0),
+            ),
+        )
+
+    @staticmethod
+    def _fail_all(
+        waiting: deque[_Prompt], active: dict[int, tuple[_Prompt, Pending]], error: BaseException
+    ) -> None:
+        for request in [*waiting, *(one for one, _ in active.values())]:
+            if not request.future.done():
+                request.future.set_exception(error)
+        waiting.clear()
+        active.clear()
 
 
 class WebChatModel(BaseChatModel):
@@ -211,9 +427,7 @@ class WebChatModel(BaseChatModel):
 
         for attempt in range(1, attempts + 1):
             try:
-                return self.web.session(self.site).ask(
-                    prompt, new_chat=new_chat, timeout=self.timeout
-                )
+                return self.web.ask(self.site, prompt, new_chat=new_chat, timeout=self.timeout)
             except WebChatError as error:
                 if not error.retryable or attempt == attempts:
                     raise

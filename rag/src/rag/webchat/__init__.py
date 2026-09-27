@@ -16,7 +16,7 @@ from .errors import (
     WebChatError,
 )
 from .paths import webchat_root
-from .session import BROWSERS, Browser, Reply, WebChatSession
+from .session import BROWSERS, Browser, Pending, Reply, WebChatSession
 from .sites import SITES, ChatSite, get_site
 
 __all__ = [
@@ -29,6 +29,7 @@ __all__ = [
     "ChatSite",
     "ComposerNotFoundError",
     "LoginRequiredError",
+    "Pending",
     "RateLimitedError",
     "Reply",
     "ResponseTimeoutError",

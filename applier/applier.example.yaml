@@ -1,0 +1,122 @@
+# You do not have to write this by hand. `applier serve` writes one of these if there is
+# none, and its setup run does a mock application — walking a real posting's form as far as
+# its questions, and asking you those — to fill in the facts below.
+#
+# This file is the source of truth for both ways of running it, and both ends write it: you
+# in an editor, and the page when you change something on it. Saving from the page goes
+# through a round-trip loader, so these comments and your own key order survive.
+#
+# Copy it to applier.yaml (gitignored — it holds your details) if you would rather start here.
+#
+# This file is the source of truth for both ways of running it. `applier serve` reads it at
+# startup and never writes it back: the thresholds, searches and facts you change on the page
+# are that session's, and the page tells you what to paste here to keep them.
+
+searches:
+  - board: jobstreet
+    keywords: software engineer
+    location: Singapore          # optional
+    date_range: 7                # listed in the last N days: 1, 3, 7, 14 or 31
+    max_pages: 2
+  - board: jobstreet
+    keywords: backend developer
+  # Or paste a search URL you have refined in the browser; it is used as-is.
+  # - board: jobstreet
+  #   url: https://sg.jobstreet.com/python-jobs/full-time?daterange=3
+
+boards:
+  jobstreet:
+    region: sg
+
+# How much of a run happens without you. The page's toggles are these.
+run:
+  auto_pick: true        # false: every posting that fits waits for you to pick it
+  # Who sends a posting that fits:
+  #   auto   — the board's adapter fills and submits JobStreet quick-apply forms itself
+  #   manual — it goes to the manual queue, to open in your own browser, where the
+  #            extension fills the form and you press send
+  # A link-out to an employer's own site is always manual.
+  apply_mode: auto
+  board_modes: {}        # per board, e.g. {jobstreet: manual}
+  # When a run stops to ask you about an employer's question:
+  #   never   — a required question no fact answers skips the posting and is recorded
+  #   missing — the run stops and asks, there and then, and remembers what you answer
+  #   always  — every question and its answer, with the fact behind it, before the form
+  answers: missing
+  # Browsers per board working at once — never fewer than two, at most eight. One always
+  # searches and assesses, so new postings never wait behind a form being filled; the rest
+  # apply, and help assess when there is nothing to apply to. The model keeps up: an API
+  # takes several calls at once, and a chat site gets one tab per worker in its one browser,
+  # each its own conversation. The pause in policy.delay_seconds is kept
+  # between applications across all of them, so more workers do not mean a faster pace at
+  # the board. Each extra one keeps its own profile, signed in from the first one's cookies.
+  workers: 2
+
+# What counts as a fit. Verdict and score are computed in code by the rag pipeline:
+# weak < partial < promising < strong.
+policy:
+  min_verdict: promising
+  min_score: 60
+  allow_missing_essentials: 1
+  max_applications: 10         # submitted per run
+  max_assessments: 30          # assessed per run; each is several model calls
+  delay_seconds: [20, 60]      # random pause between applications
+  skip_titles: ["\\bintern(ship)?s?\\b", "\\bprincipal\\b", "\\bdirector\\b"]
+  skip_companies: []
+
+# Who reads and writes. "web" drives a signed-in chat site, as rag-local does — sign in once
+# with `uv run --project ../rag python -m rag.webchat login gemini`.
+llm:
+  provider: web
+  site: gemini                 # gemini | claude | chatgpt
+  browser: camoufox
+  headless: true
+  # provider: anthropic
+  # model: claude-opus-5
+  # api_key_env: ANTHROPIC_API_KEY
+
+# Retrieval runs against your portfolio's index through its API, under a pfl_ token with
+# the write scope. The API and the rag worker must be running.
+#
+# The token itself is not in this file and never is. Paste it into `applier serve`, which
+# keeps it in .applier/secrets.yaml with owner-only permissions — or export it as the
+# variable named here, which is what the command line reads when nothing was pasted.
+portfolio:
+  api: https://api.blograg.pbh-dev.tech   # the deployed one; a local portfolio works too
+  token_env: APPLIER_PORTFOLIO_TOKEN
+
+# The job board's browser. Visible by default so you can watch it the first few times, and
+# because `applier serve` hands applications over in its tabs — there is nothing to hand over
+# in a window you cannot see.
+browser:
+  headless: true               # hidden; a window comes up only for a sign-in or a bot check
+  capture_steps: false         # save every apply step's page, not only failures
+
+candidate:
+  name: Your Name
+  email: you@example.com
+  phone: "+65 8000 0000"
+  resume:
+    select: My_Resume          # part of the name of a resume already on your JobStreet profile
+    # upload: ./resume.pdf     # or a file to upload (the page's Settings can pick one for you)
+  cover_letter: true           # false: send applications without a cover letter
+  # Steers the letter's wording. Not a fact, and grants nothing.
+  cover_letter_notes: >
+    Mention I can start within a month.
+  # Steers how employer questions get answered — which option to take where two fit, how to
+  # phrase a number. Also not a fact: an answer still has to point at one.
+  answer_notes: >
+    When two options both fit, take the conservative one. Never give a salary range.
+  # Employer questions are answered from these and nothing else. A required question these
+  # do not answer skips the posting and is listed by `applier questions`, so you can add
+  # the fact and run again with --retry-skipped.
+  facts:
+    Right to work in Singapore: "Yes — Singapore Citizen"
+    Requires visa sponsorship: "No"
+    Expected monthly salary: "SGD 6,000"
+    Notice period: "1 month"
+    Years of professional software experience: "3"
+    Highest education: "Bachelor's degree in Computer Science"
+    Languages spoken: "English, Mandarin"
+    Willing to work on-site: "Yes, hybrid preferred"
+    Has a driving licence: "No"

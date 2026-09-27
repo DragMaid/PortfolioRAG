@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -64,11 +65,30 @@ class Busy(RuntimeError):
 class Runs:
     """The service's state: a browser, whatever is running, and the last few results."""
 
-    def __init__(self, settings: Settings, *, site: str, browser: Browser, headless: bool):
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        site: str,
+        browser: Browser,
+        headless: bool,
+        provider: Callable[[], WebProvider] | None = None,
+        submit: Callable[..., Any] | None = None,
+    ):
+        """``provider`` and ``submit`` let a host lend the browser thread it already has.
+
+        A chat site's profile holds a lock, so there can only ever be one of these per
+        machine. A host that is already driving one (the applier, whose own model calls go
+        through the same session) passes the factory and the thread here rather than opening
+        a second that would fail. ``provider`` is called on whichever thread ``submit`` runs
+        work on, because that is the only thread its objects may be touched from.
+        """
         self.settings = settings
         self.site = site
         self.browser = browser
         self.headless = headless
+        self._lent = provider is not None
+        self._provider_factory = provider
 
         self._lock = threading.Lock()
         self._runs: dict[str, Run] = {}
@@ -78,9 +98,12 @@ class Runs:
         # NOTE: the playwright will keep trying to cal to the same browser thread
         # even if it's already closed.
         self._browser_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="browser")
+        self._submit = submit or (lambda work, *args: self._browser_thread.submit(work, *args))
 
     def close(self) -> None:
-        self._browser_thread.submit(self._close_browser).result()
+        # A lent browser belongs to whoever lent it, and is still in use elsewhere.
+        if not self._lent:
+            self._browser_thread.submit(self._close_browser).result()
         self._browser_thread.shutdown(wait=True)
 
     def _close_browser(self) -> None:
@@ -95,6 +118,9 @@ class Runs:
         session is the slowest thing here by a wide margin, and the pipeline makes three
         calls per run that would each pay for it.
         """
+        if self._provider_factory is not None:
+            return self._provider_factory()
+
         if self._web is None:
             self._web = WebProvider(
                 browser=self.browser,
@@ -144,7 +170,7 @@ class Runs:
             while len(self._order) > _MAX_SCROLL_SIZE:
                 self._runs.pop(self._order.pop(0), None)
 
-        self._browser_thread.submit(self._run, run, kind, token, api_base, job_description, notes)
+        self._submit(self._run, run, kind, token, api_base, job_description, notes)
 
         return run
 
