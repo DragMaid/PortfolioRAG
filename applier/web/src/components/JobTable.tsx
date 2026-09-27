@@ -4,16 +4,16 @@
  * The actions are deliberately per-row rather than a batch: each one of these is an
  * application to a real employer, and there is no undo on the far side of a submit.
  *
- * *Show tab* is the one that makes the hand-off workable. Each posting that gets as far as a
- * form owns a tab in the board's own browser window, and the button brings that exact tab to
- * the front — so a table of eleven rows and a window of six tabs stay connected.
+ * *Open* is the manual queue's. It opens the posting's apply page in your own browser, where
+ * the extension recognises it, fills the form from your facts and remembered answers, and
+ * asks you in its side panel about anything it cannot. Nothing is sent until you send it.
  */
 
 import { ActionIcon, Anchor, Badge, Button, Group, Text, Tooltip } from "@mantine/core";
 import {
   IconCheck,
   IconExternalLink,
-  IconEye,
+  IconForms,
   IconRefresh,
   IconSend,
   IconX,
@@ -31,7 +31,6 @@ interface Props {
   onOpen: (job: Job) => void;
   onApprove: (job: Job) => void;
   onSkip: (job: Job) => void;
-  onFocus: (job: Job) => void;
   onSubmitted: (job: Job) => void;
   onRetry: (job: Job) => void;
 }
@@ -49,7 +48,6 @@ export function JobTable({
   onOpen,
   onApprove,
   onSkip,
-  onFocus,
   onSubmitted,
   onRetry,
 }: Props) {
@@ -126,16 +124,25 @@ export function JobTable({
           textAlign: "right",
           render: (job) => (
             <Group gap={6} justify="flex-end" wrap="nowrap" onClick={(event) => event.stopPropagation()}>
-              {job.tab && (
-                <Tooltip label={job.tabOpen ? "Bring its tab to the front" : "Its tab is no longer open"}>
-                  <ActionIcon
-                    variant="default"
-                    disabled={!job.tabOpen}
-                    onClick={() => onFocus(job)}
-                    aria-label="Show tab"
+              {job.state === "manual" && (
+                <Tooltip
+                  label={
+                    job.external
+                      ? "Open it in your browser, then its apply button — the extension follows it to the employer's form"
+                      : "Open its application in your browser, where the extension fills it"
+                  }
+                >
+                  <Button
+                    component="a"
+                    href={job.applyUrl || job.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    size="compact-sm"
+                    variant="filled"
+                    leftSection={<IconForms size={14} />}
                   >
-                    <IconEye size={16} />
-                  </ActionIcon>
+                    Open
+                  </Button>
                 </Tooltip>
               )}
 
@@ -150,8 +157,8 @@ export function JobTable({
                 </Button>
               )}
 
-              {job.state === "awaiting_human" && (
-                <Tooltip label="Record it as sent, and close its tab">
+              {job.state === "manual" && (
+                <Tooltip label="Record it as sent">
                   <Button
                     size="compact-sm"
                     color="green"
@@ -174,7 +181,7 @@ export function JobTable({
               )}
 
               {!DONE.has(job.state) && job.state !== "applied" && (
-                <Tooltip label={job.state === "awaiting_human" ? "Discard it and close its tab" : "Pass on it"}>
+                <Tooltip label="Pass on it">
                   <ActionIcon
                     variant="default"
                     color="red"

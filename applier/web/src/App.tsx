@@ -247,12 +247,6 @@ export function App() {
                   about most postings.
                 </Alert>
               )}
-              {status?.handoffCapReached && !settings.autoSubmit && (
-                <Alert color="orange" variant="light" title="Paused on you">
-                  {status.openHandoffs} applications are filled in and waiting in their tabs. Send or
-                  discard some and the queue starts again on its own.
-                </Alert>
-              )}
 
               <JobTable
                 jobs={live}
@@ -260,7 +254,6 @@ export function App() {
                 onOpen={setDrawer}
                 onApprove={(job) => void act(job, "apply to it", () => api.approve(job.key))}
                 onSkip={(job) => void act(job, "skip it", () => api.skip(job.key))}
-                onFocus={(job) => void act(job, "show its tab", () => api.focus(job.key))}
                 onSubmitted={(job) => void act(job, "record it as sent", () => api.submitted(job.key))}
                 onRetry={(job) => void act(job, "retry it", () => api.retry(job.key))}
               />
@@ -290,7 +283,11 @@ export function App() {
                   to fill it in from a real form.
                 </Alert>
               )}
-              <SettingsPanel describe={describe} onSaved={() => void api.describe()} />
+              <SettingsPanel
+                describe={describe}
+                sites={controller.sites}
+                onSaved={() => void api.describe()}
+              />
             </Stack>
           </Tabs.Panel>
         </Tabs>

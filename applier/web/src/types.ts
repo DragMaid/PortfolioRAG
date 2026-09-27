@@ -11,7 +11,7 @@ export type JobState =
   | "writing"
   | "applying"
   | "reviewing"
-  | "awaiting_human"
+  | "manual"
   | "applied"
   | "skipped"
   | "unfit"
@@ -39,7 +39,7 @@ export const DONE: ReadonlySet<JobState> = new Set<JobState>([
 export const WAITING: ReadonlySet<JobState> = new Set<JobState>([
   "pending",
   "reviewing",
-  "awaiting_human",
+  "manual",
 ]);
 
 export interface Stage {
@@ -78,8 +78,10 @@ export interface Job {
   hasLetter: boolean;
   questions: string[];
   review: ReviewQuestion[];
-  tab: string | null;
-  tabOpen: boolean;
+  /** Where to apply by hand, for a posting in the manual queue. */
+  applyUrl: string | null;
+  /** The board links out to the employer's own site. */
+  external: boolean;
   historic: boolean;
   foundAt: number;
   updatedAt: number;
@@ -147,11 +149,14 @@ export interface LetterReport {
 /** When a run stops to ask about an employer's question. See RunConfig in config.py. */
 export type Intervention = "never" | "missing" | "always";
 
+/** Who sends a posting that fits: the board's adapter, or you with the extension. */
+export type ApplyMode = "auto" | "manual";
+
 export interface Settings {
   autoPick: boolean;
-  autoSubmit: boolean;
+  applyMode: ApplyMode;
+  boardModes: Record<string, ApplyMode>;
   answers: Intervention;
-  maxOpenHandoffs: number;
   searches: number[];
   maxApplications: number;
   maxAssessments: number;
@@ -165,11 +170,12 @@ export interface Status {
   applied: number;
   assessed: number;
   waiting: number;
-  openHandoffs: number;
+  manual: number;
   queued: number;
-  handoffCapReached: boolean;
   stoppedBecause: string | null;
-  boards: Record<string, { ready: boolean; pending: number }>;
+  /** How the last run ended on its own: a summary, or null while running or when stopped. */
+  finished: string | null;
+  boards: Record<string, { ready: boolean; pending: number; signingIn: boolean }>;
 }
 
 export interface SearchConfig {
@@ -258,7 +264,7 @@ export interface Describe {
   setup: SetupState;
   /** What still has to be true before a run could do anything. */
   ready: string[];
-  notes: { letter: string; answers: string };
+  notes: { letter: string; answers: string; includeLetter: boolean };
   portfolio: {
     api: string;
     tokenSet: boolean;
@@ -268,6 +274,8 @@ export interface Describe {
     storedAt: string;
   };
   resume: { select: string | null; upload: string | null };
+  /** The board's browser runs hidden, and only opens a window for a sign-in or a bot check. */
+  boardHeadless: boolean;
 }
 
 export interface LogLine {

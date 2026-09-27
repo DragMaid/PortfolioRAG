@@ -119,12 +119,10 @@ export function ReviewModal({ job, onDecide }: Props) {
           </Group>
         </Group>
 
-        {Object.keys(typedFacts).length > 0 && (
-          <Text size="xs" c="dimmed">
-            Facts added here last for this session. Paste them under `candidate.facts` in your
-            config to keep them.
-          </Text>
-        )}
+        <Text size="xs" c="dimmed">
+          An answer you type here is remembered, and the next form that asks the same question is
+          answered with it. Facts added here are written into your config.
+        </Text>
       </Stack>
     </Modal>
   );

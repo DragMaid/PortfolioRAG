@@ -69,7 +69,6 @@ export const api = {
 
   approve: (key: string) => post<Job>(`${at(key)}/approve`),
   skip: (key: string) => post<Job>(`${at(key)}/skip`),
-  focus: (key: string) => post<Job>(`${at(key)}/focus`),
   submitted: (key: string) => post<Job>(`${at(key)}/submitted`),
   retry: (key: string) => post<Job>(`${at(key)}/retry`),
 
@@ -113,6 +112,14 @@ export const api = {
       }),
     profile: (patch: Record<string, unknown>) =>
       request<Describe>("/api/profile", { method: "PATCH", body: JSON.stringify(patch) }),
+    /** The file itself as the body: the controller keeps its own copy. */
+    uploadResume: (file: File) =>
+      request<Describe>(`/api/profile/resume?name=${encodeURIComponent(file.name)}`, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/octet-stream" },
+      }),
+    forgetResume: () => request<Describe>("/api/profile/resume", { method: "DELETE" }),
   },
 
   /** The portfolio token. It goes in and is never read back. */
@@ -131,6 +138,12 @@ export const api = {
   signInSite: (site: string) => post<{ site: string }>(`/api/sites/${site}/login`),
 
   signIn: (board: string) => post<{ board: string }>(`/api/boards/${board}/login`),
+
+  /** The key the browser extension is paired with. Shown here to paste into its side panel. */
+  extension: {
+    key: () => request<{ key: string; version: number }>("/api/extension"),
+    rotate: () => post<{ key: string; version: number }>("/api/extension/key"),
+  },
 
   /** Asks each board whether it is still signed in. Answered on the event stream. */
   boards: () => request<{ boards: string[] }>("/api/boards"),

@@ -37,6 +37,7 @@ import { notifications } from "@mantine/notifications";
 
 import { api } from "../api";
 import { PortfolioAccess } from "./PortfolioAccess";
+import { ResumePicker } from "./ResumePicker";
 import type { Describe, SearchDraft, SetupQuestion, SetupState } from "../types";
 
 interface Props {
@@ -130,6 +131,7 @@ export function SetupWizard({ describe, setup, signedIn, onDone }: Props) {
               onAnswer={(id, value) => setAnswers((current) => ({ ...current, [id]: value }))}
               found={setup.found}
               resumes={resumes}
+              upload={describe.resume.upload}
               resume={resume}
               onResume={setResume}
               letterNotes={letterNotes}
@@ -292,6 +294,7 @@ function Answers({
   onAnswer,
   found,
   resumes,
+  upload,
   resume,
   onResume,
   letterNotes,
@@ -304,6 +307,7 @@ function Answers({
   onAnswer: (id: string, value: string) => void;
   found: SetupState["found"];
   resumes: string[];
+  upload: string | null;
   resume: string | null;
   onResume: (value: string | null) => void;
   letterNotes: string;
@@ -352,22 +356,25 @@ function Answers({
         </Stack>
       </Card>
 
-      {resumes.length > 0 && (
-        <Card withBorder padding="md">
-          <Radio.Group
-            label="Which resume goes with an application"
-            description="Read off your board profile — no filename to type."
-            value={resume}
-            onChange={onResume}
-          >
-            <Stack gap={4} mt="xs">
-              {resumes.map((name) => (
-                <Radio key={name} value={name} label={name} />
-              ))}
-            </Stack>
-          </Radio.Group>
-        </Card>
-      )}
+      <Card withBorder padding="md">
+        <Stack gap="sm">
+          <ResumePicker current={upload} onChanged={() => onResume(null)} />
+          {resumes.length > 0 && !upload && (
+            <Radio.Group
+              label="Or one already on your board profile"
+              description="Read off the form — no filename to type."
+              value={resume}
+              onChange={onResume}
+            >
+              <Stack gap={4} mt="xs">
+                {resumes.map((name) => (
+                  <Radio key={name} value={name} label={name} />
+                ))}
+              </Stack>
+            </Radio.Group>
+          )}
+        </Stack>
+      </Card>
 
       <Card withBorder padding="md">
         <Stack gap="sm">

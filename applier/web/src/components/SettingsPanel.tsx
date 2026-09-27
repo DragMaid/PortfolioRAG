@@ -34,11 +34,20 @@ import { notifications } from "@mantine/notifications";
 
 import { api } from "../api";
 import { PortfolioAccess } from "./PortfolioAccess";
+import { ResumePicker } from "./ResumePicker";
 import type { Describe, Providers, SearchDraft } from "../types";
 
 const say = (error: unknown) => String((error as Error).message ?? error);
 
-export function SettingsPanel({ describe, onSaved }: { describe: Describe; onSaved: () => void }) {
+export function SettingsPanel({
+  describe,
+  sites,
+  onSaved,
+}: {
+  describe: Describe;
+  sites: Record<string, boolean>;
+  onSaved: () => void;
+}) {
   const save = useCallback(
     async (patch: Record<string, unknown>) => {
       try {
@@ -73,7 +82,7 @@ export function SettingsPanel({ describe, onSaved }: { describe: Describe; onSav
       <Tabs.Panel value="model">
         <Stack gap="md">
           <PortfolioAccess describe={describe} onSaved={onSaved} />
-          <Model onSave={save} />
+          <Model describe={describe} sites={sites} onSave={save} />
         </Stack>
       </Tabs.Panel>
       <Tabs.Panel value="raw">
@@ -90,8 +99,9 @@ function Profile({ describe, onSave }: { describe: Describe; onSave: Save }) {
   const [email, setEmail] = useState(describe.candidate.email ?? "");
   const [phone, setPhone] = useState(describe.candidate.phone ?? "");
   const [resume, setResume] = useState(describe.resume.select ?? "");
-  const [upload, setUpload] = useState(describe.resume.upload ?? "");
+  const [includeLetter, setIncludeLetter] = useState(describe.notes.includeLetter);
   const [letter, setLetter] = useState(describe.notes.letter);
+  const upload = describe.resume.upload;
   const [answers, setAnswers] = useState(describe.notes.answers);
 
   return (
@@ -104,27 +114,33 @@ function Profile({ describe, onSave }: { describe: Describe; onSave: Save }) {
         </Group>
 
         <Group grow align="flex-start">
+          <ResumePicker current={upload} />
           <TextInput
-            label="Resume on the board profile"
-            description="Part of its name is enough."
+            label="Or one already on the board profile"
+            description={upload ? "Unused while a file is chosen." : "Part of its name is enough."}
             value={resume}
             onChange={(e) => setResume(e.currentTarget.value)}
-            disabled={Boolean(upload.trim())}
-          />
-          <TextInput
-            label="Or a file to upload"
-            description="A path on this machine, sent with each application."
-            value={upload}
-            onChange={(e) => setUpload(e.currentTarget.value)}
-            disabled={Boolean(resume.trim())}
+            disabled={Boolean(upload)}
           />
         </Group>
+
+        <Switch
+          label="Include a cover letter"
+          description={
+            includeLetter
+              ? "One is written for every application, from your portfolio."
+              : "Applications go without one — JobStreet's “Don't include a cover letter” — and none is written."
+          }
+          checked={includeLetter}
+          onChange={(e) => setIncludeLetter(e.currentTarget.checked)}
+        />
 
         <Textarea
           label="Notes for the cover letter"
           description="Steers its wording. Not a fact, and grants nothing."
           autosize
           minRows={2}
+          disabled={!includeLetter}
           value={letter}
           onChange={(e) => setLetter(e.currentTarget.value)}
         />
@@ -145,7 +161,9 @@ function Profile({ describe, onSave }: { describe: Describe; onSave: Save }) {
                 name,
                 email,
                 phone,
-                resume: { select: resume, upload },
+                // A chosen file is changed by its own picker, never by this button.
+                ...(upload ? {} : { resume: { select: resume } }),
+                includeLetter,
                 letterNotes: letter,
                 answerNotes: answers,
               })
@@ -330,13 +348,29 @@ function Searches({ describe, onSave }: { describe: Describe; onSave: Save }) {
   );
 }
 
-function Model({ onSave }: { onSave: Save }) {
+function Model({
+  describe,
+  sites,
+  onSave,
+}: {
+  describe: Describe;
+  sites: Record<string, boolean>;
+  onSave: Save;
+}) {
   const [providers, setProviders] = useState<Providers | null>(null);
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [checking, setChecking] = useState(false);
 
+  // Read again whenever the config changes — a save here, or anywhere — so what this shows
+  // is the settings as they are, not as they were when the page was opened.
   useEffect(() => {
     api.providers().then(setProviders).catch(() => undefined);
-  }, []);
+  }, [describe]);
+
+  const site = providers?.current.site ?? "";
+  const signedIn = site in sites ? sites[site] : null;
+
+  // The answer arrives on the event stream; once it has, this is no longer checking.
+  useEffect(() => setChecking(false), [signedIn]);
 
   if (!providers) return null;
 
@@ -385,15 +419,16 @@ function Model({ onSave }: { onSave: Save }) {
             </Button>
             <Button
               variant="subtle"
+              loading={checking}
               onClick={() => {
-                setSignedIn(null);
-                void api.sites();
+                setChecking(true);
+                void api.sites().catch(() => setChecking(false));
               }}
             >
               Check the saved sign-in
             </Button>
-            {signedIn === true && <Badge color="green">signed in</Badge>}
-            {signedIn === false && <Badge color="orange">not signed in</Badge>}
+            {!checking && signedIn === true && <Badge color="green">signed in</Badge>}
+            {!checking && signedIn === false && <Badge color="orange">not signed in</Badge>}
           </Group>
         ) : (
           <Group align="flex-end">
@@ -413,6 +448,7 @@ function Model({ onSave }: { onSave: Save }) {
         {web && (
           <Switch
             label="Hide the chat site's window"
+            description="Takes effect on the model's next call; no restart needed."
             checked={current.headless}
             onChange={(e) => void onSave({ llm: { headless: e.currentTarget.checked } })}
           />
