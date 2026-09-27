@@ -3,9 +3,10 @@
     for each listing:
         ledger    seen before with a terminal status?          -> skip
         policy    title or company excluded?                    -> excluded
-        board     link-out, expired, no button?                 -> external / unavailable
+        board     expired, no button?                           -> unavailable
         rag       job-fit report (cached if already paid for)
         policy    verdict, score, missing essentials            -> unfit
+        board     a link-out to the employer's site?            -> manual (for the extension)
         rag       cover letter (cached likewise)
         board     documents, questions (answered from facts), review, submit
                                                                 -> applied / dry_run / needs_input
@@ -29,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .answering import Answerer
+from .answering import AnswerProvider
 from .assessment import Assessor, Fit
 from .boards.base import ApplyContext, JobBoard
 from .config import Config
@@ -97,7 +98,7 @@ class ApplyPipeline:
         *,
         boards: dict[str, JobBoard],
         assessor: Assessor,
-        answerer: Answerer,
+        answerer: AnswerProvider,
         ledger: Ledger,
         log: Callable[[str], None] = print,
         sleep: Callable[[float], None] = time.sleep,
@@ -186,12 +187,9 @@ class ApplyPipeline:
         posting = board.fetch(listing)
         details = {"title": posting.title, "company": posting.company}
 
-        # Cannot handle postings that are external from the site yet
-        if posting.method != ApplyMethod.QUICK:
-            status = (
-                Status.EXTERNAL if posting.method == ApplyMethod.EXTERNAL else Status.UNAVAILABLE
-            )
-            return self._record(listing, status, posting.reason, **details)
+        # Nobody can apply to it. A link-out can be — by hand — so it is assessed first.
+        if posting.method == ApplyMethod.UNAVAILABLE:
+            return self._record(listing, Status.UNAVAILABLE, posting.reason, **details)
 
         # Check for post exclusion (after retrieving the whole content from listing)
         if (why := policy.excluded(posting.title, posting.company)) and not options.ignore_fit:
@@ -214,9 +212,29 @@ class ApplyPipeline:
         if shortfall and not options.ignore_fit:
             return self._record(listing, Status.UNFIT, shortfall, report=report, fit=fit, **details)
 
-        letter = self.ledger.cached_letter(listing.key) or self.assessor.letter(
-            posting.text, self.config.candidate.cover_letter_notes
+        letter = (
+            self.ledger.cached_letter(listing.key)
+            or self.assessor.letter(posting.text, self.config.candidate.cover_letter_notes)
+            if self.config.candidate.cover_letter
+            else None
         )
+
+        # A fit this cannot submit, or one the mode keeps for a person: the manual queue,
+        # with its letter written, for the extension to fill in the person's own browser.
+        if (
+            posting.method == ApplyMethod.EXTERNAL
+            or self.config.run.mode_for(listing.board) == "manual"
+        ) and not options.ignore_fit:
+            return self._record(
+                listing,
+                Status.MANUAL,
+                "a fit — apply in your browser, with the extension",
+                report=report,
+                fit=fit,
+                letter=letter,
+                apply_url=posting.apply_url or listing.url,
+                **details,
+            )
 
         # Register a placeholder beforehand for progress tracking
         self.ledger.record(

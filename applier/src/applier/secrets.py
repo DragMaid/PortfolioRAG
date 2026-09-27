@@ -94,6 +94,27 @@ class Secrets:
         self._values.pop("portfolio_token", None)
         self._write()
 
+    @property
+    def extension_key(self) -> str:
+        """What the browser extension sends to be let in. Made on first use, kept here.
+
+        The server only listens on the loopback interface, but any web page open in the same
+        browser can reach 127.0.0.1 — so the routes the extension uses, which read your
+        answers and your resume, want this key as well.
+        """
+        key = str(self._values.get("extension_key") or "").strip()
+        if not key:
+            key = self.rotate_extension_key()
+        return key
+
+    def rotate_extension_key(self) -> str:
+        import secrets
+
+        key = "ext_" + secrets.token_urlsafe(24)
+        self._values["extension_key"] = key
+        self._write()
+        return key
+
     def describe(self) -> dict[str, Any]:
         """What the page is told. Never the token itself."""
         return {

@@ -24,7 +24,7 @@ from pathlib import Path
 from rag.settings import get_settings
 
 from . import boards as board_registry
-from .answering import Answerer
+from .answering import Answerer, MemoryAnswerer
 from .assessment import Assessor
 from .boards.base import JobBoard
 from .browser import BrowserSession, Timeout
@@ -32,6 +32,7 @@ from .config import Config, load, load_or_create
 from .errors import ApplierError
 from .ledger import Ledger, Status
 from .llm import Llm
+from .memory import AnswerMemory
 from .pipeline import ApplyPipeline, RunOptions, write_summary
 from .secrets import Secrets
 from .secrets import required as portfolio_token
@@ -100,7 +101,8 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument(
         "--headless",
         action="store_true",
-        help="Hide the boards' browser. Hand-offs need a window, so this is rarely what you want.",
+        help="Hide the boards' browser until a sign-in or a bot check needs you (the default "
+        "when browser.headless is true).",
     )
 
     args = parser.parse_args(argv)
@@ -182,13 +184,25 @@ def _wired(config: Config, board_names: set[str], *, headless: bool) -> Iterator
         llm = Llm(config.llm, get_settings(), log=log)
         stack.callback(llm.close)
 
+        memory = AnswerMemory(config.state_dir / "ledger.sqlite")
+        stack.callback(memory.close)
+
         boards = {name: _board(config, name, stack, headless=headless) for name in board_names}
 
         pipeline = ApplyPipeline(
             config,
             boards=boards,
             assessor=Assessor(llm, api=config.portfolio.api, token=token, log=log),
-            answerer=Answerer(llm, config.candidate.all_facts(), log=log),
+            answerer=MemoryAnswerer(
+                Answerer(
+                    llm,
+                    config.candidate.all_facts(),
+                    notes=config.candidate.answer_notes,
+                    log=log,
+                ),
+                memory,
+                log=log,
+            ),
             ledger=ledger,
             log=log,
         )
@@ -292,14 +306,8 @@ def _serve(config: Config, args: argparse.Namespace) -> int:
 
     from .server import create_app
 
-    headless = args.headless or config.browser.headless
-    if headless:
-        log(
-            "Running headless: forms will still be filled, but there is no window to hand an "
-            "application over in, so leave 'submit everything' on."
-        )
-
-    app = create_app(config, headless=headless)
+    # Only the flag is an override: browser.headless is read live, so the page can flip it.
+    app = create_app(config, headless=args.headless)
     log(f"The controller is at http://{args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_config=None)
     return 0
