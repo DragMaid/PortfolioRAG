@@ -308,9 +308,49 @@ def _serve(config: Config, args: argparse.Namespace) -> int:
 
     # Only the flag is an override: browser.headless is read live, so the page can flip it.
     app = create_app(config, headless=args.headless)
+    session = app.state.session
+
+    class Server(uvicorn.Server):
+        """Ctrl+C that actually stops it.
+
+        Uvicorn waits for every open connection before it runs the app's shutdown, and a
+        page's event stream is a connection that only ends when that shutdown closes it — so
+        the first Ctrl+C ends the streams itself. A second one quits there and then.
+        """
+
+        def handle_exit(self, sig: int, frame) -> None:  # type: ignore[no-untyped-def]
+            if self.should_exit:
+                log("Quitting now, without waiting for anything to finish.")
+                os._exit(130)
+            log("Stopping: closing the browsers and the ledger. Ctrl+C again to quit at once.")
+            session.bus.close()
+            super().handle_exit(sig, frame)
+
+    server = Server(
+        uvicorn.Config(
+            app,
+            host=args.host,
+            port=args.port,
+            log_config=None,
+            # A request still open after this is cut off rather than waited for.
+            timeout_graceful_shutdown=5,
+        )
+    )
     log(f"The controller is at http://{args.host}:{args.port}")
-    uvicorn.run(app, host=args.host, port=args.port, log_config=None)
-    return 0
+    interrupted = False
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        # Uvicorn hands the Ctrl+C back once its own shutdown is done; it has been handled.
+        interrupted = True
+    log("Stopped.")
+    # The session is closed by now (the app's shutdown did it, with a time limit). What can
+    # still be running is a model call or a form part-way through on a thread that will not
+    # be interrupted — and the interpreter would wait for it at exit, for minutes. Nothing
+    # left is worth that: the ledger is closed, and the browsers go with their driver.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(130 if interrupted else 0)
 
 
 def _questions(config: Config) -> int:

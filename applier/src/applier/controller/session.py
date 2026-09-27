@@ -2059,7 +2059,13 @@ class Session:
                 )
                 self._jobs[entry.key] = job
 
-    def close(self) -> None:
+    def close(self, timeout: float = 15.0) -> None:
+        """Stops everything, in at most about ``timeout`` seconds.
+
+        Every board's lanes are told at once and then waited for together, against one
+        deadline: a form part-way through gets its chance to finish, but a lane stuck on a
+        slow page cannot hold the rest up, nor turn stopping into minutes.
+        """
         with self._lock:
             if self._closed:
                 return
@@ -2067,9 +2073,12 @@ class Session:
             self._running = False
             workers = list(self._workers.values())
 
+        deadline = time.monotonic() + timeout
         for lanes in workers:
-            lanes.stop()
-        self.llm.close()
+            lanes.halt()
+        for lanes in workers:
+            lanes.stop(timeout=max(0.1, deadline - time.monotonic()))
+        self.llm.close(timeout=max(1.0, deadline - time.monotonic()))
         self.memory.close()
         self.ledger.close()
         self.bus.close()

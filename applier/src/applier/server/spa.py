@@ -1,8 +1,9 @@
 """Serving the built page.
 
-The page is a Vite build committed under ``applier/web/dist`` and force-included in the
-wheel, so running the tool needs no Node. Development is the other way round: ``npm run dev``
-serves it with hot reload and proxies ``/api`` back here, and this never sees a request.
+The page is a Vite build in ``applier/web/dist``, built locally and not committed: a fresh
+checkout builds it once (``npm ci && npm run build``), and until then ``/`` answers with
+exactly that instruction. Development is the other way round: ``npm run dev`` serves it with
+hot reload and proxies ``/api`` back here, and this never sees a request.
 """
 
 from __future__ import annotations

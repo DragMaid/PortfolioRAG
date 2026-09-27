@@ -304,9 +304,15 @@ class BoardLanes:
         own = sum(worker.pending for worker in self.workers)
         return own + self._assess.qsize() + self._apply.qsize()
 
-    def stop(self, timeout: float = 30.0) -> None:
+    def halt(self) -> None:
+        """Tells every lane to stop after what it is doing, without waiting for any."""
         self.clear(above=-1)
         for worker in self.workers:
             worker._stopping.set()
+
+    def stop(self, timeout: float = 30.0) -> None:
+        """Stops every lane, waiting at most ``timeout`` for all of them together."""
+        self.halt()
+        deadline = time.monotonic() + timeout
         for worker in self.workers:
-            worker.stop(timeout=timeout)
+            worker.stop(timeout=max(0.1, deadline - time.monotonic()))

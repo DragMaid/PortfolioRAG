@@ -38,9 +38,11 @@ packages = ["src/applier"]
 # js/fields.js needs no force-include: it is inside the package directory above, and
 # hatchling carries it. Naming it here as well makes a wheel build refuse, because the same
 # path is then added twice.
-[tool.hatch.build.targets.wheel.force-include]
-# The controller's page, built by Vite and committed, so running this needs no Node.
-"web/dist" = "applier/web"
+#
+# web/dist is not included either. It is built, not committed, so a fresh checkout has none,
+# and a force-include of a missing path fails every install (CI's `uv sync` first of all).
+# The server reads it straight out of the repository, and says how to build it if it is not
+# there.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -81,8 +81,12 @@ answer to an employer does.
 cd applier
 uv sync
 uv run camoufox fetch                           # once, if rag has not already
+(cd web && npm ci && npm run build)             # the page; it is built, not committed
 uv run applier serve                            # then open http://127.0.0.1:8765
 ```
+
+Ctrl+C stops it: whatever is in flight gets a few seconds to finish, the browsers close,
+and a second Ctrl+C quits at once.
 
 That is the whole of it. There is nothing to write and nothing to export first: `applier
 serve` writes a config if there is none and opens on a setup run, which does the rest —
@@ -232,14 +236,15 @@ reaches the page, the config, or the disk.
 
 ### Building the page
 
-The page is a Vite + React build committed under `web/dist`, so running the tool needs no
-Node. Changing it does:
+The page is a Vite + React build in `web/dist`. It is not committed, so build it once after
+cloning, and again after changing anything under `web/src` — until it is built, the server
+answers `/` with these same instructions:
 
 ```sh
 cd web
 npm ci
-npm run dev          # http://127.0.0.1:5174, proxying /api to applier serve
-npm run build        # rebuild web/dist — commit it with your change
+npm run build        # web/dist, which applier serve serves
+npm run dev          # or: http://127.0.0.1:5174 with hot reload, proxying /api to applier serve
 ```
 
 ## Safety

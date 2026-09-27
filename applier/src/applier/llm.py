@@ -183,12 +183,14 @@ class Llm:
 
         return parsed
 
-    def close(self) -> None:
-        def shut() -> None:
-            if isinstance(self._provider, WebProvider):
-                self._provider.close()
-            self._provider = None
+    def close(self, timeout: float = 60.0) -> None:
+        """Closes the chat site's browser, waiting at most ``timeout`` for it.
 
-        self._thread.submit(shut).result()
-        self._thread.shutdown(wait=True)
+        Never on the model thread: that may be holding a sign-in window open for ten
+        minutes, and closing must not wait for a person. Nothing queued is started.
+        """
+        self._thread.shutdown(wait=False, cancel_futures=True)
         self._pool.shutdown(wait=False, cancel_futures=True)
+        if isinstance(self._provider, WebProvider):
+            self._provider.close(timeout=timeout)
+        self._provider = None

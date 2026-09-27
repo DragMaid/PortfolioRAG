@@ -246,8 +246,12 @@ class WebProvider:
         for session in self._sessions.values():
             session.output_dir = output_dir
 
-    def close(self) -> None:
-        """Closes the browser, failing anything still waiting on it. Safe from any thread."""
+    def close(self, timeout: float = 60.0) -> None:
+        """Closes the browser, failing anything still waiting on it. Safe from any thread.
+
+        Waits at most ``timeout`` for the browser thread to finish a Playwright call already
+        under way; it is a daemon, so a process that is exiting is not held by it.
+        """
         thread = self._thread
         if thread is None or not thread.is_alive():
             self._close_sessions()
@@ -256,7 +260,7 @@ class WebProvider:
             self._close_sessions()
             return
         self._inbox.put(_STOP)
-        thread.join(timeout=60)
+        thread.join(timeout=timeout)
 
     def _close_sessions(self) -> None:
         for session in self._sessions.values():

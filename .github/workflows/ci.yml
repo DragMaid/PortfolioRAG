@@ -9,9 +9,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # applier/ is a project of its own that happens to live here: blograg does not depend on
+  # it, so a pull request that only touches applier/ runs only the applier job, and one that
+  # does not touch it (or rag, which it imports) skips that job.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      applier: ${{ steps.applier.outputs.applier }}
+      blograg: ${{ steps.blograg.outputs.blograg }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: applier
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            applier:
+              - 'applier/**'
+              # A path dependency: the assessment and the letter are rag's pipelines, and
+              # the chat-site provider the applier drives is rag's too.
+              - 'rag/**'
+              - '.github/workflows/ci.yml'
+
+      # Anything outside applier/ at all. `every` makes a file count only if it matches both
+      # patterns — anywhere, and not under applier/.
+      - id: blograg
+        uses: dorny/paths-filter@v3
+        with:
+          predicate-quantifier: every
+          filters: |
+            blograg:
+              - '**'
+              - '!applier/**'
+
   test:
     name: Build and test
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.blograg == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -55,6 +94,8 @@ jobs:
   rag:
     name: Retrieval service
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.blograg == 'true'
 
     # The integration tests and the retrieval eval both want the API's schema, which means a
     # database with pgvector in it — the same image compose runs.
@@ -127,6 +168,8 @@ jobs:
   applier:
     name: Applier
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.applier == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -167,14 +210,10 @@ jobs:
         working-directory: applier/web
         run: npm run lint
 
-      # web/dist is committed so that running the tool needs no Node. This is the check that
-      # it was rebuilt with whatever changed under web/src.
-      - name: The built page matches its source
+      # web/dist is built, never committed; this is the check that it still builds.
+      - name: Build the page
         working-directory: applier/web
-        run: |
-          npm run build
-          git diff --exit-code -- dist \
-            || { echo "::error::web/dist is stale. Run 'cd applier/web && npm run build' and commit it."; exit 1; }
+        run: npm run build
 
       # The browser extension: its unit tests run under jsdom here. The end-to-end tests
       # (tests/test_extension_e2e.py, -m browser) drive a real Chromium and run locally.
@@ -193,6 +232,8 @@ jobs:
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.blograg == 'true'
 
     steps:
       - uses: actions/checkout@v4
