@@ -6,6 +6,9 @@ the guarantee, and none of it is relaxed here. What this adds is a pause: the qu
 checked answers and the fact each one rests on are put in front of a person before a single
 one reaches the form.
 
+Whatever a person types into a pause is remembered (``remember``), so the next form that
+asks the same question is answered with it and does not stop to ask again.
+
 It is also where a missing fact gets fixed on the spot. Without it, an unanswered required
 question means editing ``applier.yaml`` and running again with ``--retry-skipped``; here the
 fact is typed in, the model is asked the same questions again, and the application carries on.
@@ -21,7 +24,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from ..answering import Answerer
+from ..answering import Answerer, MemoryAnswerer
 from ..config import Intervention
 from ..errors import ApplierError, UnanswerableError
 from ..forms import FieldHandle, match_option
@@ -115,23 +118,24 @@ class ReviewingAnswerer:
     the model's proposal and the form being filled.
 
     Lives on a board's worker thread and blocks it while it waits, which is the point: the
-    form is half-filled and must not be walked further until the answers are settled. The
-    board's tabs are still looked after, because ``pause`` keeps the worker's tick running.
+    form is half-filled and must not be walked further until the answers are settled.
     """
 
     def __init__(
         self,
-        inner: Answerer,
+        inner: Answerer | MemoryAnswerer,
         *,
         level: Intervention,
         ask: Callable[[list[dict[str, Any]]], dict[str, Any]],
         add_facts: Callable[[dict[str, str]], None],
+        remember: Callable[[FieldHandle, Answer], None] | None = None,
         log: Callable[[str], None] = print,
     ):
         self.inner = inner
         self.level = level
         self.ask = ask
         self.add_facts = add_facts
+        self.remember = remember
         self.log = log
 
     def answer(self, handles: list[FieldHandle], *, role: str) -> dict[str, Answer]:
@@ -174,12 +178,21 @@ class ReviewingAnswerer:
             edited = dict(answers)
             for field_id, value in (decision.get("answers") or {}).items():
                 handle = by_id.get(field_id)
+
+                # If no handler is provided
                 if handle is None:
                     continue
+
+                # If no answer was provided
                 if value in (None, "", []):
                     edited.pop(field_id, None)
-                else:
-                    edited[field_id] = check_edit(handle, value)
+                    continue
+
+                edited[field_id] = check_edit(handle, value)
+
+                # Answer if can from memory
+                if self.remember is not None and edited[field_id] != answers.get(field_id):
+                    self.remember(handle, edited[field_id])
 
             still_missing = [
                 handle.field.label or handle.field.id

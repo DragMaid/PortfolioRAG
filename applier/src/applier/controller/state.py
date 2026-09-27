@@ -32,8 +32,9 @@ class JobState(StrEnum):
     APPLYING = "applying"
     # The form's questions are answered and waiting to be approved.
     REVIEWING = "reviewing"
-    # Filled, at its review page, in a tab of its own. Theirs to send.
-    AWAITING_HUMAN = "awaiting_human"
+    # A fit, with its letter written, to apply to by hand in the person's own browser —
+    # where the extension fills the form. Theirs to send, or to pass on.
+    MANUAL = "manual"
 
     APPLIED = "applied"
     SKIPPED = "skipped"
@@ -58,7 +59,7 @@ DONE = {
     JobState.ERROR,
 }
 
-WAITING = {JobState.PENDING, JobState.REVIEWING, JobState.AWAITING_HUMAN}
+WAITING = {JobState.PENDING, JobState.REVIEWING, JobState.MANUAL}
 
 _TO_STATUS = {
     JobState.APPLIED: Status.APPLIED,
@@ -71,10 +72,14 @@ _TO_STATUS = {
     JobState.UNCONFIRMED: Status.UNCONFIRMED,
     JobState.ERROR: Status.ERROR,
     JobState.PENDING: Status.PENDING,
-    JobState.AWAITING_HUMAN: Status.AWAITING_HUMAN,
+    JobState.MANUAL: Status.MANUAL,
 }
 
-_FROM_STATUS = {status: state for state, status in _TO_STATUS.items()}
+_FROM_STATUS = {status: state for state, status in _TO_STATUS.items()} | {
+    # A form an older version filled in a tab and left for a person: they can still find it
+    # in the manual queue, open it in their own browser, and say whether it went.
+    Status.AWAITING_HUMAN: JobState.MANUAL,
+}
 
 
 def settled_as(state: JobState) -> Status | None:
@@ -129,10 +134,10 @@ class Job:
     review: list[dict[str, Any]] = field(default_factory=list)
 
     stages: list[Stage] = field(default_factory=list)
-    # The browser tab this posting owns, once it has one. Named for the posting, so a
-    # controller restarted against the same browser finds the same tabs.
-    tab: str | None = None
-    tab_open: bool = False
+    # Where to apply by hand, for a posting in the manual queue.
+    apply_url: str | None = None
+    # Whether the board can take this posting in its own form (quick apply), or it links out.
+    external: bool = False
     # From the ledger rather than this run: shown greyed, never acted on.
     historic: bool = False
 
@@ -166,8 +171,8 @@ class Job:
             "hasLetter": bool(self.letter),
             "questions": list(self.questions),
             "review": list(self.review),
-            "tab": self.tab,
-            "tabOpen": self.tab_open,
+            "applyUrl": self.apply_url,
+            "external": self.external,
             "historic": self.historic,
             "foundAt": self.found_at,
             "updatedAt": self.updated_at,
@@ -188,9 +193,9 @@ def settings_of(config: Any) -> dict[str, Any]:
     policy, run = config.policy, config.run
     return {
         "autoPick": run.auto_pick,
-        "autoSubmit": run.auto_submit,
+        "applyMode": run.apply_mode,
+        "boardModes": dict(run.board_modes),
         "answers": run.answers,
-        "maxOpenHandoffs": run.max_open_handoffs,
         "searches": [index for index, search in enumerate(config.searches) if search.enabled],
         "maxApplications": policy.max_applications,
         "maxAssessments": policy.max_assessments,

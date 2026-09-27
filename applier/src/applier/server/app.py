@@ -30,7 +30,7 @@ from ..config import Config
 from ..controller import ControllerError, Session, settings_of
 from ..errors import ConfigError
 from ..ledger import Status
-from . import spa
+from . import extension, spa
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ def create_app(config: Config, *, headless: bool = False) -> FastAPI:
     _setup_routes(app, session)
     _config_routes(app, session)
     _ledger_routes(app, session)
+    extension.mount(app, session)
     app.mount("/api/rag", _rag_app(session), name="rag")
     spa.mount(app)
 
@@ -142,10 +143,6 @@ def _controller_routes(app: FastAPI, session: Session) -> None:
     @app.post("/api/jobs/{key:path}/skip")
     def skip(key: str) -> dict[str, Any]:
         return guarded(lambda: session.skip(key))
-
-    @app.post("/api/jobs/{key:path}/focus", status_code=202)
-    def focus(key: str) -> dict[str, Any]:
-        return guarded(lambda: session.focus(key))
 
     @app.post("/api/jobs/{key:path}/submitted")
     def submitted(key: str) -> dict[str, Any]:

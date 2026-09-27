@@ -3,26 +3,31 @@
     for each listing on each selected search:
         ledger    settled before?                     -> shown as history, not touched
         policy    title or company excluded?           -> excluded
-        board     link-out, expired, no button?        -> external / unavailable
+        board     expired, no button?                  -> unavailable
         rag       job-fit report (cached if paid for)
         policy    verdict, score, missing essentials   -> unfit
                                                      ---- picking ----
         auto_pick on    -> straight to the queue
         auto_pick off   -> pending, until the row's Apply is pressed
         rag       cover letter (cached likewise)
-        board     documents, questions, review
                                                      ---- sending ----
-        auto_submit on  -> submitted, tab closed      -> applied
-        auto_submit off -> left at review, tab kept    -> awaiting_human
+        quick apply, mode auto   -> board fills and submits it        -> applied
+        link-out, or mode manual -> manual queue, for the extension    -> manual
+
+A link-out is assessed like any other posting: whether it is worth applying to does not
+depend on whose form it is. Only who fills the form does. The board's browser only ever runs
+unattended work, in one tab it reopens if it is closed; anything a person applies to by hand
+they open in their own browser, where the extension fills it from the same facts and the
+same remembered answers.
 
 Everything that decides is still code, and everything a person decides is a decision the
 policy would otherwise have made for them. Nothing here loosens what ``answering`` checks.
 
 The two mistakes this is built around are unchanged from the CLI's pipeline. A posting is
-never applied to twice: a real submission is written as ``submitting`` before the click, a
-hand-off as ``awaiting_human`` the moment it is handed over, and both are terminal. And an
-employer is never told something the candidate did not write down: the review pause shows
-what would be filled in, it does not grant the model permission to invent.
+never applied to twice: a real submission is written as ``submitting`` before the click, and
+a posting in the manual queue as ``manual``, and both are terminal. And an employer is never
+told something the candidate did not write down: the review pause shows what would be filled
+in, it does not grant the model permission to invent.
 """
 
 from __future__ import annotations
@@ -37,18 +42,27 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from pydantic import ValidationError
 from rag.settings import get_settings
 
 from .. import boards as board_registry
-from ..answering import Answerer
+from ..answering import Answerer, MemoryAnswerer
 from ..assessment import Assessor, Fit
 from ..boards.base import ApplyContext, JobBoard
-from ..config import Config, SearchConfig, save
+from ..config import Config, RunConfig, SearchConfig, save
 from ..config import load as _load
-from ..errors import ApplierError, NotApplicableError, UnanswerableError
+from ..errors import (
+    ApplierError,
+    BrowserClosedError,
+    LoginRequiredError,
+    NotApplicableError,
+    UnanswerableError,
+)
+from ..forms import FieldHandle
 from ..ledger import Ledger, Status
 from ..llm import Llm
-from ..models import ApplyMethod, Listing, Packet, Posting, Probe, Resume, Search
+from ..memory import AnswerMemory
+from ..models import Answer, ApplyMethod, Listing, Packet, Posting, Probe, Resume, Search
 from ..secrets import Secrets
 from .events import Bus
 from .reviewing import Declined, ReviewingAnswerer
@@ -59,13 +73,10 @@ from .worker import APPLY, DISCOVER, IMMEDIATE, PROCESS, BoardWorker
 logger = logging.getLogger(__name__)
 
 _LOG_SCROLLBACK = 400
-# What a mock application puts in the cover letter box to get past the documents step. It is
-# never sent: the walk stops on the next step and the tab is closed.
-_PLACEHOLDER_LETTER = (
-    "Placeholder. This is a setup run reading the form's questions; it is not an application "
-    "and will not be submitted."
-)
 _REVIEW_TIMEOUT = 3600.0
+_RESUME_TYPES = {".pdf", ".doc", ".docx", ".rtf", ".txt"}
+_RESUME_LIMIT = 5 * 1024 * 1024
+_SIGN_IN_TIMEOUT = 600.0
 
 
 class ControllerError(RuntimeError):
@@ -89,7 +100,7 @@ class Session:
         make_browser: Callable[[str], Any] | None = None,
     ):
         """``make_board`` and ``make_browser`` exist for the tests, which drive the whole
-        state machine — picking, hand-offs, the tab watcher — against a board and a browser
+        state machine — picking, applying, the manual queue — against a board and a browser
         that are plain objects. Left out, boards come from the registry and browsers are
         camoufox."""
         self.config = config
@@ -109,7 +120,14 @@ class Session:
             token=self.secrets.portfolio_token,
             log=self.log,
         )
-        self.answerer = Answerer(self.llm, config.candidate.all_facts(), log=self.log)
+        self.answerer = Answerer(
+            self.llm,
+            config.candidate.all_facts(),
+            notes=config.candidate.answer_notes,
+            log=self.log,
+        )
+        self.memory = AnswerMemory(config.state_dir / "ledger.sqlite")
+        self.remembering = MemoryAnswerer(self.answerer, self.memory, log=self.log)
         self.packet_resume = config.candidate.to_resume()
 
         self._lock = threading.RLock()
@@ -121,6 +139,10 @@ class Session:
         # Postings kept between assessing one and applying to it, so a picked posting is not
         # fetched a second time. Dropped as soon as the row is settled.
         self._postings: dict[str, Posting] = {}
+        # Commands a closed browser cut off, retried once each after it is reopened.
+        self._interrupted: set[str] = set()
+        # Boards whose window is on its sign-in page, waiting for a person.
+        self._signing_in: set[str] = set()
 
         # What the last mock application found, until it is answered or thrown away.
         self._probe: Probe | None = None
@@ -131,6 +153,8 @@ class Session:
         self._applied = 0
         self._assessed = 0
         self._stopped_because: str | None = None
+        self._finished: str | None = None
+        self._walks = 0
         self._closed = False
 
         self._restore()
@@ -163,19 +187,23 @@ class Session:
     def status(self) -> dict[str, Any]:
         with self._lock:
             waiting = sum(1 for job in self._jobs.values() if job.state in WAITING)
-            handoffs = sum(1 for job in self._jobs.values() if job.state == JobState.AWAITING_HUMAN)
+            manual = sum(1 for job in self._jobs.values() if job.state == JobState.MANUAL)
             queued = sum(worker.pending for worker in self._workers.values())
             return {
                 "running": self._running,
                 "applied": self._applied,
                 "assessed": self._assessed,
                 "waiting": waiting,
-                "openHandoffs": handoffs,
+                "manual": manual,
                 "queued": queued,
-                "handoffCapReached": handoffs >= self.config.run.max_open_handoffs,
                 "stoppedBecause": self._stopped_because,
+                "finished": self._finished,
                 "boards": {
-                    name: {"ready": worker.browser is not None, "pending": worker.pending}
+                    name: {
+                        "ready": worker.browser is not None,
+                        "pending": worker.pending,
+                        "signingIn": name in self._signing_in,
+                    }
                     for name, worker in self._workers.items()
                 },
             }
@@ -192,9 +220,6 @@ class Session:
                 "name": self.config.candidate.name,
                 "email": self.config.candidate.email,
                 "phone": self.config.candidate.phone,
-                # The file's own facts, not ``all_facts()``. The name, email and phone are
-                # offered to the answerer as facts too, but they have their own fields here —
-                # showing them in the facts editor would invite saving a second copy of each.
                 "facts": dict(self.config.candidate.facts),
                 "resume": self.packet_resume.select or str(self.packet_resume.upload or ""),
             },
@@ -223,8 +248,10 @@ class Session:
             "setup": self.setup_state(),
             "ready": self.config.ready(has_token=bool(self.secrets.portfolio_token)),
             "portfolio": self.secrets.describe() | {"api": self.config.portfolio.api},
+            "boardHeadless": self.config.browser.headless,
             "notes": {
                 "letter": self.config.candidate.cover_letter_notes or "",
+                "includeLetter": self.config.candidate.cover_letter,
                 "answers": self.config.candidate.answer_notes or "",
             },
             "resume": {
@@ -244,9 +271,9 @@ class Session:
         """
         run = {
             "autoPick": "auto_pick",
-            "autoSubmit": "auto_submit",
+            "applyMode": "apply_mode",
+            "boardModes": "board_modes",
             "answers": "answers",
-            "maxOpenHandoffs": "max_open_handoffs",
         }
         policy = {
             "maxApplications": "max_applications",
@@ -259,9 +286,19 @@ class Session:
         with self._lock:
             was_auto_pick = self.config.run.auto_pick
 
-            for sent, attribute in run.items():
-                if patch.get(sent) is not None:
-                    setattr(self.config.run, attribute, patch[sent])
+            changes = {
+                attribute: patch[sent]
+                for sent, attribute in run.items()
+                if patch.get(sent) is not None
+            }
+
+            # Validated as the file would be, so a bad value is refused rather than saved.
+            try:
+                self.config.run = RunConfig.model_validate(self.config.run.model_dump() | changes)
+            except ValidationError as error:
+                problem = error.errors()[0]["msg"]
+                raise ControllerError(f"That setting is not valid: {problem}") from error
+
             for sent, attribute in policy.items():
                 if patch.get(sent) is not None:
                     setattr(self.config.policy, attribute, patch[sent])
@@ -324,6 +361,7 @@ class Session:
                 if name not in ("source_path", "written_paths", "state_dir"):
                     setattr(self.config, name, getattr(reloaded, name))
             self.answerer.facts = self.config.candidate.all_facts()
+            self.answerer.notes = self.config.candidate.answer_notes
             self.packet_resume = self.config.candidate.to_resume()
 
         self.log("The config was replaced from the editor.")
@@ -350,8 +388,13 @@ class Session:
 
             if "letterNotes" in patch:
                 candidate.cover_letter_notes = (patch["letterNotes"] or "").strip() or None
+
+            if patch.get("includeLetter") is not None:
+                candidate.cover_letter = bool(patch["includeLetter"])
+
             if "answerNotes" in patch:
                 candidate.answer_notes = (patch["answerNotes"] or "").strip() or None
+                self.answerer.notes = candidate.answer_notes
 
             if "resume" in patch:
                 self._set_resume(patch["resume"] or {})
@@ -364,10 +407,16 @@ class Session:
             if "portfolioApi" in patch:
                 self._set_portfolio_api(patch["portfolioApi"] or "")
 
+            if (hidden := patch.get("boardHeadless")) is not None:
+                self.config.browser.headless = bool(hidden)
+                self._set_board_windows(bool(hidden))
+
             if "llm" in patch:
                 for key, value in (patch["llm"] or {}).items():
                     if hasattr(self.config.llm, key):
                         setattr(self.config.llm, key, value or None if key != "headless" else value)
+                # Tell the llm thread to update its config using task queue
+                self.llm.submit(self.llm.reset)
 
             self._write()
 
@@ -391,6 +440,63 @@ class Session:
 
         self.config.portfolio.api = address
         self.assessor.api = address
+
+    def store_resume(self, name: str, data: bytes) -> dict[str, Any]:
+        """Keeps a resume the page uploaded, and sends it with applications from now on.
+
+        Stored under the state directory, so the config names a file this tool owns rather
+        than wherever it happened to be on the machine when it was picked.
+        """
+        filename = Path(name.strip()).name
+        
+        # Check for valid file extensions
+        if Path(filename).suffix.lower() not in _RESUME_TYPES:
+            raise ControllerError(
+                f"{filename or 'That file'} is not a resume JobStreet takes: "
+                f"{', '.join(sorted(_RESUME_TYPES))}."
+            )
+
+        if not data:
+            raise ControllerError("That file is empty.")
+
+        if len(data) > _RESUME_LIMIT:
+            raise ControllerError("JobStreet takes resumes up to 5 MB.")
+
+        # Write the resume file and update the setting path
+        folder = self.config.state_dir / "resumes"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / filename
+        path.write_bytes(data)
+
+        with self._lock:
+            self._set_resume({"upload": str(path)})
+            self._write()
+
+        self.log(f"Resume set: {filename}")
+        self._announce_settings()
+        return self.describe()
+
+    def forget_resume(self) -> dict[str, Any]:
+        """Stops sending a file; the board's own default resume goes instead."""
+        with self._lock:
+            self._set_resume({})
+            self._write()
+        self._announce_settings()
+        return self.describe()
+
+    def _set_board_windows(self, hidden: bool) -> None:
+        """Hides every board's window now, or keeps one up throughout. On each board's thread."""
+        for worker in list(self._workers.values()):
+
+            def apply(worker: BoardWorker = worker) -> None:
+                if worker.browser is None:
+                    return
+                worker.browser.hidden = hidden
+                if not hidden:
+                    worker.browser.show("you asked to see it")
+                # Hiding happens as this command ends: BoardWorker settles every command.
+
+            worker.submit(IMMEDIATE, "board window", apply)
 
     def _set_resume(self, resume: dict[str, Any]) -> None:
         select = (resume.get("select") or "").strip() or None
@@ -452,8 +558,8 @@ class Session:
         """Runs the mock application. Queued on the board's thread; watch it in the window.
 
         This is the one thing here that touches a real employer's form without meaning to
-        apply. It stops on the questions step, answers nothing, and closes the tab; nothing
-        is written to the ledger, so the posting is still yours to apply to properly later.
+        apply. It stops on the questions step and answers nothing; nothing is written to the
+        ledger, so the posting is still yours to apply to properly later.
         """
         target = url.strip()
         name = (board or self._only_board()).strip()
@@ -493,16 +599,13 @@ class Session:
 
             self.log(f"Mock application: {posting.title or listing.url}")
             context = ApplyContext(
-                packet=Packet(cover_letter=_PLACEHOLDER_LETTER, resume=Resume()),
+                packet=Packet(cover_letter=None, resume=Resume()),
                 answerer=self.answerer,
                 submit=False,
                 probe=True,
             )
 
-            tab = f"setup:{listing.key}"
-            with browser.on(tab):
-                submission = board.apply(posting, context)
-            browser.close_tab(tab)
+            submission = board.apply(posting, context)
 
             if submission.probe is None:
                 raise ControllerError(
@@ -660,6 +763,7 @@ class Session:
                 self.config.searches = [SearchConfig.model_validate(one) for one in searches]
 
             self.answerer.facts = candidate.all_facts()
+            self.answerer.notes = candidate.answer_notes
             self.config.setup_done = True
             self._probe = None
             self._write()
@@ -815,6 +919,8 @@ class Session:
                 )
             self._running = True
             self._stopped_because = None
+            self._finished = None
+            self._walks = len(chosen)
             self._applied = self._assessed = 0
 
         for search in chosen:
@@ -837,6 +943,11 @@ class Session:
             for job in self._jobs.values():
                 if job.state == JobState.QUEUED:
                     self._enter(job, JobState.PENDING, "the run was stopped")
+
+            # Set state to be thrown away or retried
+            for key, signal in self._review_signals.items():
+                self._reviews.setdefault(key, {"action": "discard"})
+                signal.set()
 
         for worker in self._workers.values():
             worker.clear()
@@ -866,53 +977,35 @@ class Session:
         with self._lock:
             self._enter(job, JobState.SKIPPED, reason)
             self._settle(job)
-        self._close_tab(job)
+        self._publish(job)
         self._drain_queued()
         return job.as_dict()
 
-    def focus(self, key: str) -> dict[str, Any]:
-        """Brings a posting's tab to the front of the board's window.
-
-        Queued rather than awaited: the board's thread may be halfway through another
-        application, and the tab comes forward as soon as it comes up for air.
-        """
-        job = self._job(key)
-        # A posting being filled for submission has no tab of its own — it is driven in the
-        # working tab, which is the one worth bringing forward while it happens.
-        working = not job.tab and job.state in (JobState.APPLYING, JobState.REVIEWING)
-        if not job.tab and not working:
-            raise ControllerError("Nothing has opened a tab for that posting.")
-
-        def bring() -> None:
-            browser = self._workers[job.board].browser
-            if browser is None:
-                found = False
-            elif working:
-                found = browser.focus_working()
-            else:
-                found = browser.focus(job.tab or "")
-            with self._lock:
-                job.tab_open = found and not working
-            if not found:
-                self.log(f"The tab for {job.title or job.key} is no longer open.")
-            self._publish(job)
-
-        self._dispatch(job.board, IMMEDIATE, f"focus {key}", bring)
-        return job.as_dict()
-
     def mark_submitted(self, key: str) -> dict[str, Any]:
-        """*I submitted it.* Records the application and closes the tab."""
-        job = self._job(key)
-        if job.state != JobState.AWAITING_HUMAN:
+        """*I sent it.* Records an application made by hand, from the page or the extension.
+
+        A posting in the manual queue from an earlier session that this one never loaded is
+        settled in the ledger directly: the extension can be pointed at any of them.
+        """
+        with self._lock:
+            job = self._jobs.get(key)
+
+        if job is None:
+            entry = self.ledger.get(key)
+            if entry is None or entry.status not in (Status.MANUAL, Status.AWAITING_HUMAN):
+                raise ControllerError(f"{key} is not waiting on you.")
+            self.ledger.settle(key, Status.APPLIED, reason="you submitted it")
+            self.log(f"APPLIED (by hand): {entry.title or key}")
+            return {"key": key, "state": JobState.APPLIED.value}
+
+        if job.state != JobState.MANUAL:
             raise ControllerError(f"{job.title or key} is not waiting on you.")
 
         with self._lock:
             self._enter(job, JobState.APPLIED, "you submitted it")
             self._settle(job)
-            self._applied += 1
-        self._close_tab(job)
+        self._publish(job)
         self.log(f"APPLIED (by hand): {job.title or job.key}")
-        self._drain_queued()
         return job.as_dict()
 
     def decide_review(self, key: str, decision: dict[str, Any]) -> dict[str, Any]:
@@ -947,6 +1040,101 @@ class Session:
         self._announce_settings()
         return dict(self.answerer.facts)
 
+    def manual_for(self, url: str) -> dict[str, Any] | None:
+        """The manual-queue posting a page in the person's browser belongs to, if any.
+
+        Found by address: the posting's own page, or anywhere in its apply flow beneath it.
+        """
+        entry = self.ledger.find_by_url(url, {Status.MANUAL, Status.AWAITING_HUMAN})
+
+        if entry is None:
+            return None
+
+        with self._lock:
+            job = self._jobs.get(entry.key)
+
+        return {
+            "key": entry.key,
+            "title": (job.title if job else None) or entry.title,
+            "company": (job.company if job else None) or entry.company,
+            "url": entry.url,
+            "applyUrl": entry.apply_url or entry.url,
+            "verdict": entry.verdict,
+            "score": entry.score,
+            "headline": (entry.report or {}).get("headline"),
+            "hasLetter": bool(entry.letter),
+        }
+
+    def letter_for(self, key: str) -> str:
+        """The cover letter for a manual-queue posting: the one written for it, or a new one."""
+        entry = self.ledger.get(key)
+
+        if entry is None:
+            raise ControllerError(f"Nothing on record for {key}.")
+
+        if entry.letter:
+            return entry.letter
+
+        raise ControllerError("No letter was written for that posting.")
+
+    def suggest_answers(
+        self,
+        fields: list[dict[str, Any]],
+        *,
+        role: str = "",
+        use_model: bool = True,
+    ) -> dict[str, Any]:
+        """Answers for a form in the person's own browser. Never stops for a gap.
+
+        Whatever cannot be answered comes back as ``unknown``, for the side panel to ask.
+        """
+        handles = [FieldHandle(raw) for raw in fields if raw.get("id") and raw.get("kind")]
+        answers, sources = self.remembering.suggest(handles, role=role, use_model=use_model)
+        unknown = [
+            handle.field.describe()
+            | {"label": handle.field.label, "kind": handle.field.kind}
+            for handle in handles
+            if handle.field.kind != "file"
+            and handle.field.id not in answers
+            and not handle.field.current
+        ]
+        return {
+            "answers": answers,
+            "sources": sources,
+            "unknown": unknown,
+            "resume": self.packet_resume.upload is not None,
+        }
+
+    def remember_answer(self, field: dict[str, Any], answer: Answer) -> dict[str, Any]:
+        """Keeps an answer a person gave in the extension, shaped to the form that asked."""
+        handle = FieldHandle(field)
+        if not handle.field.label.strip():
+            raise ControllerError("A question needs a label to be remembered by.")
+        from .reviewing import check_edit
+
+        try:
+            value = check_edit(handle, answer)
+        except ValueError as error:
+            raise ControllerError(str(error)) from error
+        self.memory.remember(handle.field, value, "extension")
+        self.log(f"Remembered an answer to: {handle.field.label}")
+        return {"label": handle.field.label, "answer": value}
+
+    def remembered(self) -> list[dict[str, Any]]:
+        return [entry.as_dict() for entry in self.memory.entries()]
+
+    def forget_answer(self, key: str) -> bool:
+        return self.memory.forget(key)
+
+    def resume_file(self) -> Path:
+        upload = self.packet_resume.upload
+        if upload is None or not upload.is_file():
+            raise ControllerError(
+                "No resume file is set. Choose one under Settings → Profile (a file, not one "
+                "already on the board)."
+            )
+        return upload
+
     def retry(self, key: str) -> dict[str, Any]:
         """Puts a posting that was skipped for a missing fact back in the queue."""
         job = self._job(key)
@@ -962,19 +1150,65 @@ class Session:
         return job.as_dict()
 
     def sign_in(self, board: str) -> dict[str, Any]:
-        """Opens the board's sign-in page in a tab of its own, for a person to use."""
+        """Opens the board's sign-in page in a window, and waits there for a person to use it."""
 
         def open_login() -> None:
             worker = self._workers[board]
-            if worker.browser is None or worker.board is None:
+            if worker.board is None:
                 return
-            with worker.browser.on(f"login:{board}") as page:
-                page.goto(worker.board.login_url, wait_until="domcontentloaded", timeout=60_000)
-            worker.browser.focus(f"login:{board}")
-            self.log(f"Sign in to {board} in the window that just came forward.")
+            try:
+                signed_in = worker.board.is_signed_in()
+            except ApplierError:
+                signed_in = False
+            if signed_in:
+                self.bus.publish("boards", board=board, signedIn=True)
+                return
+            self._sign_in_here(worker)
 
         self._dispatch(board, IMMEDIATE, f"login {board}", open_login)
         return {"board": board}
+
+    def _sign_in_here(self, worker: BoardWorker) -> bool:
+        """Puts the sign-in page in front of a person and waits for them. On the board's thread.
+
+        A hidden browser is brought up for it (``BrowserSession.show``) and hidden again
+        once the command is over. Nothing else may use the tab meanwhile: somebody is typing
+        a password into it.
+        """
+        board, browser, name = worker.board, worker.browser, worker.name
+        if board is None or browser is None:
+            return False
+
+        with self._lock:
+            self._signing_in.add(name)
+
+        self._announce()
+        signed_in = False
+        try:
+            browser.show(f"sign in to {name}")
+            browser.goto(board.login_url)
+            browser.front()
+            self.log(f"Sign in to {name} in the window that just opened. The run waits for you.")
+
+            deadline = time.monotonic() + _SIGN_IN_TIMEOUT
+            while not self._closed and time.monotonic() < deadline:
+                try:
+                    signed_in = board.is_signed_in(navigate=False)
+                except BrowserClosedError:
+                    break
+                except ApplierError:
+                    signed_in = False
+                if signed_in:
+                    break
+                time.sleep(2)
+        finally:
+            with self._lock:
+                self._signing_in.discard(name)
+
+        self.log(f"Signed in to {name}." if signed_in else f"No sign-in to {name} yet.")
+        self.bus.publish("boards", board=name, signedIn=signed_in)
+        self._announce()
+        return signed_in
 
     def board_states(self) -> dict[str, Any]:
         """Whether each board in use is signed in. Queued, and answered by an event."""
@@ -987,10 +1221,6 @@ class Session:
                     signed_in = worker.board.is_signed_in()
                 except ApplierError:
                     signed_in = False
-                # The sign-in page has done its job; leaving it open is one more tab between
-                # the person and the application they are meant to be watching.
-                if signed_in and worker.browser is not None:
-                    worker.browser.close_tab(f"login:{name}")
                 self.bus.publish("boards", board=name, signedIn=signed_in)
 
             worker.submit(IMMEDIATE, f"signed-in {name}", check)
@@ -1004,23 +1234,36 @@ class Session:
             return
 
         try:
-            self._walk(worker, board, search)
+            try:
+                self._walk(worker, board, search)
+            except BrowserClosedError:
+                if worker.browser is None:
+                    raise
+                worker.browser.ensure()
+                self._walk(worker, board, search)
         except ApplierError as error:
-            # Signed out, a bot wall, the browser gone: every search after this would fail
-            # the same way, slowly, so the run says why and stops rather than grinding.
             self.log(f"{search.board}: {error}")
             self.stop(str(error))
         except Exception as error:
             logger.exception("Searching %s raised.", search.board)
             self.stop(f"{type(error).__name__}: {error}")
+        finally:
+            with self._lock:
+                self._walks = max(0, self._walks - 1)
+            self._maybe_finish()
 
     def _walk(self, worker: BoardWorker, board: JobBoard, search: Search) -> None:
-        board.ensure_signed_in()
+        # Always require signing in first before starting the walk
+        try:
+            board.ensure_signed_in()
+        except LoginRequiredError:
+            if not self._sign_in_here(worker):
+                raise
+            board.ensure_signed_in()
 
         for listing in board.search(search):
             if not self._running:
                 return
-            worker.pump()
 
             if self._register(listing) is None:
                 continue
@@ -1071,13 +1314,18 @@ class Session:
             self._fail(job, JobState.SKIPPED, str(error))
         except UnanswerableError as error:
             self._fail(job, JobState.NEEDS_INPUT, error.message, questions=error.questions)
-        except ApplierError as error:
-            self._fail(job, _state_for(error), str(error))
-            if error.fatal:
-                self.stop(str(error))
         except Exception as error:
-            logger.exception("Processing %s raised.", key)
-            self._fail(job, JobState.ERROR, f"{type(error).__name__}: {error}")
+            if _closed_under(error, worker) or self._signed_back_in(error, worker):
+                self._cut_off(job, worker, PROCESS, "process", self._process, error)
+            elif isinstance(error, ApplierError):
+                self._fail(job, _state_for(error), str(error))
+                if error.fatal:
+                    self.stop(str(error))
+            else:
+                logger.exception("Processing %s raised.", key)
+                self._fail(job, JobState.ERROR, f"{type(error).__name__}: {error}")
+        finally:
+            self._maybe_finish()
 
     def _assess(self, job: Job, board: JobBoard) -> None:
         config = self.config
@@ -1094,13 +1342,12 @@ class Session:
             job.title = posting.title or job.title
             job.company = posting.company or job.company
 
-        if posting.method != ApplyMethod.QUICK:
-            state = (
-                JobState.EXTERNAL
-                if posting.method == ApplyMethod.EXTERNAL
-                else JobState.UNAVAILABLE
-            )
-            self._finish(job, state, posting.reason)
+        with self._lock:
+            job.external = posting.method == ApplyMethod.EXTERNAL
+            job.apply_url = posting.apply_url or job.url
+
+        if posting.method == ApplyMethod.UNAVAILABLE:
+            self._finish(job, JobState.UNAVAILABLE, posting.reason)
             return
 
         if why := config.policy.excluded(job.title, job.company):
@@ -1146,10 +1393,12 @@ class Session:
                     report=report,
                     title=job.title,
                     company=job.company,
+                    apply_url=job.apply_url,
                 )
             self._publish(job)
 
     def _apply(self, key: str) -> None:
+        """Sends a picked posting on its way: submitted by the board, or to the manual queue."""
         job = self._job(key)
         worker = self._worker(job.board)
         board, browser = worker.board, worker.browser
@@ -1159,66 +1408,118 @@ class Session:
         with self._lock:
             if job.state != JobState.QUEUED:
                 return
-            config = self.config
-            if self._applied >= config.policy.max_applications:
-                self._enter(job, JobState.PENDING, "the per-run application limit was reached")
-                self._publish(job)
-                return
-            hand_off = not self.config.run.auto_submit
-            if hand_off and self._open_handoffs() >= self.config.run.max_open_handoffs:
-                # Stays queued: the drain picks it up the moment a hand-off is resolved.
-                job.reason = f"waiting — {self.config.run.max_open_handoffs} hand-offs are open"
-                self._publish(job)
-                return
 
         listing = listing_of(job)
 
         try:
-            self._fill(job, board, browser, listing, hand_off=hand_off)
+            posting = self._posting(job, board, listing)
+            # Dead job posting
+            if posting.method == ApplyMethod.UNAVAILABLE:
+                self._finish(job, JobState.UNAVAILABLE, posting.reason)
+                return
+
+            # Manual application required
+            if not self._automatic(job, posting):
+                self._to_manual(job, posting, listing)
+                return
+
+            # Limit reached
+            with self._lock:
+                if self._applied >= self.config.policy.max_applications:
+                    self._enter(job, JobState.PENDING, "the per-run application limit was reached")
+                    self._publish(job)
+                    return
+
+            self._fill(job, board, posting, listing)
         except Declined as error:
             self._fail(job, JobState.SKIPPED, str(error))
-            self._close_tab(job)
         except UnanswerableError as error:
             self._fail(job, JobState.NEEDS_INPUT, error.message, questions=error.questions)
-            self._close_tab(job)
-        except ApplierError as error:
-            self._fail(job, _state_for(error), str(error))
-            if not error.terminal:
-                self._close_tab(job)
-            if error.fatal:
-                self.stop(str(error))
         except Exception as error:
-            logger.exception("Applying to %s raised.", key)
-            self._fail(job, JobState.ERROR, f"{type(error).__name__}: {error}")
-            self._close_tab(job)
+            # Do not retry for terminal errors
+            terminal = isinstance(error, ApplierError) and error.terminal
+            if not terminal and (
+                _closed_under(error, worker) or self._signed_back_in(error, worker)
+            ):
+                self._cut_off(job, worker, APPLY, "apply", self._apply, error)
+
+            # Send it to retry queue for user intervention
+            elif isinstance(error, ApplierError):
+                self._fail(job, _state_for(error), str(error))
+                if error.fatal:
+                    self.stop(str(error))
+
+            else:
+                logger.exception("Applying to %s raised.", key)
+                self._fail(job, JobState.ERROR, f"{type(error).__name__}: {error}")
         finally:
             self._drain_queued()
+            self._maybe_finish()
 
-    def _fill(
-        self, job: Job, board: JobBoard, browser, listing: Listing, *, hand_off: bool
-    ) -> None:
-        # Assessing it left the posting behind; only a shortlist restored from the ledger,
-        # or a retry in a later session, has to go and read it again.
+    def _automatic(self, job: Job, posting: Posting) -> bool:
+        """Whether the board sends this one itself: its own form, and the mode says so."""
+        return (
+            posting.method == ApplyMethod.QUICK
+            and self.config.run.mode_for(job.board) == "auto"
+        )
+
+    def _posting(self, job: Job, board: JobBoard, listing: Listing) -> Posting:
+        """The posting as assessing left it; only a restored or retried row reads it again."""
         with self._lock:
             posting = self._postings.get(job.key)
         if posting is None:
             posting = board.fetch(listing)
             with self._lock:
                 self._postings[job.key] = posting
+                job.external = posting.method == ApplyMethod.EXTERNAL
+                job.apply_url = posting.apply_url or job.url
+        return posting
 
+    def _letter(self, job: Job, posting: Posting) -> str | None:
+        """The cover letter, or None when applications go without one."""
+        if not self.config.candidate.cover_letter:
+            return None
         self._enter_and_publish(job, JobState.WRITING)
         letter = self.ledger.cached_letter(job.key) or self.assessor.letter(
             posting.text, self.config.candidate.cover_letter_notes
         )
         with self._lock:
             job.letter = letter
+        return letter
+
+    def _to_manual(self, job: Job, posting: Posting, listing: Listing) -> None:
+        """Into the manual queue, with the letter already written for the extension to paste."""
+        letter = self._letter(job, posting)
+        why = (
+            "applies on the employer's site — open it in your browser"
+            if job.external
+            else "yours to send — open it in your browser"
+        )
+        with self._lock:
+            self._enter(job, JobState.MANUAL, why)
+            self._settle(job)
+            self.ledger.record(
+                listing,
+                Status.MANUAL,
+                reason=why,
+                report=job.report,
+                letter=letter,
+                title=job.title,
+                company=job.company,
+                apply_url=job.apply_url,
+            )
+        self._publish(job)
+        self.log(f"MANUAL: {job.title or job.key} — {job.apply_url}")
+
+    def _fill(self, job: Job, board: JobBoard, posting: Posting, listing: Listing) -> None:
+        letter = self._letter(job, posting)
 
         # Written before the form is touched, exactly as the CLI pipeline does it: a real
         # submission is marked terminal first, so a process that dies between the click and
         # the next write can never be retried into a second application.
         self.ledger.record(
             listing,
-            Status.ERROR if hand_off else Status.SUBMITTING,
+            Status.SUBMITTING,
             reason="applying",
             report=job.report,
             letter=letter,
@@ -1226,61 +1527,65 @@ class Session:
             company=job.company,
         )
 
-        # A tab of its own only when the form is going to be left standing for a person to
-        # read. Filling one that will be submitted a moment later in a tab nobody will ever
-        # look at just puts another tab in front of them for every posting of the run.
-        tab = job.key if hand_off else None
-        with self._lock:
-            job.tab = tab or ""
-            self._enter(job, JobState.APPLYING)
-        self._publish(job)
+        self._enter_and_publish(job, JobState.APPLYING)
 
         context = ApplyContext(
             packet=Packet(cover_letter=letter, resume=self.packet_resume),
             answerer=self._answerer_for(job),  # type: ignore[arg-type]
-            submit=not hand_off,
+            submit=True,
             capture_steps=self.config.browser.capture_steps,
-            hand_off=hand_off,
         )
-
-        with browser.on(tab):
-            submission = board.apply(posting, context)
+        submission = board.apply(posting, context)
 
         with self._lock:
             job.answers = dict(submission.answers)
-
-        if submission.handed_off:
-            with self._lock:
-                job.tab_open = tab is not None
-                self._enter(
-                    job, JobState.AWAITING_HUMAN, "filled in — read it and send it yourself"
-                )
-                self._settle(job)
-            if tab is not None:
-                browser.focus(tab)
-            else:
-                browser.focus_working()
-            self._publish(job)
-            self.log(f"HANDED OVER: {job.title or job.key} — the tab is open at its review page.")
-            return
-
-        with self._lock:
             self._applied += 1
             self._enter(job, JobState.APPLIED, None)
             self._settle(job)
-        self._close_tab(job)
         self._publish(job)
         self.log(f"APPLIED: {job.title or job.key}")
 
-        # The pause between applications is a rate limit, not a wait, so the loop keeps
-        # breathing through it: tabs already handed over can still settle themselves, and a
-        # button pressed on the page is answered rather than queued behind a minute of sleep.
+        # The pause between applications is a rate limit, not a wait, so a button pressed on
+        # the page is answered rather than queued behind a minute of sleep.
         self._pause(random.uniform(*self.config.policy.delay_seconds), self._worker(job.board))
+
+    def _signed_back_in(self, error: Exception, worker: BoardWorker) -> bool:
+        """A board that asked for a sign-in mid-posting: ask the person, then go again."""
+        return isinstance(error, LoginRequiredError) and self._sign_in_here(worker)
+
+    def _cut_off(
+        self,
+        job: Job,
+        worker: BoardWorker,
+        priority: int,
+        label: str,
+        run: Callable[[str], None],
+        error: Exception,
+    ) -> None:
+        """A closed browser cut a command short. It is tried once more, in a fresh window.
+
+        Not a reason to stop the run: the window is reopened before the next command
+        (``BrowserSession.ensure``), and nothing about this posting has changed.
+        """
+        with self._lock:
+            again = job.key not in self._interrupted and self._running
+            self._interrupted.add(job.key)
+            if again:
+                self._enter(job, JobState.QUEUED if label == "apply" else JobState.FOUND)
+
+        # Try gin if interrupted else just fail the job
+        if again:
+            self.log(f"  the browser was closed; trying {job.title or job.key} again")
+            self._publish(job)
+            worker.submit(priority, f"{label} {job.key}", lambda k=job.key: run(k))
+            return
+
+        self._fail(job, JobState.ERROR, str(error))
 
     def _pause(self, seconds: float, worker: BoardWorker) -> None:
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline and self._running:
-            time.sleep(min(0.5, deadline - time.monotonic()))
+            time.sleep(max(0.0, min(0.5, deadline - time.monotonic())))
             worker.pump()
 
     def _answerer_for(self, job: Job) -> ReviewingAnswerer:
@@ -1288,21 +1593,21 @@ class Session:
             return self._pause_for_review(job, questions)
 
         return ReviewingAnswerer(
-            self.answerer,
+            self.remembering,
             level=self.config.run.answers,
             ask=ask,
             add_facts=lambda facts: self.add_facts(facts),
+            remember=lambda handle, answer: self.memory.remember(handle.field, answer, "review"),
             log=self.log,
         )
 
     def _pause_for_review(self, job: Job, questions: list[dict[str, Any]]) -> dict[str, Any]:
         """Blocks this board's thread until the page settles the questions.
 
-        The board's tabs are still watched while it waits — the worker's tick runs on this
-        thread, so a hand-off from an earlier posting can still record itself.
+        Nothing else runs on the board meanwhile: its one tab holds the half-filled form.
+        Stopping the run, or closing the session, settles it as a discard.
         """
         signal = threading.Event()
-        worker = self._worker(job.board)
 
         with self._lock:
             job.review = questions
@@ -1315,8 +1620,7 @@ class Session:
         self.log(f"Waiting on you: {len(questions)} employer question(s) for {name}.")
 
         deadline = time.monotonic() + _REVIEW_TIMEOUT
-        while not signal.wait(timeout=1.0):
-            worker.pump()
+        while not signal.wait(timeout=0.5):
             # Shutting down settles an open review as a discard: a form half-filled is worth
             # less than a session that will not close, and nothing has been sent either way.
             if self._closed or time.monotonic() > deadline:
@@ -1329,60 +1633,6 @@ class Session:
             self._enter(job, JobState.APPLYING)
         self._publish(job)
         return decision
-
-    def _tick(self, worker: BoardWorker) -> None:
-        """Looks at every tab this board has handed over. Runs between commands.
-
-        This is what settles a hand-off without anyone pressing anything: a tab that has
-        reached the board's own confirmation is an application that went, and one the person
-        closed without a confirmation is one nobody can vouch for — recorded as unconfirmed,
-        never retried, and listed for them to check on the board itself.
-        """
-        browser = worker.browser
-        board = worker.board
-        if browser is None or board is None:
-            return
-
-        # Anything the board opened behind its own back goes first: a tab nobody named is a
-        # tab nobody will drive, and they accumulate one per posting if left alone.
-        if gone := browser.reap():
-            logger.debug("Closed %d stray tab(s) on %s.", gone, worker.name)
-
-        with self._lock:
-            handoffs = [
-                job
-                for job in self._jobs.values()
-                if job.state == JobState.AWAITING_HUMAN and job.board == worker.name and job.tab
-            ]
-
-        for job in handoffs:
-            tab = job.tab or ""
-            if not browser.has_tab(tab):
-                if job.tab_open:
-                    with self._lock:
-                        job.tab_open = False
-                        self._enter(
-                            job,
-                            JobState.UNCONFIRMED,
-                            "you closed the tab; check the board's own activity list",
-                        )
-                        self._settle(job)
-                    self._publish(job)
-                    self._drain_queued()
-                continue
-
-            with browser.on(tab):
-                sent = board.submitted()
-
-            if sent:
-                with self._lock:
-                    self._applied += 1
-                    self._enter(job, JobState.APPLIED, "you submitted it")
-                    self._settle(job)
-                self._close_tab(job)
-                self._publish(job)
-                self.log(f"APPLIED (by hand): {job.title or job.key}")
-                self._drain_queued()
 
     def _dispatch(self, board: str, priority: int, label: str, run: Callable[[], None]) -> None:
         """Queues work on a board, off the caller's thread.
@@ -1425,8 +1675,7 @@ class Session:
             make_board=lambda: self._board_for(board),
             profile=self.config.state_dir / "profiles" / board,
             captures=self.config.state_dir / "captures",
-            headless=self.headless,
-            tick=self._tick,
+            headless=self.headless or self.config.browser.headless,
             on_error=self._worker_error,
             log=self.log,
             make_browser=(lambda: self._make_browser(board)) if self._make_browser else None,
@@ -1448,28 +1697,59 @@ class Session:
             raise ControllerError(f"No posting called {key!r} in this session.")
         return job
 
-    def _open_handoffs(self) -> int:
-        return sum(1 for job in self._jobs.values() if job.state == JobState.AWAITING_HUMAN)
-
     def _drain_queued(self) -> None:
         """Sends every queued posting that a limit is no longer holding back."""
         with self._lock:
             config = self.config
-            room = config.policy.max_applications - self._applied
-            slots = (
-                self.config.run.max_open_handoffs - self._open_handoffs()
-                if not self.config.run.auto_submit
-                else room
-            )
-            ready = [
+            queued = [
                 job
                 for job in sorted(self._jobs.values(), key=_ordering)
                 if job.state == JobState.QUEUED
-            ][: max(0, min(room, slots))]
+            ]
+            # The application limit counts submissions. The manual queue is not one, so a
+            # posting bound for it is never held back by it.
+            room = max(0, config.policy.max_applications - self._applied)
+            ready = []
+            for job in queued:
+                if job.external or config.run.mode_for(job.board) == "manual":
+                    ready.append(job)
+                elif room > 0:
+                    ready.append(job)
+                    room -= 1
+                elif self._running:
+                    self._enter(job, JobState.PENDING, "the per-run application limit was reached")
+                    self._settle(job)
 
         for job in ready:
             worker = self._worker(job.board)
             worker.submit(APPLY, f"apply {job.key}", lambda k=job.key: self._apply(k))
+        self._announce()
+
+    def _maybe_finish(self) -> None:
+        """Ends the run once there is nothing left for it to do on its own.
+
+        Every search walked, and every posting it found either settled or waiting on a
+        person — picked, sent by hand, or checked. A run that stays "running" after that is
+        one nobody can tell apart from one still working.
+        """
+        with self._lock:
+            if not self._running or self._walks > 0:
+                return
+
+            if any(job.state in _IN_FLIGHT and not job.historic for job in self._jobs.values()):
+                return
+
+            self._running = False
+            manual = sum(1 for job in self._jobs.values() if job.state == JobState.MANUAL)
+            pending = sum(1 for job in self._jobs.values() if job.state == JobState.PENDING)
+            parts = [f"{self._applied} applied", f"{self._assessed} assessed"]
+            if manual:
+                parts.append(f"{manual} to send by hand")
+            if pending:
+                parts.append(f"{pending} waiting to be picked")
+            self._finished = ", ".join(parts)
+
+        self.log(f"Finished: {self._finished}.")
         self._announce()
 
     def _enter(self, job: Job, state: JobState, detail: str | None = None) -> None:
@@ -1516,22 +1796,6 @@ class Session:
         if questions := values.get("questions"):
             job.questions = list(questions)
 
-    def _close_tab(self, job: Job) -> None:
-        if not job.tab:
-            return
-        tab, board = job.tab, job.board
-        worker = self._workers.get(board)
-        if worker is None:
-            return
-
-        def close() -> None:
-            if worker.browser is not None:
-                worker.browser.close_tab(tab)
-
-        with self._lock:
-            job.tab_open = False
-        worker.submit(IMMEDIATE, f"close tab {tab}", close)
-
     def _publish(self, job: Job) -> None:
         self.bus.publish("job", job=job.as_dict())
 
@@ -1539,12 +1803,9 @@ class Session:
         self.bus.publish("run", **self.status())
 
     def _restore(self) -> None:
-        """Brings back what a previous session left undecided: the shortlist and the hand-offs.
-
-        A hand-off restored this way has no tab — the browser it lived in is gone — so it is
-        shown for what it is: something that was filled in and whose fate only the board knows.
-        """
-        for status in (Status.PENDING, Status.AWAITING_HUMAN, Status.NEEDS_INPUT):
+        """Brings back what a previous session left undecided: the shortlist and the manual
+        queue, and the postings waiting on a fact."""
+        for status in (Status.PENDING, Status.MANUAL, Status.AWAITING_HUMAN, Status.NEEDS_INPUT):
             for entry in self.ledger.entries(status, limit=200):
                 job = Job(
                     key=entry.key,
@@ -1560,9 +1821,8 @@ class Session:
                     letter=entry.letter,
                     answers=entry.answers,
                     questions=entry.questions,
+                    apply_url=entry.apply_url or entry.url,
                 )
-                if entry.status == Status.AWAITING_HUMAN:
-                    job.tab = entry.key
                 self._jobs[entry.key] = job
 
     def close(self) -> None:
@@ -1576,8 +1836,34 @@ class Session:
         for worker in workers:
             worker.stop()
         self.llm.close()
+        self.memory.close()
         self.ledger.close()
         self.bus.close()
+
+
+# Moving on its own: while any posting is in one of these, the run is not over.
+_IN_FLIGHT = {
+    JobState.FOUND,
+    JobState.FETCHING,
+    JobState.ASSESSING,
+    JobState.QUEUED,
+    JobState.WRITING,
+    JobState.APPLYING,
+    JobState.REVIEWING,
+}
+
+
+def _closed_under(error: Exception, worker: BoardWorker) -> bool:
+    """Whether a command failed because its tab or window was closed under it.
+
+    Said outright by :class:`BrowserClosedError`; otherwise it arrives as whatever the call
+    in flight raised — a Playwright error, or a flow error wrapping one — and the browser
+    itself is the only honest witness.
+    """
+    if isinstance(error, BrowserClosedError):
+        return True
+    browser = worker.browser
+    return browser is not None and bool(getattr(browser, "interrupted", False))
 
 
 def _state_for(error: ApplierError) -> JobState:
