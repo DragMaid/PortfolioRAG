@@ -85,6 +85,15 @@ class Llm:
             self._provider.close()
         self._provider = None
 
+    def reset(self) -> None:
+        """Close the current session / chat and re-apply new api key."""
+        self.release()
+        try:
+            self._api_key = self.config.api_key()
+        except ApplierError as error:
+            self.log(str(error))
+            self._api_key = ""
+
     def job_fit(self) -> JobFitPipeline:
         return JobFitPipeline(
             settings=self.settings,

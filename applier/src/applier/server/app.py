@@ -244,6 +244,18 @@ def _config_routes(app: FastAPI, session: Session) -> None:
         except ValidationError as error:
             raise HTTPException(400, _first_problem(error)) from error
 
+    @app.put("/api/profile/resume")
+    async def upload_resume(request: Request, name: Annotated[str, Query()]) -> dict[str, Any]:
+        """The file itself, as the request body: picked on the page, kept by this server."""
+        data = await request.body()
+        return await anyio.to_thread.run_sync(
+            lambda: guarded(lambda: session.store_resume(name, data))
+        )
+
+    @app.delete("/api/profile/resume")
+    def forget_resume() -> dict[str, Any]:
+        return guarded(session.forget_resume)
+
     @app.get("/api/providers")
     def providers() -> dict[str, Any]:
         return session.providers()

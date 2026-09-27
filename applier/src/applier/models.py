@@ -39,7 +39,8 @@ class Listing:
 class ApplyMethod(StrEnum):
     # Applied through the board's own form, which is the only kind this can submit.
     QUICK = "quick"
-    # The board hands off to the employer's site. Recorded and skipped.
+    # The board hands off to the employer's site. Assessed like any other posting, and a fit
+    # goes to the manual queue for the browser extension to fill.
     EXTERNAL = "external"
     # Expired, already applied, or no apply button at all.
     UNAVAILABLE = "unavailable"
@@ -53,6 +54,9 @@ class Posting:
     title: str = ""
     company: str | None = None
     reason: str | None = None
+    # Where a person should go to apply by hand: the board's own apply flow, or the posting
+    # page whose button links out to the employer. Opened in the person's own browser.
+    apply_url: str | None = None
 
     @property
     def text(self) -> str:
@@ -79,7 +83,8 @@ class Resume:
 class Packet:
     """Everything an application carries apart from the answers to employer questions."""
 
-    cover_letter: str
+    # None leaves the letter out: the board's "Don't include a cover letter".
+    cover_letter: str | None
     resume: Resume
 
 
@@ -141,8 +146,5 @@ class Submission:
     answers: dict[str, Answer] = field(default_factory=dict)
     # Where the page was captured at the last step: the review page on a dry run.
     artifacts: Path | None = None
-    # The form is filled and left sitting at its review page, in a tab nobody closed. Only
-    # a person can settle it now, by submitting it themselves or saying they will not.
-    handed_off: bool = False
     # What a probing run found. Set only when ``ApplyContext.probe`` asked for one.
     probe: Probe | None = None

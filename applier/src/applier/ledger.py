@@ -6,10 +6,10 @@ mistake here that cannot be taken back. ``needs_input`` and ``error`` are retrie
 when ``--retry-skipped`` says a fact has been added, the second on every run.
 
 Two statuses exist for the controller, where a person is watching and deciding: ``pending``
-is a posting that cleared the policy and is waiting to be picked, and ``awaiting_human`` is
-one whose form is filled and sitting at its review page in a tab, waiting to be submitted by
-hand. Both outlive the process that wrote them, so closing the controller and opening it
-again finds the same shortlist and the same hand-offs.
+is a posting that cleared the policy and is waiting to be picked, and ``manual`` is one that
+fits but is applied to by hand — in the person's own browser, with the extension filling the
+form. Both outlive the process that wrote them, so closing the controller and opening it
+again finds the same shortlist and the same manual queue.
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ class Status(StrEnum):
     APPLIED = "applied"
     # Assessed, a fit, and waiting for a person to pick it. Only the controller writes this.
     PENDING = "pending"
-    # Filled up to the review page and handed over in a tab. Whether it was sent is the
-    # person's to say, so nothing automatic ever touches it again.
+    # Require human intervention
+    MANUAL = "manual"
     AWAITING_HUMAN = "awaiting_human"
     # A person said no: to a pending row, or to one they were handed and chose not to send.
     SKIPPED = "skipped"
@@ -55,6 +55,7 @@ class Status(StrEnum):
 # PENDING: a shortlist that was never picked from is worth offering again.
 TERMINAL = {
     Status.APPLIED,
+    Status.MANUAL,
     Status.AWAITING_HUMAN,
     Status.SKIPPED,
     Status.UNFIT,
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS postings (
     board        TEXT NOT NULL,
     job_id       TEXT NOT NULL,
     url          TEXT NOT NULL,
+    apply_url    TEXT,
     title        TEXT NOT NULL,
     company      TEXT,
     status       TEXT NOT NULL,
@@ -89,6 +91,9 @@ CREATE TABLE IF NOT EXISTS postings (
 CREATE INDEX IF NOT EXISTS postings_status ON postings (status);
 """
 
+# Columns added after the first release, for ledgers written before them.
+_ADDED = {"apply_url": "TEXT"}
+
 
 @dataclass(slots=True)
 class Entry:
@@ -97,6 +102,7 @@ class Entry:
     title: str
     company: str | None
     url: str
+    apply_url: str | None
     reason: str | None
     verdict: str | None
     score: int | None
@@ -127,6 +133,11 @@ class Ledger:
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
         self._db.executescript(_SCHEMA)
+        have = {row["name"] for row in self._db.execute("PRAGMA table_info(postings)")}
+        with self._db:
+            for column, kind in _ADDED.items():
+                if column not in have:
+                    self._db.execute(f"ALTER TABLE postings ADD COLUMN {column} {kind}")
 
     def close(self) -> None:
         with self._lock:
@@ -161,6 +172,7 @@ class Ledger:
         answers: dict[str, Any] | None = None,
         questions: list[str] | None = None,
         artifacts: Path | None = None,
+        apply_url: str | None = None,
     ) -> None:
         now = datetime.now(UTC).isoformat(timespec="seconds")
         values = {
@@ -168,6 +180,7 @@ class Ledger:
             "board": listing.board,
             "job_id": listing.job_id,
             "url": listing.url,
+            "apply_url": apply_url,
             "title": title or listing.title,
             "company": company or listing.company,
             "status": status.value,
@@ -183,18 +196,20 @@ class Ledger:
             "applied_at": now if status == Status.APPLIED else None,
         }
 
+        # TODO: I wanted to make this quick but its getting rather bulky, may consider ORM
         # A later, thinner record (an error, say) must not wipe the report an earlier one
         # paid for, so every optional column keeps its old value when the new one is null.
         with self._lock, self._db:
             self._db.execute(
                 """
-                INSERT INTO postings (key, board, job_id, url, title, company, status, reason,
-                    verdict, score, report, letter, answers, questions, artifacts,
-                    first_seen, updated_at, applied_at)
-                VALUES (:key, :board, :job_id, :url, :title, :company, :status, :reason,
-                    :verdict, :score, :report, :letter, :answers, :questions, :artifacts,
-                    :now, :now, :applied_at)
+                INSERT INTO postings (key, board, job_id, url, apply_url, title, company,
+                    status, reason, verdict, score, report, letter, answers, questions,
+                    artifacts, first_seen, updated_at, applied_at)
+                VALUES (:key, :board, :job_id, :url, :apply_url, :title, :company,
+                    :status, :reason, :verdict, :score, :report, :letter, :answers, :questions,
+                    :artifacts, :now, :now, :applied_at)
                 ON CONFLICT (key) DO UPDATE SET
+                    apply_url = COALESCE(excluded.apply_url, apply_url),
                     title = excluded.title,
                     company = COALESCE(excluded.company, company),
                     status = excluded.status,
@@ -261,6 +276,36 @@ class Ledger:
         with self._lock, closing(self._db.execute(query, (*args, limit))) as cursor:
             return [_entry(row) for row in cursor.fetchall()]
 
+    def find_by_url(self, url: str, statuses: set[Status] | None = None) -> Entry | None:
+        """The posting a page belongs to: its own URL, or the apply flow under it.
+
+        What the extension asks with the address of the tab it is in. Matched by prefix, so
+        every step of a multi-page apply flow (``/job/1/apply/review``) finds the posting.
+        """
+        wanted = canonical_url(url)
+        if not wanted:
+            return None
+
+        with self._lock:
+            rows = self._db.execute("SELECT * FROM postings ORDER BY updated_at DESC").fetchall()
+
+        # Best is a tuple with (int, Entry) where int is length of the url
+        best: tuple[int, Entry] | None = None
+        for row in rows:
+            entry = _entry(row)
+
+            if statuses is not None and entry.status not in statuses:
+                continue
+
+            # Find the matching url with most specificity (determined by length)
+            for candidate in (entry.apply_url, entry.url):
+                base = canonical_url(candidate or "")
+                matches = base and (wanted == base or wanted.startswith(base + "/"))
+                if matches and (best is None or len(base) > best[0]):
+                    best = (len(base), entry)
+
+        return best[1] if best else None
+
     def counts(self) -> dict[str, int]:
         with self._lock:
             rows = self._db.execute(
@@ -276,6 +321,7 @@ def _entry(row: sqlite3.Row) -> Entry:
         title=row["title"],
         company=row["company"],
         url=row["url"],
+        apply_url=row["apply_url"],
         reason=row["reason"],
         verdict=row["verdict"],
         score=row["score"],
@@ -288,3 +334,14 @@ def _entry(row: sqlite3.Row) -> Entry:
         updated_at=row["updated_at"],
         applied_at=row["applied_at"],
     )
+
+
+def canonical_url(url: str) -> str:
+    """Simplify the url down to its core."""
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url.strip())
+    if not parts.netloc:
+        return ""
+    host = parts.netloc.lower().removeprefix("www.")
+    return f"{host}{parts.path.rstrip('/')}"

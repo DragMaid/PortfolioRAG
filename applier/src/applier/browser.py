@@ -1,19 +1,22 @@
 """The job board's browser: camoufox, with a persistent profile per board.
 
-Separate from the chat site's browser in ``rag.webchat`` on purpose. Each board keeps its
-own signed-in profile under ``<state_dir>/profiles/<board>``, and the two browsers run side
-by side — the model reads a posting in one while the other holds the posting open.
+Separate from the chat site's browser in ``rag.webchat``. Each board keeps its own signed-in
+profile under ``<state_dir>/profiles/<board>``.
 
-**Tabs.** A run has one working tab that every board command drives, and any number of
-*named* tabs held open beside it. That is what the controller hands an application off
-through: the form is filled up to its review page in a tab of its own, the working tab moves
-on to the next posting, and the named tab stays exactly where a person left off — theirs to
-read, to submit, or to close. ``focus`` brings one to the front when the table's *Show tab*
-button is pressed.
+**One tab.** Everything this browser does is unattended — searching, reading postings, and
+filling and submitting a board's own form — so it needs exactly one tab, and it has exactly
+one. Applying by hand happens in the person's own browser, with the extension, never here.
 
-Everything else that turns up in the window is litter — a posting whose apply button opens
-itself in a new tab, an interstitial, a tracker's popup — and ``reap`` closes it between
-commands, so the run stays a window a person can actually read.
+**Hidden until it needs you.** With ``headless`` on, the browser runs with no window at all,
+and ``show`` brings one up — the same profile, at the same address — only when a person has
+something to do in it: sign in, or clear a bot check. ``settle`` hides it again once the
+command that needed them is over.
+
+**It heals.** A person can close that tab, or the whole window, at any moment. ``ensure``
+is called before every command and puts back whatever is missing: a fresh tab in the same
+window, or a relaunched browser on the same profile (so the sign-in survives). A command
+that was cut off mid-way raises :class:`BrowserClosedError`; the controller records that
+one posting as an error to retry, and the run carries on.
 
 Every Playwright object here belongs to the thread that opened the browser. Nothing in this
 module is safe to call from anywhere else; see ``controller.worker`` for the loop that owns it.
@@ -52,12 +55,12 @@ class BrowserSession:
         self.profile = profile
         self.captures = captures
         self.headless = headless
+        self.hidden = headless
         self.log = log
         self._camoufox = None
         self._context: BrowserContext | None = None
         self._page: Page | None = None
-        self._working: Page | None = None
-        self._tabs: dict[str, Page] = {}
+        self._context_closed = False
         self._console: deque[str] = deque(maxlen=100)
 
     def open(self) -> BrowserSession:
@@ -83,11 +86,17 @@ class BrowserSession:
             raise BrowserClosedError(f"Could not start camoufox: {text}. {hint}.") from error
 
         self._camoufox = manager
+        self._attach(context)
+        return self
+
+    def _attach(self, context: BrowserContext) -> None:
+        """Attach the current context, set watcher and auto update upon close."""
         self._context = context
+        self._context_closed = False
+        context.on("close", lambda *_: setattr(self, "_context_closed", True))
         page = context.pages[0] if context.pages else context.new_page()
         self._watch(page)
-        self._page = self._working = page
-        return self
+        self._page = page
 
     def _watch(self, page: Page) -> None:
         """Used to catch debug logs and errors."""
@@ -98,8 +107,7 @@ class BrowserSession:
         if self._camoufox is not None:
             with contextlib.suppress(Exception):
                 self._camoufox.__exit__(None, None, None)
-        self._camoufox = self._context = self._page = self._working = None
-        self._tabs.clear()
+        self._camoufox = self._context = self._page = None
 
     def __enter__(self) -> BrowserSession:
         return self.open()
@@ -108,120 +116,111 @@ class BrowserSession:
         self.close()
 
     @property
-    def page(self) -> Page:
-        """The tab board commands drive: the working tab, or whichever one ``on`` selected."""
-        if self._page is None or self._page.is_closed():
-            raise BrowserClosedError("The job board's browser is not open.")
-        return self._page
+    def alive(self) -> bool:
+        """Whether the window is still there. Only a real call can tell for certain."""
+        if self._context is None or self._context_closed:
+            return False
+        try:
+            # This .pages access automatically check for the session liveness
+            self._context.pages  # noqa: B018 — raises once the browser has gone
+        except PlaywrightError:
+            return False
+        return True
+
+    def ensure(self) -> Page:
+        """The working tab, put back if a person closed it — or the whole window.
+
+        Called before every command. Cheap when nothing is wrong, which is almost always.
+        """
+        if not self.alive:
+            if self._camoufox is None and self._context is None:
+                raise BrowserClosedError("The job board's browser was never opened.")
+            self._relaunch()
+
+        elif self._page is None or self._page.is_closed():
+            context = self._context
+            assert context is not None
+            live = [page for page in context.pages if not page.is_closed()]
+            try:
+                self._page = live[0] if live else context.new_page()
+                self._watch(self._page)
+            except PlaywrightError:
+                self._relaunch()
+
+        return self.page
+
+    def _relaunch(self) -> None:
+        self.log("The board's browser was closed; opening it again.")
+        self.close()
+        self.open()
 
     @property
-    def tabs(self) -> list[str]:
-        """The named tabs still open, forgetting any the person closed themselves."""
-        for name in [name for name, page in self._tabs.items() if page.is_closed()]:
-            del self._tabs[name]
-        return list(self._tabs)
+    def visible(self) -> bool:
+        return not self.headless
 
-    def open_tab(self, name: str) -> Page:
-        """A named tab, created on first use. Reopened if it was closed."""
-        page = self._tabs.get(name)
+    def show(self, why: str) -> None:
+        """Brings up a window for a person, where the page they need is.
 
-        if page is None or page.is_closed():
-            if self._context is None:
-                raise BrowserClosedError("The job board's browser is not open.")
-            page = self._context.new_page()
-            self._watch(page)
-            self._tabs[name] = page
-
-        return page
-
-    def has_tab(self, name: str) -> bool:
-        return name in self.tabs
-
-    @contextlib.contextmanager
-    def on(self, name: str | None):
-        """Runs a block against a named tab, with ``page`` pointing at it throughout.
-
-        Board adapters only ever reach for ``browser.page``, so this is the whole of what it
-        takes to run an unchanged apply flow in a tab of its own.
+        A headless browser cannot become a headed one, so it is relaunched on the same
+        profile — cookies, sign-in and a cleared bot check all carry over — and sent back to
+        the address it was at.
         """
-        if name is None:
-            yield self.page
+        if not self.headless:
+            self.front()
             return
+        address = self._address()
+        self.log(f"Opening the board's window: {why}.")
+        self.close()
+        self.headless = False
+        self.open()
+        if address:
+            with contextlib.suppress(PlaywrightError, BrowserClosedError):
+                self.goto(address)
+        self.front()
 
-        page = self.open_tab(name)
-        previous = self._page
-        self._page = page
-        try:
-            yield page
-        finally:
-            # The tab may have been closed under us; falling back to the working tab keeps
-            # the next command from raising about a page nobody asked for.
-            self._page = previous if previous is not None and not previous.is_closed() else None
-            if self._page is None:
-                self._page = self._working
+    def settle(self) -> None:
+        """Hides the window again, if it was only shown for a person. Between commands."""
+        if self.hidden and not self.headless:
+            self.close()
+            self.headless = True
+            self.open()
 
-    def focus(self, name: str) -> bool:
-        """Brings a named tab to the front of the window. False if it is no longer open."""
-        page = self._tabs.get(name)
-        if page is None or page.is_closed():
-            self._tabs.pop(name, None)
-            return False
+    def _address(self) -> str:
+        with contextlib.suppress(Exception):
+            if self._page is not None and not self._page.is_closed():
+                url = self._page.url
+                return url if url.startswith("http") else ""
+        return ""
 
-        with contextlib.suppress(PlaywrightError):
-            page.bring_to_front()
-        return True
+    @property
+    def interrupted(self) -> bool:
+        """Whether the tab or the window is gone — what to blame a command's failure on."""
+        return not self.alive or self._page is None or self._page.is_closed()
 
-    def close_tab(self, name: str) -> None:
-        page = self._tabs.pop(name, None)
-        if page is not None and not page.is_closed():
-            with contextlib.suppress(PlaywrightError):
-                page.close()
-        if self._page is not None and self._page.is_closed():
-            self._page = self._working
+    @property
+    def page(self) -> Page:
+        """The one tab board commands drive."""
+        if self._page is None or self._page.is_closed():
+            raise BrowserClosedError("The job board's tab was closed.")
+        return self._page
 
-    def focus_working(self) -> bool:
-        """Brings the working tab to the front: what to show while a form is being filled."""
-        if self._working is None or self._working.is_closed():
-            return False
-        with contextlib.suppress(PlaywrightError):
-            self._working.bring_to_front()
-        return True
+    def front(self) -> None:
+        """Brings the window forward, for a sign-in or a bot check a person has to see."""
+        with contextlib.suppress(PlaywrightError, BrowserClosedError):
+            self.page.bring_to_front()
 
-    def reap(self) -> int:
-        """Closes every tab nothing asked for, and returns how many went.
-
-        Boards open tabs this never named: a posting whose apply button carries
-        ``target=_blank``, an interstitial, a tracker that pops a window and leaves it. None
-        of them is ever driven again — board commands only reach for ``page`` — so they pile
-        up in front of the person for the length of a run. The working tab and the named ones
-        are the whole of what this window is for; anything else is litter.
-        """
-        if self._context is None:
+    def tidy(self) -> int:
+        """Closes every tab but the working one, and returns how many went."""
+        if not self.alive or self._context is None:
             return 0
-
-        keep = {id(page) for page in self._tabs.values()}
-        if self._working is not None:
-            keep.add(id(self._working))
-        if self._page is not None:
-            keep.add(id(self._page))
 
         closed = 0
         for page in list(self._context.pages):
-            if id(page) in keep or page.is_closed():
+            if page is self._page or page.is_closed():
                 continue
             with contextlib.suppress(PlaywrightError):
                 page.close()
                 closed += 1
-
-        # A window with nothing left in it is a browser that looks shut. If the working tab
-        # was the one the person closed, the next command opens another rather than raising.
-        if self._working is None or self._working.is_closed():
-            with contextlib.suppress(PlaywrightError):
-                self._working = self._context.new_page()
-                self._watch(self._working)
-            if self._page is None or self._page.is_closed():
-                self._page = self._working
-
         return closed
 
     def goto(self, url: str, *, settle_ms: int = 1500) -> None:
