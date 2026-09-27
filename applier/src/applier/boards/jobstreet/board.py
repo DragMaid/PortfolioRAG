@@ -5,8 +5,9 @@
     /job/<id>/apply/{choose-documents,role-requirements,profile,review,success}
 
 Link-out postings (``isLinkOut`` in the page's server state) hand off to the employer's own
-site and are never followed: every one is different, and a form this has never seen is
-exactly where a wrong answer gets submitted.
+site and are never followed here: every one is different, and a form this has never seen is
+exactly where a wrong answer gets submitted. They are assessed all the same, and a fit goes
+to the manual queue, to be applied to in the person's own browser with the extension.
 """
 
 from __future__ import annotations
@@ -173,6 +174,7 @@ class JobStreet:
             company=_text(page, sel.DETAIL_COMPANY) or listing.company,
             description=page.locator(sel.DETAIL_BODY).first.inner_text().strip(),
             method=ApplyMethod.QUICK,
+            apply_url=f"{self.host}/job/{listing.job_id}/apply",
         )
 
         # Modifying metadata for expired
@@ -183,6 +185,7 @@ class JobStreet:
         elif _flag(source, listing.job_id, "isLinkOut"):
             posting.method = ApplyMethod.EXTERNAL
             posting.reason = "applications go through the employer's own site"
+            posting.apply_url = listing.url
 
         # Damn page is either broken or this is some prank
         elif page.locator(sel.DETAIL_APPLY).count() == 0:
@@ -219,8 +222,6 @@ class JobStreet:
             try:
                 match step:
                     case "documents":
-                        # Read before filling: checking the resume chooser is what makes
-                        # JobStreet draw the list, and a probe never gets a second chance.
                         if context.probe:
                             resumes = self._resume_names()
                         self._documents(context.packet.cover_letter, context.packet.resume)
@@ -242,9 +243,6 @@ class JobStreet:
                         answers |= self._questions(context, role)
 
                     case "review":
-                        if context.hand_off:
-                            return Submission(submitted=False, answers=answers, handed_off=True)
-
                         # For debugging for dry runs
                         if not context.submit:
                             artifacts = browser.capture(f"{job_id}-review-dry-run")
@@ -292,10 +290,13 @@ class JobStreet:
             if sel.ALREADY_APPLIED.search(text):
                 raise NotApplicableError("Already applied to this posting on JobStreet.")
 
-            # Extracting the step type from headers
-            for heading in page.locator("h1, h2").all_inner_texts():
+            names = [page.title(), *page.locator("h1, h2").all_inner_texts()]
+            stepper = page.locator(sel.STEPPER_CURRENT)
+            if stepper.count():
+                names.append(stepper.first.inner_text(timeout=2_000))
+            for name in names:
                 for pattern, step in sel.STEP_HEADINGS:
-                    if pattern.search(heading):
+                    if pattern.search(name):
                         return step
 
             # Application submitted
@@ -309,33 +310,58 @@ class JobStreet:
             return None
 
         try:
-            return browser.poll(recognise, timeout=20)
+            step = browser.poll(recognise, timeout=20)
         except Timeout:
             raise browser.fail(
                 FlowError(f"Did not recognise this step of the apply flow ({browser.page.url}).")
             ) from None
 
-    def _documents(self, letter: str, resume: Resume) -> None:
+        if step != "success":
+            self._wait_until_drawn()
+        return step
+
+    def _wait_until_drawn(self) -> None:
+        """Waits for the continue button to be shown first."""
+        page = self.browser.page
+        buttons = page.get_by_role("button", name=sel.CONTINUE).or_(
+            page.get_by_role("button", name=sel.SUBMIT)
+        )
+        try:
+            self.browser.poll(lambda: buttons.filter(visible=True).count(), timeout=20)
+        except Timeout:
+            return
+        page.wait_for_timeout(500)
+
+    def _documents(self, letter: str | None, resume: Resume) -> None:
+        """The resume, then the cover letter — written, or left out when ``letter`` is None."""
         page = self.browser.page
 
-        # TODO: should add a feature to differentiate between the uploaded file and new one
-        # NOTE: the check(force=True) directly click the button even if its not fully loaded
-        # or covered by another element
-        # First time user and need to upload resume
         if upload := resume.upload:
-            page.get_by_role("radio", name=sel.RESUME_UPLOAD).check(force=True)
-            resume_input = page.locator("input[type=file]").first
-            resume_input.set_input_files(str(upload))
+            # Uploaded by an earlier application, can just pick now
+            if not self._choose_resume(upload.name, exact=True):
+                file_input = page.locator(sel.RESUME_FILE_INPUT).first
+                if not file_input.count():
+                    raise self.browser.fail(FlowError("JobStreet's resume upload was not found."))
+                file_input.set_input_files(str(upload))
 
-            # The upload finishes when the file's name shows up on the page.
-            self.browser.poll(lambda: page.get_by_text(upload.name).count(), timeout=60)
+                # Waiting for the file upload to 
+                try:
+                    self.browser.poll(lambda: self._choose_resume(upload.name, exact=True), 60)
+                except Timeout:
+                    raise self.browser.fail(
+                        FlowError(f"JobStreet never showed {upload.name} as uploaded.")
+                    ) from None
 
-        # Just use the old file now
-        elif resume.select:
-            page.get_by_role("radio", name=sel.RESUME_SELECT).check(force=True)
-            self._select_resume(resume.select)
+        elif resume.select and not self._choose_resume(resume.select):
+            raise self.browser.fail(
+                FlowError(f"No resume on the JobStreet profile is named like {resume.select!r}.")
+            )
 
-        # Filling in the cover letter
+        # Allow not sending any cover letter
+        if letter is None:
+            page.get_by_role("radio", name=sel.COVER_NONE).check(force=True)
+            return
+
         page.get_by_role("radio", name=sel.COVER_WRITE).check(force=True)
         box = self.browser.poll(
             lambda: (
@@ -347,10 +373,7 @@ class JobStreet:
         )
         if box is None:
             raise self.browser.fail(
-                FlowError(
-                    "Couldn't find the input box 'textarea',\
-                    Jobstreet might have changed the element."
-                )
+                FlowError("The cover letter box did not appear; JobStreet may have changed it.")
             )
 
         limit = box.get_attribute("maxlength")
@@ -360,22 +383,28 @@ class JobStreet:
             )
         box.fill(letter)
 
-    def _select_resume(self, wanted: str) -> None:
-        """Selecting pre-uploaded resume from dropdown or radio buttons."""
+    def _resume_radios(self) -> list[tuple[str, object]]:
+        """The resumes on the profile, as (file name, radio), leaving out "don't include"."""
         page = self.browser.page
-        # Casefold used to match even for different languages and encodings
-        wanted_folded = wanted.casefold()
+        found = []
+        for radio in page.locator(sel.RESUME_RADIOS).all():
+            if radio.get_attribute("value") == sel.RESUME_NONE_VALUE:
+                continue
+            element_id = radio.get_attribute("id")
+            label = page.locator(f"label[for='{element_id}']") if element_id else None
+            name = label.first.inner_text().strip() if label is not None and label.count() else ""
+            if name:
+                found.append((name, radio))
+        return found
 
-        for select in page.locator("select").filter(visible=True).all():
-            labels = [text.strip() for text in select.locator("option").all_inner_texts()]
-            match = [label for label in labels if wanted_folded in label.casefold()]
-            if match:
-                select.select_option(label=match[0])
-                return
-
-        raise self.browser.fail(
-            FlowError(f"No resume on the JobStreet profile is named like {wanted!r}.")
-        )
+    def _choose_resume(self, wanted: str, *, exact: bool = False) -> bool:
+        """Checks the profile's resume named ``wanted`` (or containing it). False if none is."""
+        folded = wanted.casefold()
+        for name, radio in self._resume_radios():
+            if name.casefold() == folded or (not exact and folded in name.casefold()):
+                radio.check(force=True)  # type: ignore[attr-defined]
+                return True
+        return False
 
     def _read_questions(self) -> list[FieldHandle]:
         """Every question on the current step. Reads the page and changes nothing on it.
@@ -386,33 +415,27 @@ class JobStreet:
         page = self.browser.page
         # The form that moves the flow on, not the first one: a header search is a form too.
         forms = page.locator("form").filter(has=page.get_by_role("button", name=sel.CONTINUE))
-        root = forms.first if forms.count() else page.locator("main").first
-        return read_fields(root, prefix="q")
+        root = forms.first if forms.count() else page.locator("body")
+        handles = read_fields(root, prefix="q")
+
+        # Jobstreet has this dumb feature where even though the form is labell not required
+        # but there is still a watcher script which refuse to submit unless all fields are filled
+        for handle in handles:
+            if handle.field.kind != "file":
+                handle.field.required = True
+        return handles
 
     def _resume_names(self) -> list[str]:
         """The resumes already on the profile, read off the documents step.
 
         For setting up, so that choosing one is picking from a list rather than typing a
-        filename from memory. The radio has to be checked for JobStreet to draw the select at
-        all, which changes nothing that is ever sent: a probing run never leaves this step.
+        filename from memory. Reads the page and changes nothing on it.
         """
-        page = self.browser.page
-
         try:
-            chooser = page.get_by_role("radio", name=sel.RESUME_SELECT)
-            if not chooser.count():
-                return []
-            chooser.check(force=True)
-
-            names: list[str] = []
-            for select in page.locator("select").filter(visible=True).all():
-                names += [text.strip() for text in select.locator("option").all_inner_texts()]
+            return list(dict.fromkeys(name for name, _ in self._resume_radios()))
         except PlaywrightError:
             # Setting up is not the place to fail over a list that is only a convenience.
             return []
-
-        # The first option is usually a "select one" placeholder rather than a resume.
-        return [name for name in dict.fromkeys(names) if name and not name.startswith("Select")]
 
     def _questions(self, context: ApplyContext, role: str) -> dict:
         """Handle filling in forms (except cover letter)."""
@@ -497,21 +520,29 @@ class JobStreet:
         return bool(sel.SUCCESS_TEXT.search(text) or sel.ALREADY_APPLIED.search(text))
 
     def _check_challenge(self) -> None:
-        """Simple captcha challange test using regex."""
-        title = self.browser.page.title().lower()
-        if any(marker in title for marker in _CHALLENGE_TITLES):
-            try:
-                # Poll the web to allow the user to manually solve it
-                self.browser.poll(
-                    lambda: (
-                        not any(m in self.browser.page.title().lower() for m in _CHALLENGE_TITLES)
-                    ),
-                    timeout=20,
-                )
-            except Timeout:
-                raise self.browser.fail(
-                    ChallengeError("JobStreet's bot check did not clear.")
-                ) from None
+        """Waits out a bot check — in a window, when there is nobody to see a hidden one.
+
+        Some clear on their own in a few seconds. One that does not needs a person, so a
+        headless browser is brought up where the check is and given five minutes.
+        """
+        def clear() -> bool:
+            title = self.browser.page.title().lower()
+            return not any(marker in title for marker in _CHALLENGE_TITLES)
+
+        if clear():
+            return
+        try:
+            self.browser.poll(clear, timeout=15)
+            return
+        except Timeout:
+            pass
+
+        self.browser.show("JobStreet wants a bot check solved")
+        try:
+            self.browser.poll(clear, timeout=300, interval=1)
+        except Timeout:
+            error = ChallengeError("JobStreet's bot check was not solved in five minutes.")
+            raise self.browser.fail(error) from None
 
 
 def _text(scope, selector: str) -> str | None:

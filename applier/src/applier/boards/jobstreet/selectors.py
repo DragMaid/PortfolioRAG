@@ -56,9 +56,16 @@ SUCCESS_TEXT = re.compile(r"application (has been |was )?(sent|submitted)", re.I
 ALREADY_APPLIED = re.compile(r"(you('ve| have) )?already applied", re.I)
 LOGIN_URL = re.compile(r"/oauth/|/login|login\.seek|/sign-?in", re.I)
 
-RESUME_UPLOAD = re.compile(r"upload a resum", re.I)
-RESUME_SELECT = re.compile(r"select a resum", re.I)
+# The documents step, as it stood in September 2026: the step is served at /job/<id>/apply
+# itself and named only in the tab title and the progress stepper. Resumes already on the
+# profile are a radio list labelled by file name, beside "Don't include a resumé", and
+# *Upload* opens a hidden file input.
+STEPPER_CURRENT = "[aria-current='step']"
+RESUME_RADIOS = "input[type=radio][name='document-select']"
+RESUME_NONE_VALUE = "dont-include"
+RESUME_FILE_INPUT = "[data-testid='resumeFileInput'] input[type=file], input#resume-fileFile"
 COVER_WRITE = re.compile(r"write a cover letter", re.I)
+COVER_NONE = re.compile(r"don.?t include a cover letter", re.I)
 CONTINUE = re.compile(r"^\s*continue\s*$", re.I)
 SUBMIT = re.compile(r"submit application", re.I)
 

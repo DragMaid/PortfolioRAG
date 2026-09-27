@@ -1,9 +1,8 @@
 /**
  * What the run is allowed to do, and what it must ask you about.
  *
- * `applier.yaml` is the source of truth and is never written from here. What this panel sets
- * is this session's overrides — thresholds to try out, searches to include, and the three
- * toggles that decide how much of the run happens without you.
+ * Everything here is saved straight into `applier.yaml`: thresholds, the searches to include,
+ * and the toggles that decide how much of the run happens without you.
  */
 
 import {
@@ -23,7 +22,9 @@ import {
 } from "@mantine/core";
 import { IconPlayerPlay, IconPlayerStop } from "@tabler/icons-react";
 
-import type { Describe, Intervention, Settings, Status, Verdict } from "../types";
+import type { ApplyMode, Describe, Intervention, Settings, Status, Verdict } from "../types";
+import { api } from "../api";
+import { ExtensionCard } from "./ExtensionCard";
 
 /** What each level actually means for a form that is half filled in. */
 const ASKING: Record<Intervention, string> = {
@@ -33,6 +34,14 @@ const ASKING: Record<Intervention, string> = {
     "The run stops and asks, there and then. What you type is written down and used from then on.",
   always:
     "Every question and the answer it would give, with the fact behind it, before the form is filled.",
+};
+
+/** Who presses send, and where. */
+const SENDING: Record<ApplyMode, string> = {
+  auto:
+    "JobStreet quick-apply forms are filled and sent in the board's own window. A posting that links out to the employer's site still comes to you.",
+  manual:
+    "Nothing is sent for you. Each fit waits in the table with its letter written, for you to open in your browser, where the extension fills it.",
 };
 
 interface Props {
@@ -141,16 +150,44 @@ export function ControlPanel({
                 : "Everything that clears the policy waits in the table until you press Apply on it."
             }
           />
+          <Select
+            label="Who sends an application"
+            description={SENDING[settings.applyMode]}
+            allowDeselect={false}
+            value={settings.applyMode}
+            data={[
+              { value: "auto", label: "The board — quick-apply forms are submitted for you" },
+              { value: "manual", label: "You — every fit goes to the manual queue" },
+            ]}
+            onChange={(value) => value && onChange({ applyMode: value as ApplyMode })}
+          />
+          {boards.map((board) => (
+            <Switch
+              key={board}
+              size="xs"
+              checked={(settings.boardModes[board] ?? settings.applyMode) === "manual"}
+              onChange={(event) =>
+                onChange({
+                  boardModes: {
+                    ...settings.boardModes,
+                    [board]: event.currentTarget.checked ? "manual" : "auto",
+                  },
+                })
+              }
+              label={`Always apply to ${board} by hand`}
+            />
+          ))}
           <Switch
-            checked={settings.autoSubmit}
-            onChange={(event) => onChange({ autoSubmit: event.currentTarget.checked })}
-            label="Submit applications itself"
-            description={
-              settings.autoSubmit
-                ? "Forms are filled and sent."
-                : "Each form is filled up to its review page and left open in a tab for you to read and send."
+            checked={describe.boardHeadless}
+            onChange={(event) =>
+              void api.config.profile({ boardHeadless: event.currentTarget.checked })
             }
-            color={settings.autoSubmit ? undefined : "orange"}
+            label="Keep the board's browser hidden"
+            description={
+              describe.boardHeadless
+                ? "No window, unless you are needed — a sign-in or a bot check brings one up, and it goes again after."
+                : "Its window stays up throughout, so you can watch every form being filled."
+            }
           />
           <Select
             label="When to ask you about an answer"
@@ -164,17 +201,6 @@ export function ControlPanel({
             ]}
             onChange={(value) => value && onChange({ answers: value as Intervention })}
           />
-          {!settings.autoSubmit && (
-            <NumberInput
-              size="xs"
-              label="Hand-offs open at once"
-              description="Applying pauses at this many rather than filling your browser with tabs."
-              min={1}
-              max={20}
-              value={settings.maxOpenHandoffs}
-              onChange={(value) => onChange({ maxOpenHandoffs: Number(value) || 1 })}
-            />
-          )}
         </Stack>
       </Card>
 
@@ -237,12 +263,15 @@ export function ControlPanel({
         </Accordion.Item>
       </Accordion>
 
-      {!settings.autoSubmit && (
+      {settings.applyMode === "manual" && (
         <Alert color="orange" variant="light" title="Nothing will be sent without you">
-          Each application is filled in and left at its review page in its own tab. Read it, then
-          either submit it there — this notices and records it — or use the row's buttons.
+          Every posting that fits lands in the table as <b>yours to send</b>, its cover letter
+          already written. Press <b>Open</b>: the extension fills the form in your own browser and
+          asks you in its side panel about anything it does not know.
         </Alert>
       )}
+
+      <ExtensionCard />
 
       <Group>
         {running ? (
@@ -271,10 +300,17 @@ export function ControlPanel({
             <Badge color="blue">{status.assessed} assessed</Badge>
             <Badge color="green">{status.applied} applied</Badge>
             {status.queued > 0 && <Badge color="indigo">{status.queued} queued</Badge>}
+            {status.manual > 0 && <Badge color="orange">{status.manual} to send by hand</Badge>}
             {status.waiting > 0 && <Badge color="orange">{status.waiting} waiting on you</Badge>}
           </Group>
         )}
       </Group>
+
+      {status?.finished && (
+        <Alert color="green" variant="light" title="Run finished">
+          {status.finished}.
+        </Alert>
+      )}
 
       {status?.stoppedBecause && (
         <Alert color="gray" variant="light">

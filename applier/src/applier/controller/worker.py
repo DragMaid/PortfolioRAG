@@ -1,15 +1,14 @@
 """One thread per board, owning that board's browser for as long as the session lasts.
 
-Playwright's sync API binds every object it makes to the thread that made it, and a board's
-browser holds tabs that outlive the command that opened them. So a board is a thread with a
-queue in front of it, and everything the server asks of that board — search a page, fetch a
-posting, fill a form, bring a tab to the front — arrives as a command on that queue.
+Playwright's sync API binds every object it makes to the thread that made it. So a board is a
+thread with a queue in front of it, and everything the server asks of that board — search,
+fetch a posting, fill and submit a form, sign in — arrives as a command on that queue.
 
 **Why commands are small.** Discovery could be one long call that walks every search page and
-assesses everything it finds. It is not: each search page enqueues the next, and each listing
-is a command of its own. That is what lets the loop come up for air between postings, which
-is where it notices that a tab it handed over has had its application sent, and where a person
-pressing *Show tab* is answered in a moment rather than after the posting in flight finishes.
+assesses everything it finds. It is not: each listing is a command of its own. That is what
+lets the loop come up for air between postings, where a button a person pressed is answered
+in a moment rather than after the posting in flight finishes, and where a closed window is
+noticed and reopened (``BrowserSession.ensure``) before the next command needs it.
 
 **Why priorities.** A person waiting on a button press should not queue behind forty postings
 still to be assessed, and an application that has been picked should go before more discovery.
@@ -20,7 +19,6 @@ from __future__ import annotations
 import logging
 import queue
 import threading
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from itertools import count
@@ -38,7 +36,6 @@ PROCESS = 20  # fetch and assess one posting
 DISCOVER = 30  # turn up more postings
 
 _IDLE = 0.25
-_TICK_EVERY = 2.0
 
 _sequence = count()
 
@@ -62,7 +59,6 @@ class BoardWorker:
         profile: Path,
         captures: Path,
         headless: bool,
-        tick: Callable[[BoardWorker], None],
         on_error: Callable[[str, Exception], None],
         log: Callable[[str], None],
         make_browser: Callable[[], BrowserSession] | None = None,
@@ -74,7 +70,6 @@ class BoardWorker:
         self._profile = profile
         self._captures = captures
         self._headless = headless
-        self._tick = tick
         self._on_error = on_error
 
         self._queue: queue.PriorityQueue[Command] = queue.PriorityQueue()
@@ -82,7 +77,6 @@ class BoardWorker:
         self._ready = threading.Event()
         self._stopping = threading.Event()
         self._failure: Exception | None = None
-        self._last_tick = 0.0
 
         self.board: JobBoard | None = None
         self.browser: BrowserSession | None = None
@@ -129,21 +123,40 @@ class BoardWorker:
             raise self._failure
 
     def pump(self) -> None:
-        """Lets the session look at this board's tabs. Safe only on the worker thread.
+        """Runs whatever a person just asked for. Safe only on the worker thread.
 
-        Called between commands, and from inside anything that waits on a person, so a
-        hand-off can settle itself while the loop is otherwise blocked.
+        Called from the pause between two applications, when nothing holds the tab, so a
+        button pressed then is answered at once rather than after a minute of rate limiting.
         """
-        now = time.monotonic()
-        if now - self._last_tick < _TICK_EVERY:
-            return
-        self._last_tick = now
+        while not self._stopping.is_set():
+            try:
+                command = self._queue.get_nowait()
+            except queue.Empty:
+                return
 
+            if command.priority > IMMEDIATE:
+                self._queue.put(command)
+                return
+
+            self._run(command)
+
+    def _run(self, command: Command) -> None:
         try:
-            self._tick(self)
-        except Exception as error:  # a tick must never take the worker down
-            logger.exception("The %s tick raised.", self.name)
+            if self.browser is not None:
+                self.browser.ensure()
+                self.browser.tidy()
+            command.run()
+        except Exception as error:
+            logger.exception("%s: %s raised.", self.name, command.label)
             self._on_error(self.name, error)
+        finally:
+            # A window brought up for a sign-in or a bot check goes away with the command
+            # that needed it.
+            if self.browser is not None:
+                try:
+                    self.browser.settle()
+                except Exception as error:
+                    self._on_error(self.name, error)
 
     def _camoufox(self) -> BrowserSession:
         return BrowserSession(
@@ -167,17 +180,11 @@ class BoardWorker:
         self._ready.set()
 
         while not self._stopping.is_set():
-            self.pump()
             try:
                 command = self._queue.get(timeout=_IDLE)
             except queue.Empty:
                 continue
-
-            try:
-                command.run()
-            except Exception as error:
-                logger.exception("%s: %s raised.", self.name, command.label)
-                self._on_error(self.name, error)
+            self._run(command)
 
         if self.browser is not None:
             self.browser.close()

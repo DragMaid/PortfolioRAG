@@ -33,10 +33,10 @@ const LOOKS: Record<JobState, Look> = {
     color: "orange",
     hint: "The employer's questions are answered and waiting for you to look.",
   },
-  awaiting_human: {
+  manual: {
     label: "yours to send",
     color: "orange",
-    hint: "Filled in and sitting at its review page, in a tab. Read it and submit it yourself.",
+    hint: "A fit, with its letter written. Open it in your browser — the extension fills the form — and send it yourself.",
   },
   applied: { label: "applied", color: "green", hint: "Sent." },
   skipped: { label: "skipped", color: "gray", hint: "You passed on it." },

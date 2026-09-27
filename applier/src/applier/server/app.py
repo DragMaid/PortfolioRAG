@@ -30,7 +30,7 @@ from ..config import Config
 from ..controller import ControllerError, Session, settings_of
 from ..errors import ConfigError
 from ..ledger import Status
-from . import spa
+from . import extension, spa
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ def create_app(config: Config, *, headless: bool = False) -> FastAPI:
     _setup_routes(app, session)
     _config_routes(app, session)
     _ledger_routes(app, session)
+    extension.mount(app, session)
     app.mount("/api/rag", _rag_app(session), name="rag")
     spa.mount(app)
 
@@ -142,10 +143,6 @@ def _controller_routes(app: FastAPI, session: Session) -> None:
     @app.post("/api/jobs/{key:path}/skip")
     def skip(key: str) -> dict[str, Any]:
         return guarded(lambda: session.skip(key))
-
-    @app.post("/api/jobs/{key:path}/focus", status_code=202)
-    def focus(key: str) -> dict[str, Any]:
-        return guarded(lambda: session.focus(key))
 
     @app.post("/api/jobs/{key:path}/submitted")
     def submitted(key: str) -> dict[str, Any]:
@@ -246,6 +243,18 @@ def _config_routes(app: FastAPI, session: Session) -> None:
             return guarded(lambda: session.update_profile(patch))
         except ValidationError as error:
             raise HTTPException(400, _first_problem(error)) from error
+
+    @app.put("/api/profile/resume")
+    async def upload_resume(request: Request, name: Annotated[str, Query()]) -> dict[str, Any]:
+        """The file itself, as the request body: picked on the page, kept by this server."""
+        data = await request.body()
+        return await anyio.to_thread.run_sync(
+            lambda: guarded(lambda: session.store_resume(name, data))
+        )
+
+    @app.delete("/api/profile/resume")
+    def forget_resume() -> dict[str, Any]:
+        return guarded(session.forget_resume)
 
     @app.get("/api/providers")
     def providers() -> dict[str, Any]:

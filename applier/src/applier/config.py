@@ -37,6 +37,8 @@ VERDICTS: tuple[Verdict, ...] = ("weak", "partial", "promising", "strong")
 
 # How much an unanswerable employer question is allowed to happen without you.
 Intervention = Literal["never", "missing", "always"]
+# Who sends an application that clears the policy: the board's adapter, or you.
+ApplyMode = Literal["auto", "manual"]
 
 
 class SearchConfig(BaseModel):
@@ -92,22 +94,50 @@ class PolicyConfig(BaseModel):
 
 
 class RunConfig(BaseModel):
-    """How much of a run happens without you. The page's three toggles, kept in the file.
+    """How much of a run happens without you. The page's toggles, kept in the file.
+
+    ``apply_mode`` says who sends an application that clears the policy:
+
+    * ``auto`` — the board's own adapter fills and submits it, unattended, in the board's
+      browser. Only a posting the board can take in its own form (JobStreet's quick apply)
+      goes this way; a link-out to an employer's site always goes to the manual queue.
+    * ``manual`` — every fit goes to the manual queue, with its report and cover letter, to
+      be opened in your own browser, where the extension fills the form for you to send.
+
+    ``board_modes`` overrides it per board: ``{jobstreet: manual}``.
 
     ``answers`` is the one that matters most. The answerer throws out anything the model
     could not point at a fact you wrote down; this says what happens next:
 
     * ``never`` — the posting is skipped and the question recorded. Unattended, and what the
       command line does.
-    * ``missing`` — the run stops and asks you, there and then, and the fact you type is used
-      from then on. The default: a question nobody answered is the one thing worth your time.
+    * ``missing`` — the run stops and asks you, there and then, and the answer you give is
+      remembered from then on. The default: a question nobody answered is the one thing
+      worth your time.
     * ``always`` — every question and its answer is shown before the form is filled.
     """
 
     auto_pick: bool = Field(default=True, description="False: every fit waits to be picked.")
-    auto_submit: bool = Field(default=True, description="False: hand each filled form over.")
+    apply_mode: ApplyMode = "auto"
+    board_modes: dict[str, ApplyMode] = Field(default_factory=dict)
     answers: Intervention = "missing"
-    max_open_handoffs: int = Field(default=5, ge=1, le=50)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_auto_submit(cls, data: Any) -> Any:
+        """Configs written before the manual queue said ``auto_submit``. Read it once; the
+        next save writes ``apply_mode`` in its place."""
+        if isinstance(data, dict) and "auto_submit" in data:
+            data = dict(data)
+            submit = data.pop("auto_submit")
+            data.pop("max_open_handoffs", None)
+            data.setdefault("apply_mode", "auto" if submit in (True, None) else "manual")
+        elif isinstance(data, dict):
+            data = {key: value for key, value in data.items() if key != "max_open_handoffs"}
+        return data
+
+    def mode_for(self, board: str) -> ApplyMode:
+        return self.board_modes.get(board, self.apply_mode)
 
 
 class LlmConfig(BaseModel):
@@ -155,9 +185,13 @@ class PortfolioConfig(BaseModel):
 
 
 class BrowserConfig(BaseModel):
-    """The job board's browser. Separate from the chat site's, with its own profile."""
+    """The job board's browser. Separate from the chat site's, with its own profile.
 
-    headless: bool = False
+    ``headless`` hides it until a person is needed — a sign-in, a bot check — when a window
+    comes up for that and goes away again after. False keeps a window up throughout.
+    """
+
+    headless: bool = True
     # Every page of every apply flow saved to disk, not only the ones that failed.
     capture_steps: bool = False
 
@@ -186,6 +220,8 @@ class CandidateConfig(BaseModel):
     phone: str | None = None
     resume: ResumeConfig = Field(default_factory=ResumeConfig)
     facts: dict[str, str] = Field(default_factory=dict)
+    # False leaves the cover letter out of every application, and none is written.
+    cover_letter: bool = True
     cover_letter_notes: str | None = Field(
         default=None, description="Handed to the letter writer, as rag-local's notes box is."
     )
@@ -295,6 +331,8 @@ candidate:
   name: ""
   email:
   phone:
+  # false: send applications without a cover letter, and write none.
+  cover_letter: true
   # Steers the cover letter's wording. Not a fact, and grants nothing.
   cover_letter_notes:
   # Steers how questions get answered — which option to take where two fit, how to phrase a
@@ -310,9 +348,10 @@ candidate:
 # How much of a run happens without you.
 run:
   auto_pick: true        # false: every posting that fits waits for you to pick it
-  auto_submit: true      # false: each form is filled to its review page and handed to you
+  apply_mode: auto       # auto: the board submits quick-apply forms itself | manual: you do,
+                         # in your own browser with the extension. Link-outs are always manual.
   answers: missing       # never | missing | always — when to stop and ask about an answer
-  max_open_handoffs: 5   # with auto_submit off, how many may be waiting on you at once
+  board_modes: {}        # per-board apply_mode, e.g. {jobstreet: manual}
 
 # What counts as a fit. Verdict and score are computed in code by the rag pipeline:
 # weak < partial < promising < strong.
@@ -341,9 +380,10 @@ portfolio:
   api: https://api.blograg.pbh-dev.tech   # where retrieval asks; a local one works too
   token_env: APPLIER_PORTFOLIO_TOKEN
 
-# The job board's browser. Visible, because a hand-off needs a window to hand over in.
+# The job board's browser, for searching, reading postings and auto-applying. Hidden: a
+# window only comes up when you are needed (a sign-in, a bot check). It reopens if closed.
 browser:
-  headless: false
+  headless: true
   capture_steps: false   # save every apply step's page, not only the ones that failed
 
 boards:
