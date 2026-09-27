@@ -113,3 +113,40 @@ def test_candidate_facts_include_contact_details():
         "Email": "a@b.c",
         "Notice period": "1 month",
     }
+
+
+# --- who sends an application -----------------------------------------------
+
+
+def test_an_older_auto_submit_is_read_as_an_apply_mode():
+    assert config(run={"auto_submit": True}).run.apply_mode == "auto"
+    assert config(run={"auto_submit": False, "max_open_handoffs": 3}).run.apply_mode == "manual"
+
+
+def test_a_board_mode_overrides_the_default():
+    run = config(run={"apply_mode": "auto", "board_modes": {"jobstreet": "manual"}}).run
+    assert run.mode_for("jobstreet") == "manual"
+    assert run.mode_for("other") == "auto"
+
+
+def test_an_unknown_apply_mode_is_refused():
+    with pytest.raises(ValueError):
+        config(run={"apply_mode": "sometimes"})
+
+
+def test_saving_an_older_config_writes_the_new_key_in_place(tmp_path):
+    from applier.config import save
+
+    path = tmp_path / "applier.yaml"
+    path.write_text(
+        "searches:\n  - keywords: python\n"
+        "run:\n  auto_submit: false   # hand it over\n  max_open_handoffs: 5\n",
+        encoding="utf-8",
+    )
+    loaded = load(path)
+    save(loaded)
+
+    text = path.read_text()
+    assert "apply_mode: manual" in text
+    assert "auto_submit" not in text and "max_open_handoffs" not in text
+    assert load(path).run.apply_mode == "manual"

@@ -143,10 +143,10 @@ def test_nothing_settled_is_opened_twice(tmp_path):
     assert summary.counts() == {"seen": 1}
 
 
-def test_excluded_external_and_unavailable_are_never_assessed(tmp_path):
+def test_excluded_and_unavailable_are_never_assessed(tmp_path):
     board = FakeBoard(
-        titled(("1", "Software Intern"), ("2", "Engineer"), ("3", "Engineer")),
-        methods={"2": ApplyMethod.EXTERNAL, "3": ApplyMethod.UNAVAILABLE},
+        titled(("1", "Software Intern"), ("3", "Engineer")),
+        methods={"3": ApplyMethod.UNAVAILABLE},
     )
     assessor = FakeAssessor({})
     pipeline = make(tmp_path, board, assessor, skip_titles=[r"\bintern\b"])
@@ -154,7 +154,36 @@ def test_excluded_external_and_unavailable_are_never_assessed(tmp_path):
     pipeline.run(SEARCH, RunOptions())
 
     assert assessor.assessed == []
-    assert statuses(pipeline) == {"1": "excluded", "2": "external", "3": "unavailable"}
+    assert statuses(pipeline) == {"1": "excluded", "3": "unavailable"}
+
+
+def test_a_link_out_is_assessed_and_a_fit_goes_to_the_manual_queue(tmp_path):
+    """Whether it is worth applying to does not depend on whose form it is."""
+    board = FakeBoard(
+        titled(("2", "Backend engineer"), ("4", "Frontend engineer")),
+        methods={"2": ApplyMethod.EXTERNAL, "4": ApplyMethod.EXTERNAL},
+    )
+    assessor = FakeAssessor({"Backend": ("strong", 90), "Frontend": ("partial", 40)})
+    pipeline = make(tmp_path, board, assessor)
+
+    pipeline.run(SEARCH, RunOptions())
+
+    assert len(assessor.assessed) == 2, "both were assessed"
+    assert statuses(pipeline) == {"2": "manual", "4": "unfit"}
+    assert board.applied == [], "and the board never touched either form"
+    entry = pipeline.ledger.get("fake:2")
+    assert entry.letter, "the letter is written ahead for the extension"
+
+
+def test_manual_mode_submits_nothing(tmp_path):
+    board = FakeBoard(titled(("1", "Engineer")))
+    pipeline = make(tmp_path, board, FakeAssessor({}))
+    pipeline.config.run.apply_mode = "manual"
+
+    pipeline.run(SEARCH, RunOptions())
+
+    assert board.applied == []
+    assert statuses(pipeline) == {"1": "manual"}
 
 
 def test_a_dry_run_submits_nothing_and_a_real_run_still_applies_later(tmp_path):

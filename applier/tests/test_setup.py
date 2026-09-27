@@ -15,7 +15,7 @@ import pytest
 from applier.config import load, load_or_create, parse, save
 from applier.controller.setup import BASELINE, SetupQuestion, fact_key, merge, to_profile
 from applier.errors import ConfigError
-from test_controller import make_session, state_at, wait_for
+from test_controller import make_session, state_at, states, wait_for
 
 # `make_session` is a fixture defined in test_controller; importing it brings it in here.
 _ = make_session
@@ -113,7 +113,7 @@ def test_a_question_left_blank_is_not_written_down() -> None:
 
 
 def test_the_mock_run_reads_the_form_and_sends_nothing(make_session) -> None:
-    session, board, browser = make_session(1)
+    session, board, _ = make_session(1)
     session.probe("https://fake/job/0")
 
     wait_for(lambda: session.setup_state()["found"] is not None, "it should find the questions")
@@ -122,8 +122,6 @@ def test_the_mock_run_reads_the_form_and_sends_nothing(make_session) -> None:
     assert found["questions"] == 2
     assert found["resumes"] == ["Resume_2026.pdf", "Resume_old.pdf"]
     assert board.applied == [], "a mock application applies to nothing"
-    assert board.sent == set()
-    assert browser.tabs == [], "and leaves no tab behind"
     assert session.ledger.get("fake:0") is None, "nor anything on the record"
 
 
@@ -348,7 +346,7 @@ def unanswerable(session) -> None:
     """Leaves a required question with no fact behind it, as a real form regularly does."""
     from applier.errors import UnanswerableError
 
-    def answer(handles, *, role):
+    def answer(handles, *, role, facts=None):
         raise UnanswerableError([SALARY])
 
     session.answerer.answer = answer
@@ -421,3 +419,36 @@ def test_approving_without_answering_a_required_question_is_refused(make_session
 
     wait_for(lambda: state_at(session, "fake:0") == "needs_input", "it should still be blocked")
     assert board.applied == [], "and nothing was sent"
+
+
+def test_an_answer_typed_into_a_pause_is_remembered_for_the_next_form(make_session) -> None:
+    """Asked once, never again: the next posting that asks it is answered without stopping."""
+    from applier.errors import UnanswerableError
+
+    session, board, _ = make_session(2, answers="missing")
+    asked: list[list[str]] = []
+
+    def answer(handles, *, role, facts=None):
+        labels = [handle.field.label for handle in handles]
+        asked.append(labels)
+        if SALARY in labels:
+            raise UnanswerableError([SALARY])
+        return {}
+
+    session.answerer.answer = answer
+    session.answerer.last = None
+    session.start()
+    wait_for(
+        lambda: "reviewing" in states(session).values(), "the first posting should stop to ask"
+    )
+    first = next(key for key, state in states(session).items() if state == "reviewing")
+
+    session.decide_review(first, {"action": "approve", "answers": {"q1": "7000"}})
+
+    wait_for(
+        lambda: list(states(session).values()).count("applied") == 2,
+        "the second is answered from memory and goes through without asking",
+    )
+    assert session.memory.get(SALARY).answer == "7000"
+    assert sorted(board.applied) == ["fake:0", "fake:1"]
+    assert asked[-1] == [LICENCE], "the model was only asked what memory could not answer"

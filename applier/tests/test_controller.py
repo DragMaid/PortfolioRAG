@@ -4,17 +4,14 @@ No camoufox, no model, no network. What is being pinned down here is the bookkee
 the two decisions the controller gives back to a person, because that is where a double
 application would come from:
 
-* a posting handed over is written to the ledger as ``awaiting_human`` **before** anyone can
-  touch it, and ``awaiting_human`` is terminal — no later run reopens it;
-* a tab the person closed without the board confirming anything is ``unconfirmed``, never
-  retried, and never quietly counted as applied;
-* the hand-off cap actually holds the queue back, so a walk-away run cannot bury someone in
-  forty half-filled forms.
+* a posting bound for the manual queue is written to the ledger as ``manual``, which is
+  terminal — no later run reopens it, and nothing automatic ever submits it;
+* a link-out is assessed like any other posting, and only a fit reaches the queue;
+* a closed browser costs one retry of one posting, never the run.
 """
 
 from __future__ import annotations
 
-import contextlib
 import time
 from pathlib import Path
 
@@ -34,67 +31,52 @@ WAIT = 10.0
 # --- fakes ------------------------------------------------------------------
 
 
-class FakePage:
-    def __init__(self) -> None:
-        self.closed = False
-
-    def is_closed(self) -> bool:
-        return self.closed
-
-    def close(self) -> None:
-        self.closed = True
-
-    def bring_to_front(self) -> None:
-        pass
-
-
 class FakeBrowser:
-    """Only the parts of BrowserSession the controller uses: named tabs, focus and reaping."""
+    """Only the parts of BrowserSession the controller uses: one tab, healed on demand."""
 
     def __init__(self) -> None:
-        self.pages: dict[str, FakePage] = {}
-        self.focused: list[str] = []
         self.closed = False
-        self.reaped = 0
+        self.ensured = 0
+        self.gone = False
+        self.relaunched = 0
+        self.visited: list[str] = []
+
+    def ensure(self) -> None:
+        self.ensured += 1
+        if self.gone:
+            self.gone = False
+            self.relaunched += 1
+
+    def tidy(self) -> int:
+        return 0
 
     @property
-    def tabs(self) -> list[str]:
-        for name in [name for name, page in self.pages.items() if page.is_closed()]:
-            del self.pages[name]
-        return list(self.pages)
+    def interrupted(self) -> bool:
+        return self.gone
 
-    def open_tab(self, name: str) -> FakePage:
-        page = self.pages.get(name)
-        if page is None or page.is_closed():
-            page = self.pages[name] = FakePage()
-        return page
+    def front(self) -> None:
+        pass
 
-    def has_tab(self, name: str) -> bool:
-        return name in self.tabs
+    def goto(self, url: str) -> None:
+        self.visited.append(url)
 
-    @contextlib.contextmanager
-    def on(self, name: str | None):
-        yield self.open_tab(name) if name else None
+    # Hidden until a person is needed, as the real one is.
+    hidden = True
+    shown: tuple[str, ...] = ()
 
-    def focus(self, name: str) -> bool:
-        if name not in self.tabs:
-            return False
-        self.focused.append(name)
-        return True
+    @property
+    def visible(self) -> bool:
+        return bool(self.shown) and not self.settled_after
 
-    def close_tab(self, name: str) -> None:
-        page = self.pages.pop(name, None)
-        if page is not None:
-            page.close()
+    settled_after = False
 
-    def focus_working(self) -> bool:
-        self.focused.append("")
-        return True
+    def show(self, why: str) -> None:
+        self.shown = (*self.shown, why)
+        self.settled_after = False
 
-    def reap(self) -> int:
-        """Nothing opens tabs behind this one's back, so there is never anything to close."""
-        self.reaped += 1
-        return 0
+    def settle(self) -> None:
+        if self.hidden and self.shown:
+            self.settled_after = True
 
     def close(self) -> None:
         self.closed = True
@@ -108,8 +90,10 @@ class FakeBoard:
         self.listings = listings
         self.browser: FakeBrowser | None = None
         self.applied: list[str] = []
-        self.sent: set[str] = set()
         self.method = ApplyMethod.QUICK
+        # Postings whose next apply finds the window closed under it.
+        self.slam: set[str] = set()
+        self.signed_in = True
         # What a probing run finds on this employer's form.
         self.asks: list[FormField] = [
             FormField(id="q1", kind="number", label="Expected monthly salary (SGD)", required=True),
@@ -125,10 +109,13 @@ class FakeBoard:
         self.browser = browser
 
     def is_signed_in(self, *, navigate: bool = True) -> bool:
-        return True
+        return self.signed_in
 
     def ensure_signed_in(self) -> None:
-        pass
+        if not self.signed_in:
+            from applier.errors import LoginRequiredError
+
+            raise LoginRequiredError("signed out")
 
     def search(self, _search):
         yield from self.listings
@@ -143,6 +130,7 @@ class FakeBoard:
             method=self.method,
             title=listing.title,
             company="Acme",
+            apply_url=f"{listing.url}/apply",
         )
 
     def apply(self, posting: Posting, context) -> Submission:
@@ -159,13 +147,19 @@ class FakeBoard:
                 ),
             )
 
+        if posting.listing.key in self.slam:
+            from applier.errors import BrowserClosedError
+
+            self.slam.discard(posting.listing.key)
+            if self.browser is not None:
+                self.browser.gone = True
+            raise BrowserClosedError("The job board's tab was closed.")
+
         # The answerer first, and only then the record: a real board fills a form once it
         # has answers, so an answerer that refuses must leave nothing behind here either.
         answers = context.answerer.answer(self.handles(), role=posting.title)
         self.applied.append(posting.listing.key)
         recorded = {"Notice period": "1 month"} | {str(k): v for k, v in answers.items()}
-        if context.hand_off:
-            return Submission(submitted=False, answers=recorded, handed_off=True)
         return Submission(submitted=True, answers=recorded)
 
     def handles(self) -> list[FieldHandle]:
@@ -183,8 +177,7 @@ class FakeBoard:
         ]
 
     def submitted(self) -> bool:
-        """True once the test says the person sent whatever tab is in front of us."""
-        return bool(self.browser and set(self.browser.tabs) & self.sent)
+        return False
 
 
 class FakeAssessor:
@@ -270,7 +263,7 @@ def make_session(tmp_path, monkeypatch):
             make_browser=lambda _name: browser,
         )
         session.assessor = FakeAssessor()  # type: ignore[assignment]
-        session.answerer.answer = lambda handles, *, role: {}  # type: ignore[method-assign]
+        session.answerer.answer = lambda handles, *, role, facts=None: {}  # type: ignore[method-assign]
         session.update_settings({"searches": [0], **settings})
         made.append(session)
         return session, board, browser
@@ -303,7 +296,7 @@ def state_at(session: Session, key: str) -> str | None:
 
 
 def test_everything_on_applies_without_asking(make_session):
-    session, board, browser = make_session(2, autoPick=True, autoSubmit=True)
+    session, board, browser = make_session(2, autoPick=True, applyMode="auto")
     session.start()
 
     def both_applied() -> bool:
@@ -312,13 +305,12 @@ def test_everything_on_applies_without_asking(make_session):
 
     wait_for(both_applied, "both postings should have been applied to")
     assert sorted(board.applied) == ["fake:0", "fake:1"]
-    # A submitted application leaves no tab behind.
-    assert browser.tabs == []
+    assert browser.ensured > 0, "every command checks the window is there first"
     assert session.ledger.get("fake:0").status is Status.APPLIED
 
 
 def test_manual_picking_waits_for_you(make_session):
-    session, board, _ = make_session(2, autoPick=False, autoSubmit=True)
+    session, board, _ = make_session(2, autoPick=False, applyMode="auto")
     session.start()
 
     wait_for(
@@ -350,106 +342,190 @@ def test_skipping_a_pending_posting_settles_it(make_session):
     assert board.applied == []
 
 
-# --- handing over -----------------------------------------------------------
+# --- the manual queue -------------------------------------------------------
 
 
-def test_an_application_that_is_sent_needs_no_tab_of_its_own(make_session):
-    """Only a form left standing gets its own tab.
-
-    A run that submits for you opens and closes a tab per posting, and every one of them is
-    in front of the person for as long as it takes to fill a form. There is nothing in them
-    to read — the thing worth watching is the working tab, which is where it now happens.
-    """
-    session, board, browser = make_session(1, autoPick=True, autoSubmit=True)
-    session.start()
-    wait_for(lambda: state_at(session, "fake:0") == "applied", "it should be applied to")
-
-    assert board.applied == ["fake:0"], "and the form was filled all the same"
-    assert browser.tabs == [], "with no tab of its own opened for it"
-    assert session._jobs["fake:0"].tab == ""
-
-
-def test_hand_off_leaves_the_tab_open_and_records_it_first(make_session):
-    session, _board, browser = make_session(1, autoPick=True, autoSubmit=False)
+def test_manual_mode_queues_every_fit_for_you_and_submits_nothing(make_session):
+    session, board, _ = make_session(2, autoPick=True, applyMode="manual")
     session.start()
 
     wait_for(
-        lambda: state_at(session, "fake:0") == "awaiting_human",
-        "it should be filled in and handed over",
+        lambda: list(states(session).values()).count("manual") == 2,
+        "both should be in the manual queue",
     )
+    assert board.applied == [], "a board never fills a form bound for the manual queue"
 
-    assert browser.has_tab("fake:0"), "the tab it was filled in is left open for you"
-    assert "fake:0" in browser.focused, "and brought to the front"
-    # Written before you can do anything with it: whatever happens next, no run reopens it.
-    assert session.ledger.get("fake:0").status is Status.AWAITING_HUMAN
-    assert Status.AWAITING_HUMAN in TERMINAL
+    entry = session.ledger.get("fake:0")
+    assert entry.status is Status.MANUAL
+    assert entry.letter, "the letter is written ahead, for the extension to paste"
+    assert entry.apply_url == "https://fake/job/0/apply"
+    # Written before anything else can happen: no later run reopens it.
+    assert Status.MANUAL in TERMINAL
 
 
-def test_submitting_it_yourself_is_noticed(make_session):
-    session, board, browser = make_session(1, autoPick=True, autoSubmit=False)
+def test_a_board_mode_overrides_the_default(make_session):
+    session, board, _ = make_session(
+        1, autoPick=True, applyMode="auto", boardModes={"fake": "manual"}
+    )
     session.start()
-    wait_for(lambda: state_at(session, "fake:0") == "awaiting_human", "it should be handed over")
 
-    # The person reads the review page and presses submit; the board's own confirmation shows.
-    board.sent.add("fake:0")
-
-    wait_for(lambda: state_at(session, "fake:0") == "applied", "the watcher should notice it went")
-    assert session.ledger.get("fake:0").status is Status.APPLIED
-    assert not browser.has_tab("fake:0"), "a settled hand-off closes its tab"
+    wait_for(lambda: state_at(session, "fake:0") == "manual", "the board's own mode wins")
+    assert board.applied == []
 
 
-def test_i_sent_it_settles_a_hand_off_by_hand(make_session):
-    session, _, browser = make_session(1, autoPick=True, autoSubmit=False)
+def test_a_link_out_that_fits_goes_to_the_manual_queue(make_session):
+    """Assessed like any other: whether it is worth applying to is not about whose form."""
+    session, board, _ = make_session(1, autoPick=True, applyMode="auto")
+    board.method = ApplyMethod.EXTERNAL
     session.start()
-    wait_for(lambda: state_at(session, "fake:0") == "awaiting_human", "it should be handed over")
+
+    wait_for(lambda: state_at(session, "fake:0") == "manual", "a fitting link-out is queued")
+    assert board.applied == [], "and never submitted by the board"
+    job = session.job("fake:0")
+    assert job["external"] is True
+    assert job["report"] is not None, "it was assessed"
+
+
+def test_a_link_out_that_does_not_fit_is_unfit(make_session):
+    session, board, _ = make_session(1, autoPick=True, minScore=95)
+    session.assessor = FakeAssessor(score=60)  # type: ignore[assignment]
+    board.method = ApplyMethod.EXTERNAL
+    session.start()
+
+    wait_for(lambda: state_at(session, "fake:0") == "unfit", "it is ruled out like any other")
+
+
+def test_i_sent_it_settles_a_manual_posting(make_session):
+    session, _, _ = make_session(1, autoPick=True, applyMode="manual")
+    session.start()
+    wait_for(lambda: state_at(session, "fake:0") == "manual", "it should be queued")
 
     session.mark_submitted("fake:0")
 
     assert state_at(session, "fake:0") == "applied"
     assert session.ledger.get("fake:0").status is Status.APPLIED
-    wait_for(lambda: not browser.has_tab("fake:0"), "its tab should be closed")
 
 
-def test_closing_the_tab_yourself_is_unconfirmed_not_applied(make_session):
-    """The one case that must never guess. Nobody knows whether it went, so nobody says."""
-    session, _, browser = make_session(1, autoPick=True, autoSubmit=False)
+def test_the_manual_queue_comes_back_after_a_restart(make_session):
+    session, _, _ = make_session(2, autoPick=True, applyMode="manual")
     session.start()
-    wait_for(lambda: state_at(session, "fake:0") == "awaiting_human", "it should be handed over")
+    wait_for(
+        lambda: list(states(session).values()).count("manual") == 2, "both should be queued"
+    )
+    session.close()
 
-    browser.close_tab("fake:0")
+    again, _, _ = make_session(0)
+    assert set(states(again).values()) == {"manual"}
+    again.mark_submitted("fake:1")
+    assert again.ledger.get("fake:1").status is Status.APPLIED
+
+
+def test_an_old_hand_off_is_read_back_into_the_manual_queue(make_session, tmp_path):
+    """A form an older version left in a camoufox tab: still the person's to settle."""
+    ledger = Ledger(tmp_path / "state" / "ledger.sqlite")
+    ledger.record(listings(1)[0], Status.AWAITING_HUMAN, reason="filled in")
+    ledger.close()
+
+    session, _, _ = make_session(0)
+    assert state_at(session, "fake:0") == "manual"
+
+
+def test_the_manual_queue_is_not_held_back_by_the_application_limit(make_session):
+    session, _, _ = make_session(3, autoPick=True, applyMode="manual", maxApplications=1)
+    session.start()
 
     wait_for(
-        lambda: state_at(session, "fake:0") == "unconfirmed",
-        "a tab closed without a confirmation is unconfirmed",
+        lambda: list(states(session).values()).count("manual") == 3,
+        "nothing was submitted, so nothing counts against the limit",
     )
+
+
+# --- a closed browser ------------------------------------------------------
+
+
+def test_closing_the_window_mid_application_retries_it_once(make_session):
+    """The run carries on: the window is reopened and the posting tried again."""
+    session, board, browser = make_session(2, autoPick=True, applyMode="auto")
+    board.slam.add("fake:0")
+    session.start()
+
+    def both_applied() -> bool:
+        seen = states(session)
+        return len(seen) == 2 and all(state == "applied" for state in seen.values())
+
+    wait_for(both_applied, "both should still be applied to")
+    assert browser.relaunched == 1
+    assert session.status()["stoppedBecause"] is None, "and the run was never stopped"
+
+
+def test_a_tab_closed_mid_form_is_retried_whatever_error_it_surfaced_as(make_session):
+    """Playwright reports a closed tab as whatever call was in flight, not as a closed tab."""
+    from applier.errors import FlowError
+
+    session, board, browser = make_session(1, autoPick=True, applyMode="auto")
+    real_apply = board.apply
+    calls = []
+
+    def apply(posting, context):
+        calls.append(posting.listing.key)
+        if len(calls) == 1:
+            browser.gone = True
+            raise FlowError("The questions step failed: Target page has been closed")
+        return real_apply(posting, context)
+
+    board.apply = apply  # type: ignore[method-assign]
+    session.start()
+
+    wait_for(lambda: state_at(session, "fake:0") == "applied", "it should be retried and sent")
+    assert len(calls) == 2
+
+
+def test_a_submit_the_window_closed_on_is_never_retried(make_session):
+    """After the click, whether it went is unknown: never a second application."""
+    from applier.errors import FlowError
+
+    session, board, browser = make_session(1, autoPick=True, applyMode="auto")
+
+    def apply(posting, context):
+        browser.gone = True
+        error = FlowError("The submit click failed: Target page has been closed")
+        error.terminal = True
+        raise error
+
+    board.apply = apply  # type: ignore[method-assign]
+    session.start()
+
+    wait_for(lambda: state_at(session, "fake:0") == "unconfirmed", "it is left for a person")
     assert session.ledger.get("fake:0").status is Status.UNCONFIRMED
-    assert Status.UNCONFIRMED in TERMINAL, "it must never be retried into a second application"
 
 
-def test_the_hand_off_cap_holds_the_queue_back(make_session):
-    session, board, _ = make_session(4, autoPick=True, autoSubmit=False, maxOpenHandoffs=2)
+def test_a_second_closed_window_on_the_same_posting_is_an_error_to_retry(make_session):
+    session, board, _ = make_session(1, autoPick=True, applyMode="auto")
+    session._interrupted.add("fake:0")  # it has already been cut off once
+    board.slam.add("fake:0")
     session.start()
 
-    wait_for(
-        lambda: list(states(session).values()).count("awaiting_human") == 2,
-        "two should be handed over",
-    )
-    time.sleep(0.5)  # give the queue a chance to misbehave
+    wait_for(lambda: state_at(session, "fake:0") == "error", "it should be left to retry")
+    assert session.ledger.get("fake:0").status not in TERMINAL
 
-    assert list(states(session).values()).count("awaiting_human") == 2, "the cap should hold"
-    assert len(board.applied) == 2
-    assert session.status()["handoffCapReached"] is True
 
-    # Resolving one lets exactly one more through.
-    session.mark_submitted(next(k for k, v in states(session).items() if v == "awaiting_human"))
-    wait_for(lambda: len(board.applied) == 3, "resolving one should release one")
+def test_stopping_releases_an_open_review(make_session):
+    session, board, _ = make_session(1, autoPick=True, applyMode="auto", answers="always")
+    session.answerer.answer = lambda handles, *, role, facts=None: {}  # type: ignore[method-assign]
+    session.start()
+    wait_for(lambda: state_at(session, "fake:0") == "reviewing", "it should stop to ask")
+
+    session.stop()
+
+    wait_for(lambda: state_at(session, "fake:0") == "skipped", "the review is discarded")
+    assert board.applied == []
 
 
 # --- the policy still decides ----------------------------------------------
 
 
 def test_a_posting_below_the_threshold_never_reaches_a_form(make_session):
-    session, board, _ = make_session(1, autoPick=True, autoSubmit=True, minScore=95)
+    session, board, _ = make_session(1, autoPick=True, applyMode="auto", minScore=95)
     session.assessor = FakeAssessor(score=60)  # type: ignore[assignment]
     session.start()
 
@@ -458,23 +534,14 @@ def test_a_posting_below_the_threshold_never_reaches_a_form(make_session):
     assert session.ledger.get("fake:0").status is Status.UNFIT
 
 
-def test_a_link_out_is_recorded_and_left_alone(make_session):
-    session, board, _ = make_session(1)
-    board.method = ApplyMethod.EXTERNAL
-    session.start()
-
-    wait_for(lambda: state_at(session, "fake:0") == "external", "it should be recorded as external")
-    assert board.applied == []
-
-
 def test_a_settled_posting_is_shown_but_never_touched_again(make_session, tmp_path):
-    session, _board, _ = make_session(1, autoPick=True, autoSubmit=True)
+    session, _board, _ = make_session(1, autoPick=True, applyMode="auto")
     session.start()
     wait_for(lambda: state_at(session, "fake:0") == "applied", "it should be applied to")
     session.close()
 
     # A second session, against the same ledger, finds it again.
-    again, board_again, _ = make_session(1, autoPick=True, autoSubmit=True)
+    again, board_again, _ = make_session(1, autoPick=True, applyMode="auto")
     again.start()
 
     wait_for(lambda: "fake:0" in states(again), "it should turn up in the search again")
@@ -523,3 +590,82 @@ def test_the_ledger_migrates_an_older_database(tmp_path):
         assert second.get("fake:0").status is Status.UNCONFIRMED
     finally:
         second.close()
+
+
+def test_no_cover_letter_means_none_is_written_or_sent(make_session):
+    session, board, _ = make_session(1, autoPick=True, applyMode="auto")
+    session.update_profile({"includeLetter": False})
+    written: list[str] = []
+    session.assessor.letter = lambda *_: written.append("x") or "a letter"  # type: ignore[method-assign]
+    sent: list[object] = []
+    real_apply = board.apply
+
+    def apply(posting, context):
+        sent.append(context.packet.cover_letter)
+        return real_apply(posting, context)
+
+    board.apply = apply  # type: ignore[method-assign]
+    session.start()
+
+    wait_for(lambda: state_at(session, "fake:0") == "applied", "it should be applied to")
+    assert written == [], "no letter is written"
+    assert sent == [None], "and the board is told to leave it out"
+    assert "cover_letter: false" in session.config.source_path.read_text()
+
+
+# --- the end of a run -------------------------------------------------------
+
+
+def test_a_run_ends_itself_when_everything_is_settled(make_session):
+    session, _, _ = make_session(2, autoPick=True, applyMode="auto")
+    session.start()
+
+    wait_for(lambda: session.status()["running"] is False, "the run should end on its own")
+    status = session.status()
+    assert status["finished"] == "2 applied, 2 assessed"
+    assert status["stoppedBecause"] is None
+    assert set(states(session).values()) == {"applied"}
+
+
+def test_a_run_ends_with_the_manual_queue_waiting_on_you(make_session):
+    session, _, _ = make_session(2, autoPick=True, applyMode="manual")
+    session.start()
+
+    wait_for(lambda: session.status()["running"] is False, "nothing more for it to do")
+    assert session.status()["finished"] == "0 applied, 2 assessed, 2 to send by hand"
+
+
+def test_a_run_that_finds_nothing_new_ends_at_once(make_session):
+    session, _, _ = make_session(0)
+    session.start()
+    wait_for(lambda: session.status()["running"] is False, "an empty search is a finished run")
+
+
+def test_postings_over_the_application_limit_wait_to_be_picked(make_session):
+    """Left queued, they would hold the run open forever."""
+    session, board, _ = make_session(3, autoPick=True, applyMode="auto", maxApplications=1)
+    session.start()
+
+    wait_for(lambda: session.status()["running"] is False, "the run should still end")
+    assert len(board.applied) == 1
+    assert sorted(states(session).values()) == ["applied", "pending", "pending"]
+
+
+def test_a_signed_out_board_brings_up_a_window_and_the_run_goes_on(make_session):
+    import threading
+
+    session, board, browser = make_session(1, autoPick=True, applyMode="auto")
+    board.signed_in = False
+
+    def person() -> None:
+        wait_for(lambda: browser.shown, "a window should come up for the sign-in")
+        board.signed_in = True
+
+    helper = threading.Thread(target=person, daemon=True)
+    helper.start()
+    session.start()
+
+    wait_for(lambda: state_at(session, "fake:0") == "applied", "the run carries on after")
+    assert browser.shown == ("sign in to fake",)
+    assert board.login_url in browser.visited
+    assert browser.settled_after, "and the window goes away again"

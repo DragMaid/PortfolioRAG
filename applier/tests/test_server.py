@@ -30,7 +30,7 @@ def build(tmp_path):
     app = create_app(config, headless=True)
     session = app.state.session
     session.assessor = FakeAssessor(api=config.portfolio.api)
-    session.answerer.answer = lambda handles, *, role: {}
+    session.answerer.answer = lambda handles, *, role, facts=None: {}
     session._make_board = lambda _name: board
     session._make_browser = lambda _name: browser
     return app, session, board
@@ -129,13 +129,13 @@ def test_an_address_that_is_not_one_is_refused(client):
 
 def test_settings_round_trip(client):
     opened, session, _ = client
-    body = opened.patch("/api/settings", json={"autoSubmit": False, "minScore": 80}).json()
+    body = opened.patch("/api/settings", json={"applyMode": "manual", "minScore": 80}).json()
 
-    assert body["autoSubmit"] is False
+    assert body["applyMode"] == "manual"
     assert body["minScore"] == 80
-    assert session.config.run.auto_submit is False
+    assert session.config.run.apply_mode == "manual"
     # And it reached the file: the page and `applier run` read the same settings.
-    assert "auto_submit: false" in session.config.source_path.read_text()
+    assert "apply_mode: manual" in session.config.source_path.read_text()
 
 
 def test_starting_without_a_search_is_refused(client):
@@ -229,3 +229,33 @@ def test_an_empty_fact_is_refused(client):
     opened, _, _ = client
 
     assert opened.post("/api/facts", json={"  ": "  "}).status_code == 409
+
+
+# --- the resume file --------------------------------------------------------
+
+
+def test_a_resume_picked_on_the_page_is_kept_and_used(client):
+    opened, session, _ = client
+
+    body = opened.put(
+        "/api/profile/resume",
+        params={"name": "Ada Resume.pdf"},
+        content=b"%PDF-1.4 the resume",
+        headers={"Content-Type": "application/octet-stream"},
+    ).json()
+
+    kept = session.config.state_dir / "resumes" / "Ada Resume.pdf"
+    assert kept.read_bytes() == b"%PDF-1.4 the resume"
+    assert body["resume"]["upload"] == str(kept)
+    assert session.packet_resume.upload == kept
+    assert load(session.config.source_path).candidate.resume.upload == kept
+
+    assert opened.delete("/api/profile/resume").json()["resume"]["upload"] is None
+    assert session.packet_resume.upload is None
+
+
+def test_a_file_that_is_not_a_resume_is_refused(client):
+    opened, _, _ = client
+    refused = opened.put("/api/profile/resume", params={"name": "photo.png"}, content=b"x")
+    assert refused.status_code == 409
+    assert "not a resume" in refused.json()["detail"]
