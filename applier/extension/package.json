@@ -1,0 +1,20 @@
+{
+  "name": "applier-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fills application forms in your own browser from applier's facts and remembered answers.",
+  "scripts": {
+    "build": "tsc --noEmit && node build.mjs",
+    "watch": "node build.mjs --watch",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^27.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
