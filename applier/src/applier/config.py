@@ -93,6 +93,10 @@ class PolicyConfig(BaseModel):
         return None
 
 
+MIN_WORKERS = 2
+MAX_WORKERS = 8
+
+
 class RunConfig(BaseModel):
     """How much of a run happens without you. The page's toggles, kept in the file.
 
@@ -115,12 +119,29 @@ class RunConfig(BaseModel):
       remembered from then on. The default: a question nobody answered is the one thing
       worth your time.
     * ``always`` — every question and its answer is shown before the form is filled.
+
+    ``workers`` is how many of each board's browsers work at once, never fewer than two: one
+    always turning up and assessing postings, the rest applying (and helping assess when there
+    is nothing to apply to). A chat site gets as many tabs, one conversation each. Each worker
+    is a browser, so more is not free; the ceiling is ``MAX_WORKERS``.
     """
 
     auto_pick: bool = Field(default=True, description="False: every fit waits to be picked.")
     apply_mode: ApplyMode = "auto"
     board_modes: dict[str, ApplyMode] = Field(default_factory=dict)
     answers: Intervention = "missing"
+    workers: int = Field(default=MIN_WORKERS, description="Browsers per board, at least two.")
+
+    @field_validator("workers", mode="before")
+    @classmethod
+    def _enough_workers(cls, value: Any) -> int:
+        """Clamped rather than refused: fewer than two would put assessing back behind
+        applying, which is the whole thing this setting exists to avoid."""
+        try:
+            wanted = int(value)
+        except (TypeError, ValueError):
+            return MIN_WORKERS
+        return max(MIN_WORKERS, min(MAX_WORKERS, wanted))
 
     @model_validator(mode="before")
     @classmethod

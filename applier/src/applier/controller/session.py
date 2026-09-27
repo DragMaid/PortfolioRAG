@@ -68,7 +68,7 @@ from .events import Bus
 from .reviewing import Declined, ReviewingAnswerer
 from .setup import BASELINE, SetupQuestion, from_probe, merge, to_profile
 from .state import DONE, WAITING, Job, JobState, listing_of, settings_of, settled_as, state_of
-from .worker import APPLY, DISCOVER, IMMEDIATE, PROCESS, BoardWorker
+from .worker import APPLY, DISCOVER, IMMEDIATE, PROCESS, BoardLanes, BoardWorker, current_worker
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,8 @@ class Session:
 
         self.ledger = Ledger(config.state_dir / "ledger.sqlite")
         self.secrets = Secrets(config.state_dir, token_env=config.portfolio.token_env)
-        self.llm = Llm(config.llm, get_settings(), log=self.log)
+        # One conversation per lane: with a chat site, that many tabs in its one browser.
+        self.llm = Llm(config.llm, get_settings(), log=self.log, tabs=config.run.workers)
         # Started with whatever token there is, which may be none at all. Retrieval is the
         # only thing that needs one, and the page can supply it before anything is assessed.
         self.assessor = Assessor(
@@ -132,7 +133,7 @@ class Session:
 
         self._lock = threading.RLock()
         self._jobs: dict[str, Job] = {}
-        self._workers: dict[str, BoardWorker] = {}
+        self._workers: dict[str, BoardLanes] = {}
         self._scrollback: deque[dict[str, Any]] = deque(maxlen=_LOG_SCROLLBACK)
         self._reviews: dict[str, dict[str, Any]] = {}
         self._review_signals: dict[str, threading.Event] = {}
@@ -143,6 +144,19 @@ class Session:
         self._interrupted: set[str] = set()
         # Boards whose window is on its sign-in page, waiting for a person.
         self._signing_in: set[str] = set()
+        # Postings a lane is working on right now, and which thread: with several lanes, two
+        # commands for one posting must never both get past the state check.
+        self._claims: dict[str, int] = {}
+        # Postings with an application command already queued, so it is queued once.
+        self._dispatched: set[str] = set()
+        # Applications between the limit check and APPLIED: counted against the limit, or
+        # two lanes could each take the last slot.
+        self._submitting = 0
+        # Per board, when the next application may start: the pause between applications
+        # holds across every lane, so more lanes do not mean a faster rate at the board.
+        self._next_apply: dict[str, float] = {}
+        # Bumped by every stop, so an application waiting its turn knows to stand down.
+        self._stops = 0
 
         # What the last mock application found, until it is answered or thrown away.
         self._probe: Probe | None = None
@@ -155,6 +169,7 @@ class Session:
         self._stopped_because: str | None = None
         self._finished: str | None = None
         self._walks = 0
+        self._limit_logged = False
         self._closed = False
 
         self._restore()
@@ -198,13 +213,15 @@ class Session:
                 "queued": queued,
                 "stoppedBecause": self._stopped_because,
                 "finished": self._finished,
+                "workers": self.config.run.workers,
                 "boards": {
                     name: {
-                        "ready": worker.browser is not None,
-                        "pending": worker.pending,
+                        "ready": bool(lanes.workers) and lanes.primary.browser is not None,
+                        "pending": lanes.pending,
                         "signingIn": name in self._signing_in,
+                        "lanes": sum(1 for w in lanes.workers if w.browser is not None),
                     }
-                    for name, worker in self._workers.items()
+                    for name, lanes in self._workers.items()
                 },
             }
 
@@ -274,6 +291,7 @@ class Session:
             "applyMode": "apply_mode",
             "boardModes": "board_modes",
             "answers": "answers",
+            "workers": "workers",
         }
         policy = {
             "maxApplications": "max_applications",
@@ -307,6 +325,8 @@ class Session:
                 wanted = set(chosen)
                 for index, search in enumerate(self.config.searches):
                     search.enabled = index in wanted
+
+            self.llm.tabs = self.config.run.workers
 
             if was_auto_pick and not self.config.run.auto_pick:
                 for job in self._jobs.values():
@@ -448,7 +468,7 @@ class Session:
         than wherever it happened to be on the machine when it was picked.
         """
         filename = Path(name.strip()).name
-        
+
         # Check for valid file extensions
         if Path(filename).suffix.lower() not in _RESUME_TYPES:
             raise ControllerError(
@@ -486,7 +506,7 @@ class Session:
 
     def _set_board_windows(self, hidden: bool) -> None:
         """Hides every board's window now, or keeps one up throughout. On each board's thread."""
-        for worker in list(self._workers.values()):
+        for worker in [w for lanes in list(self._workers.values()) for w in lanes.workers]:
 
             def apply(worker: BoardWorker = worker) -> None:
                 if worker.browser is None:
@@ -580,7 +600,7 @@ class Session:
         return sorted(boards)[0]
 
     def _probe_run(self, name: str, url: str) -> None:
-        worker = self._workers[name]
+        worker = self._here(name)
         board, browser = worker.board, worker.browser
 
         try:
@@ -651,7 +671,7 @@ class Session:
         problem: list[str] = []
 
         def look() -> None:
-            worker = self._workers[config.board]
+            worker = self._here(config.board)
             try:
                 if worker.board is None:
                     raise ControllerError("That board's browser is not open.")
@@ -922,12 +942,23 @@ class Session:
             self._finished = None
             self._walks = len(chosen)
             self._applied = self._assessed = 0
+            self._limit_logged = False
+            existing = list(self._workers.values())
+
+        # Lanes raised on the page since the boards came up start now; fewer take effect
+        # once the controller is restarted.
+        for lanes in existing:
+            if started := lanes.grow(self.config.run.workers):
+                self.log(f"{lanes.name}: {started} more worker(s) starting.")
 
         for search in chosen:
             label = f"search {search.keywords or search.url}"
             self._dispatch(search.board, DISCOVER, label, lambda s=search: self._discover(s))
 
-        self.log(f"Started: {len(chosen)} search(es).")
+        self.log(
+            f"Started: {len(chosen)} search(es), {self.config.run.workers} worker(s) per board — "
+            "one assessing, the rest applying."
+        )
         self._announce()
         return self.status()
 
@@ -938,31 +969,67 @@ class Session:
         submission already clicked has to be waited out either way.
         """
         with self._lock:
+            was_running = self._running
             self._running = False
-            self._stopped_because = reason
+            self._stops += 1
+            unassessed = 0
             for job in self._jobs.values():
                 if job.state == JobState.QUEUED:
                     self._enter(job, JobState.PENDING, "the run was stopped")
+                elif job.state == JobState.FOUND and not job.historic:
+                    self._enter(job, JobState.PENDING, f"not assessed — stopped: {reason}")
+                    unassessed += 1
+
+            if was_running and unassessed:
+                self._stopped_because = (
+                    f"{reason} — {unassessed} posting(s) found but not assessed; "
+                    "Start picks them up again"
+                )
+            else:
+                self._stopped_because = reason
 
             # Set state to be thrown away or retried
             for key, signal in self._review_signals.items():
                 self._reviews.setdefault(key, {"action": "discard"})
                 signal.set()
 
-        for worker in self._workers.values():
-            worker.clear()
+        for lanes in self._workers.values():
+            lanes.clear()
+        with self._lock:
+            # Their commands went with the queues; picking one again queues it afresh.
+            self._dispatched.clear()
 
-        self.log(f"Stopped: {reason}. Anything in flight will finish.")
+        self.log(f"Stopped: {self._stopped_because}. Anything in flight will finish.")
+        for job in self._jobs.values():
+            if job.state == JobState.PENDING and job.report is None:
+                self._publish(job)
         self._announce()
         return self.status()
 
     def approve(self, key: str) -> dict[str, Any]:
-        """Picks a pending posting. It joins the queue behind whatever is already there."""
+        """Picks a pending posting. It joins the queue behind whatever is already there.
+
+        One that was never assessed — held back by the assessment limit, or by a stop — is
+        assessed first, past the limit since a person asked for it, and applied to only if
+        it fits. Picking it is not a reason to skip the policy.
+        """
         job = self._job(key)
         if job.state != JobState.PENDING:
             raise ControllerError(
                 f"{job.title or key} is {job.state.value}, not waiting to be picked."
             )
+        if job.report is None:
+            with self._lock:
+                self._enter(job, JobState.FOUND, "picked — assessing it first")
+            self._publish(job)
+            self._dispatch(
+                job.board,
+                PROCESS,
+                f"process {key}",
+                lambda: self._process(key, picked=True),
+            )
+            return job.as_dict()
+
         with self._lock:
             self._enter(job, JobState.QUEUED, "picked")
         self._drain_queued()
@@ -1091,8 +1158,7 @@ class Session:
         handles = [FieldHandle(raw) for raw in fields if raw.get("id") and raw.get("kind")]
         answers, sources = self.remembering.suggest(handles, role=role, use_model=use_model)
         unknown = [
-            handle.field.describe()
-            | {"label": handle.field.label, "kind": handle.field.kind}
+            handle.field.describe() | {"label": handle.field.label, "kind": handle.field.kind}
             for handle in handles
             if handle.field.kind != "file"
             and handle.field.id not in answers
@@ -1153,7 +1219,7 @@ class Session:
         """Opens the board's sign-in page in a window, and waits there for a person to use it."""
 
         def open_login() -> None:
-            worker = self._workers[board]
+            worker = self._here(board)
             if worker.board is None:
                 return
             try:
@@ -1212,7 +1278,8 @@ class Session:
 
     def board_states(self) -> dict[str, Any]:
         """Whether each board in use is signed in. Queued, and answered by an event."""
-        for name, worker in list(self._workers.items()):
+        for name, lanes in list(self._workers.items()):
+            worker = lanes.primary
 
             def check(worker: BoardWorker = worker, name: str = name) -> None:
                 if worker.board is None:
@@ -1227,13 +1294,19 @@ class Session:
         return {"boards": sorted(self._workers)}
 
     def _discover(self, search: Search) -> None:
-        """Walks a search, turning each listing into a command of its own."""
-        worker = self._workers[search.board]
+        """Walks a search, turning each listing into a command of its own.
+
+        A search that fails is that search's problem, not the run's: what it already turned
+        up is still assessed, and so is every other search. Only an error that says nothing
+        else will work either (signed out, a bot wall) stops the run — and it says so.
+        """
+        worker = self._here(search.board)
         board = worker.board
-        if board is None:
-            return
+        what = search.keywords or search.url or "a search"
 
         try:
+            if board is None:
+                raise ControllerError(f"The {search.board} browser is not open.")
             try:
                 self._walk(worker, board, search)
             except BrowserClosedError:
@@ -1242,11 +1315,17 @@ class Session:
                 worker.browser.ensure()
                 self._walk(worker, board, search)
         except ApplierError as error:
-            self.log(f"{search.board}: {error}")
-            self.stop(str(error))
+            if error.fatal:
+                self.stop(f"searching {what!r} on {search.board}: {error}")
+            else:
+                self.log(f"The search {what!r} on {search.board} gave up: {error}")
         except Exception as error:
             logger.exception("Searching %s raised.", search.board)
-            self.stop(f"{type(error).__name__}: {error}")
+            detail = str(error).strip() or "no message"
+            self.log(
+                f"The search {what!r} on {search.board} gave up part-way "
+                f"({type(error).__name__}: {detail}); what it found is still assessed."
+            )
         finally:
             with self._lock:
                 self._walks = max(0, self._walks - 1)
@@ -1267,12 +1346,20 @@ class Session:
 
             if self._register(listing) is None:
                 continue
-            worker.submit(PROCESS, f"process {listing.key}", lambda k=listing.key: self._process(k))
+            self._workers[search.board].submit(
+                PROCESS, f"process {listing.key}", lambda k=listing.key: self._process(k)
+            )
 
     def _register(self, listing: Listing) -> Job | None:
         """A listing's row in the table, unless the ledger has already settled it."""
         with self._lock:
             if (existing := self._jobs.get(listing.key)) is not None and not existing.historic:
+                # Found by an earlier start and never assessed — stopped, or over the limit:
+                # this start is the one that assesses it.
+                if existing.state == JobState.PENDING and existing.report is None:
+                    self._enter(existing, JobState.FOUND, "found again")
+                    self._publish(existing)
+                    return existing
                 return None
 
             job = Job(
@@ -1300,16 +1387,23 @@ class Session:
             self._publish(job)
             return job
 
-    def _process(self, key: str) -> None:
-        """Fetch, assess and decide one posting. Everything is caught and recorded."""
+    def _process(self, key: str, *, picked: bool = False) -> None:
+        """Fetch, assess and decide one posting. Everything is caught and recorded.
+
+        ``picked``: a person pressed Apply on a posting nobody had assessed. It runs whether
+        or not a run is going, past the assessment limit, and a fit goes straight to the queue.
+        """
         job = self._job(key)
-        worker = self._worker(job.board)
+        worker = self._here(job.board)
         board = worker.board
-        if board is None or not self._running:
+        if board is None or not (self._running or picked):
             return
+        with self._lock:
+            if not self._claim(job, JobState.FOUND):
+                return
 
         try:
-            self._assess(job, board)
+            self._assess(job, board, picked=picked)
         except Declined as error:
             self._fail(job, JobState.SKIPPED, str(error))
         except UnanswerableError as error:
@@ -1325,9 +1419,12 @@ class Session:
                 logger.exception("Processing %s raised.", key)
                 self._fail(job, JobState.ERROR, f"{type(error).__name__}: {error}")
         finally:
+            self._release(key)
+            # A fit is queued while this still holds it; it can be sent once it is let go.
+            self._drain_queued()
             self._maybe_finish()
 
-    def _assess(self, job: Job, board: JobBoard) -> None:
+    def _assess(self, job: Job, board: JobBoard, *, picked: bool = False) -> None:
         config = self.config
         listing = listing_of(job)
 
@@ -1357,9 +1454,22 @@ class Session:
         report = self.ledger.cached_report(job.key)
         if report is None:
             with self._lock:
-                if self._assessed >= config.policy.max_assessments:
-                    self._enter(job, JobState.PENDING, "the per-run assessment limit was reached")
+                limit = config.policy.max_assessments
+                if self._assessed >= limit and not picked:
+                    self._enter(
+                        job,
+                        JobState.PENDING,
+                        f"not assessed — the limit of {limit} assessments per run was reached",
+                    )
+                    first = not self._limit_logged
+                    self._limit_logged = True
                     self._publish(job)
+                    if first:
+                        self.log(
+                            f"The limit of {limit} assessments per run was reached. Postings "
+                            "found after this are listed as not assessed — raise the limit and "
+                            "Start again, or press Apply on one to assess it."
+                        )
                     return
                 self._assessed += 1
             self._enter_and_publish(job, JobState.ASSESSING)
@@ -1378,9 +1488,9 @@ class Session:
             self._finish(job, JobState.UNFIT, shortfall, report=report)
             return
 
-        if self.config.run.auto_pick:
+        if self.config.run.auto_pick or picked:
             with self._lock:
-                self._enter(job, JobState.QUEUED, "a fit")
+                self._enter(job, JobState.QUEUED, "a fit" if not picked else "a fit — picked")
             self._publish(job)
             self._drain_queued()
         else:
@@ -1400,13 +1510,15 @@ class Session:
     def _apply(self, key: str) -> None:
         """Sends a picked posting on its way: submitted by the board, or to the manual queue."""
         job = self._job(key)
-        worker = self._worker(job.board)
+        worker = self._here(job.board)
         board, browser = worker.board, worker.browser
+        with self._lock:
+            self._dispatched.discard(key)
         if board is None or browser is None:
             return
 
         with self._lock:
-            if job.state != JobState.QUEUED:
+            if not self._claim(job, JobState.QUEUED):
                 return
 
         listing = listing_of(job)
@@ -1423,14 +1535,19 @@ class Session:
                 self._to_manual(job, posting, listing)
                 return
 
-            # Limit reached
+            # Limit reached. Applications other lanes are part-way through count too.
             with self._lock:
-                if self._applied >= self.config.policy.max_applications:
+                if self._applied + self._submitting >= self.config.policy.max_applications:
                     self._enter(job, JobState.PENDING, "the per-run application limit was reached")
                     self._publish(job)
                     return
+                self._submitting += 1
 
-            self._fill(job, board, posting, listing)
+            try:
+                self._fill(job, board, posting, listing, worker)
+            finally:
+                with self._lock:
+                    self._submitting -= 1
         except Declined as error:
             self._fail(job, JobState.SKIPPED, str(error))
         except UnanswerableError as error:
@@ -1453,15 +1570,13 @@ class Session:
                 logger.exception("Applying to %s raised.", key)
                 self._fail(job, JobState.ERROR, f"{type(error).__name__}: {error}")
         finally:
+            self._release(key)
             self._drain_queued()
             self._maybe_finish()
 
     def _automatic(self, job: Job, posting: Posting) -> bool:
         """Whether the board sends this one itself: its own form, and the mode says so."""
-        return (
-            posting.method == ApplyMethod.QUICK
-            and self.config.run.mode_for(job.board) == "auto"
-        )
+        return posting.method == ApplyMethod.QUICK and self.config.run.mode_for(job.board) == "auto"
 
     def _posting(self, job: Job, board: JobBoard, listing: Listing) -> Posting:
         """The posting as assessing left it; only a restored or retried row reads it again."""
@@ -1511,8 +1626,18 @@ class Session:
         self._publish(job)
         self.log(f"MANUAL: {job.title or job.key} — {job.apply_url}")
 
-    def _fill(self, job: Job, board: JobBoard, posting: Posting, listing: Listing) -> None:
+    def _fill(
+        self, job: Job, board: JobBoard, posting: Posting, listing: Listing, worker: BoardWorker
+    ) -> None:
         letter = self._letter(job, posting)
+
+        # The letter is written while another lane's application is under way; the form
+        # waits its turn, so the board sees applications no closer together than before.
+        if not self._wait_turn(job.board, worker):
+            with self._lock:
+                self._enter(job, JobState.PENDING, "the run was stopped before its turn")
+            self._publish(job)
+            return
 
         # Written before the form is touched, exactly as the CLI pipeline does it: a real
         # submission is marked terminal first, so a process that dies between the click and
@@ -1545,13 +1670,66 @@ class Session:
         self._publish(job)
         self.log(f"APPLIED: {job.title or job.key}")
 
-        # The pause between applications is a rate limit, not a wait, so a button pressed on
-        # the page is answered rather than queued behind a minute of sleep.
-        self._pause(random.uniform(*self.config.policy.delay_seconds), self._worker(job.board))
+    def _wait_turn(self, board: str, worker: BoardWorker) -> bool:
+        """Waits until this board may take another application. False if the run stopped.
+
+        The pause between applications is a rate limit, and it is the board's, not a lane's:
+        each application books the next start a random ``delay_seconds`` after its own. The
+        wait answers a button pressed on the page rather than queueing it behind a minute of
+        sleep. An application picked after the run ended has no run to pace, and goes now.
+        """
+        low, high = self.config.policy.delay_seconds
+        with self._lock:
+            now = time.monotonic()
+            start = max(now, self._next_apply.get(board, 0.0)) if self._running else now
+            self._next_apply[board] = start + random.uniform(low, high)
+            stops = self._stops
+
+        while time.monotonic() < start:
+            if self._closed or self._stops != stops:
+                return False
+            time.sleep(max(0.0, min(0.5, start - time.monotonic())))
+            worker.pump()
+        return not self._closed and self._stops == stops
 
     def _signed_back_in(self, error: Exception, worker: BoardWorker) -> bool:
-        """A board that asked for a sign-in mid-posting: ask the person, then go again."""
-        return isinstance(error, LoginRequiredError) and self._sign_in_here(worker)
+        """A board that asked for a sign-in mid-posting: ask the person, then go again.
+
+        A lane other than the first tries lane 0's cookies before bothering anyone: it has a
+        profile of its own, and the person signed in to lane 0's.
+        """
+        if not isinstance(error, LoginRequiredError):
+            return False
+        if worker.lane > 0 and worker.board is not None:
+            worker.seed(self._primary_cookies(worker.name))
+            try:
+                if worker.board.is_signed_in():
+                    self.log(f"{worker.name} (lane {worker.lane}): signed in again from lane 0.")
+                    return True
+            except ApplierError:
+                pass
+        return self._sign_in_here(worker)
+
+    def _primary_cookies(self, board: str, timeout: float = 60.0) -> list[dict] | None:
+        """Lane 0's cookies, read on lane 0's thread. None if it is busy for too long."""
+        lanes = self._workers.get(board)
+        if lanes is None or not lanes.workers:
+            return None
+        primary = lanes.primary
+        found: list[list[dict]] = []
+        done = threading.Event()
+
+        def read() -> None:
+            try:
+                cookies = getattr(primary.browser, "cookies", None)
+                found.append(list(cookies()) if cookies else [])
+            finally:
+                done.set()
+
+        primary.submit(IMMEDIATE, f"cookies {board}", read)
+        if not done.wait(timeout):
+            return None
+        return found[0] if found else None
 
     def _cut_off(
         self,
@@ -1572,21 +1750,20 @@ class Session:
             self._interrupted.add(job.key)
             if again:
                 self._enter(job, JobState.QUEUED if label == "apply" else JobState.FOUND)
+                # Let go before queueing the retry, which may start on another lane at once.
+                if self._claims.get(job.key) == threading.get_ident():
+                    del self._claims[job.key]
 
         # Try gin if interrupted else just fail the job
         if again:
             self.log(f"  the browser was closed; trying {job.title or job.key} again")
             self._publish(job)
-            worker.submit(priority, f"{label} {job.key}", lambda k=job.key: run(k))
+            self._workers[worker.name].submit(
+                priority, f"{label} {job.key}", lambda k=job.key: run(k)
+            )
             return
 
         self._fail(job, JobState.ERROR, str(error))
-
-    def _pause(self, seconds: float, worker: BoardWorker) -> None:
-        deadline = time.monotonic() + seconds
-        while time.monotonic() < deadline and self._running:
-            time.sleep(max(0.0, min(0.5, deadline - time.monotonic())))
-            worker.pump()
 
     def _answerer_for(self, job: Job) -> ReviewingAnswerer:
         def ask(questions: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1652,33 +1829,49 @@ class Session:
 
         threading.Thread(target=arrange, name=f"dispatch-{board}", daemon=True).start()
 
-    def _worker(self, board: str) -> BoardWorker:
-        """That board's thread, started on first use. Waits for its browser to come up."""
+    def _worker(self, board: str) -> BoardLanes:
+        """That board's lanes, started on first use. Waits for lane 0's browser to come up."""
         with self._lock:
-            worker = self._workers.get(board)
-            if worker is None:
-                worker = self._workers[board] = self._build_worker(board)
-                worker.start()
+            lanes = self._workers.get(board)
+            if lanes is None:
+                # Only the registry's boards exist, unless something else makes them.
+                if self._make_board is None and board not in board_registry.BOARDS:
+                    raise ControllerError(f"No board named {board!r}.")
+                lanes = self._workers[board] = BoardLanes(
+                    board,
+                    lambda lane: self._build_worker(board, lane),
+                    helps=lambda: self.llm.parallel,
+                )
+                lanes.grow(self.config.run.workers)
 
         # Outside the lock: opening a profile takes seconds, and nothing else may be held up
         # by it — least of all another board doing the same thing.
-        worker.wait_until_ready()
-        return worker
+        lanes.wait_until_ready()
+        return lanes
 
-    def _build_worker(self, board: str) -> BoardWorker:
-        # Only the registry's boards exist, unless something else was handed in to make them.
-        if self._make_board is None and board not in board_registry.BOARDS:
-            raise ControllerError(f"No board named {board!r}.")
+    def _here(self, board: str) -> BoardWorker:
+        """The lane running this command, or lane 0 for a command run from anywhere else."""
+        worker = current_worker()
+        if worker is not None and worker.name == board:
+            return worker
+        return self._worker(board).primary
 
+    def _build_worker(self, board: str, lane: int) -> BoardWorker:
+        # Lane 0 is the board's own profile, the one a person signs in to. The others keep
+        # one each — a profile can only be open once — started from lane 0's cookies.
+        profile = board if lane == 0 else f"{board}.lane{lane}"
         return BoardWorker(
             board,
             make_board=lambda: self._board_for(board),
-            profile=self.config.state_dir / "profiles" / board,
+            profile=self.config.state_dir / "profiles" / profile,
             captures=self.config.state_dir / "captures",
             headless=self.headless or self.config.browser.headless,
             on_error=self._worker_error,
             log=self.log,
             make_browser=(lambda: self._make_browser(board)) if self._make_browser else None,
+            lane=lane,
+            sources=lambda: self._workers[board].sources(lane),
+            seed=(lambda: self._primary_cookies(board)) if lane > 0 else None,
         )
 
     def _board_for(self, board: str) -> JobBoard:
@@ -1701,17 +1894,29 @@ class Session:
         """Sends every queued posting that a limit is no longer holding back."""
         with self._lock:
             config = self.config
+
+            def by_hand(job: Job) -> bool:
+                return job.external or config.run.mode_for(job.board) == "manual"
+
             queued = [
                 job
                 for job in sorted(self._jobs.values(), key=_ordering)
                 if job.state == JobState.QUEUED
+                and job.key not in self._dispatched
+                and job.key not in self._claims
             ]
             # The application limit counts submissions. The manual queue is not one, so a
-            # posting bound for it is never held back by it.
-            room = max(0, config.policy.max_applications - self._applied)
+            # posting bound for it is never held back by it. Applications already queued or
+            # part-way through take their slot with them.
+            ahead = sum(
+                1
+                for key in self._dispatched
+                if (other := self._jobs.get(key)) is not None and not by_hand(other)
+            )
+            room = max(0, config.policy.max_applications - self._applied - self._submitting - ahead)
             ready = []
             for job in queued:
-                if job.external or config.run.mode_for(job.board) == "manual":
+                if by_hand(job):
                     ready.append(job)
                 elif room > 0:
                     ready.append(job)
@@ -1721,8 +1926,10 @@ class Session:
                     self._settle(job)
 
         for job in ready:
-            worker = self._worker(job.board)
-            worker.submit(APPLY, f"apply {job.key}", lambda k=job.key: self._apply(k))
+            lanes = self._worker(job.board)
+            with self._lock:
+                self._dispatched.add(job.key)
+            lanes.submit(APPLY, f"apply {job.key}", lambda k=job.key: self._apply(k))
         self._announce()
 
     def _maybe_finish(self) -> None:
@@ -1740,13 +1947,28 @@ class Session:
                 return
 
             self._running = False
-            manual = sum(1 for job in self._jobs.values() if job.state == JobState.MANUAL)
-            pending = sum(1 for job in self._jobs.values() if job.state == JobState.PENDING)
+            live = [job for job in self._jobs.values() if not job.historic]
+            manual = sum(1 for job in live if job.state == JobState.MANUAL)
+            unassessed = sum(
+                1 for job in live if job.state == JobState.PENDING and job.report is None
+            )
+            pending = sum(
+                1 for job in live if job.state == JobState.PENDING and job.report is not None
+            )
+            failed = sum(1 for job in live if job.state == JobState.ERROR)
             parts = [f"{self._applied} applied", f"{self._assessed} assessed"]
             if manual:
                 parts.append(f"{manual} to send by hand")
             if pending:
                 parts.append(f"{pending} waiting to be picked")
+            if unassessed:
+                limit = self.config.policy.max_assessments
+                parts.append(
+                    f"{unassessed} not assessed (the limit of {limit} assessments per run "
+                    "was reached)"
+                )
+            if failed:
+                parts.append(f"{failed} failed (see the log)")
             self._finished = ", ".join(parts)
 
         self.log(f"Finished: {self._finished}.")
@@ -1754,6 +1976,18 @@ class Session:
 
     def _enter(self, job: Job, state: JobState, detail: str | None = None) -> None:
         job.enter(state, detail)
+
+    def _claim(self, job: Job, state: JobState) -> bool:
+        """Takes a posting for this thread, if it is in ``state`` and nobody has it. Locked."""
+        if job.state != state or job.key in self._claims:
+            return False
+        self._claims[job.key] = threading.get_ident()
+        return True
+
+    def _release(self, key: str) -> None:
+        with self._lock:
+            if self._claims.get(key) == threading.get_ident():
+                del self._claims[key]
 
     def _enter_and_publish(self, job: Job, state: JobState, detail: str | None = None) -> None:
         with self._lock:
@@ -1833,8 +2067,8 @@ class Session:
             self._running = False
             workers = list(self._workers.values())
 
-        for worker in workers:
-            worker.stop()
+        for lanes in workers:
+            lanes.stop()
         self.llm.close()
         self.memory.close()
         self.ledger.close()

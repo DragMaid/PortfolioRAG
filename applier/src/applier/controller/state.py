@@ -196,6 +196,7 @@ def settings_of(config: Any) -> dict[str, Any]:
         "applyMode": run.apply_mode,
         "boardModes": dict(run.board_modes),
         "answers": run.answers,
+        "workers": run.workers,
         "searches": [index for index, search in enumerate(config.searches) if search.enabled],
         "maxApplications": policy.max_applications,
         "maxAssessments": policy.max_assessments,

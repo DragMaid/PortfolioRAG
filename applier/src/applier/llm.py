@@ -1,14 +1,22 @@
-"""The model, whichever it is, on a thread of its own.
+"""The model, whichever it is, answering several calls at once.
 
-Playwright's sync API cannot run two browsers from one thread, and with the ``web``
-provider there are two: the chat site answering, and the job board being applied to. So
-everything that touches the model is submitted to one dedicated thread and waited on — the
-same arrangement ``rag.local.runs`` makes for the same reason. With an API provider the
-thread is simply unnecessary, and harmless.
+Model work — a job-fit pipeline, a cover letter, a batch of employer questions — runs on a
+small pool, so each of a board's lanes can have a call in flight and an assessment never
+waits for a cover letter to finish.
+
+With the ``web`` provider that still means one browser: a chat site's profile can only be
+open once. It is ``rag``'s ``WebProvider`` that makes it several conversations, one per tab,
+all driven from the provider's own browser thread (Playwright allows no other); a call from
+any pool thread just waits for its tab's reply. ``tabs`` is how many, and the controller
+keeps it at one per lane.
+
+The one-thread executor that is left is for the things that take as long as a person does:
+signing in to a chat site, in a window of its own.
 """
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -26,17 +34,31 @@ from rag.settings import Settings
 from .config import LlmConfig
 from .errors import ApplierError
 
+# Calls an API provider may have in flight at once. Threads are only made when used, so this
+# is a ceiling, not a cost; in practice it is one per board lane.
+MAX_PARALLEL = 8
+
 
 class ModelError(ApplierError):
     """A model call failed or answered in the wrong shape."""
 
 
 class Llm:
-    def __init__(self, config: LlmConfig, settings: Settings, *, log: Callable[[str], None]):
+    def __init__(
+        self,
+        config: LlmConfig,
+        settings: Settings,
+        *,
+        log: Callable[[str], None],
+        tabs: int = 1,
+    ):
         self.config = config
         self.settings = settings
         self.log = log
+        self._tabs = max(1, min(MAX_PARALLEL, tabs))
         self._thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="llm")
+        self._pool = ThreadPoolExecutor(max_workers=MAX_PARALLEL, thread_name_prefix="llm-call")
+        self._building = threading.Lock()
         self._provider: ChatProvider | WebProvider | None = None
         self._api_key = config.api_key()
 
@@ -47,14 +69,36 @@ class Llm:
         return self.config.model or self.provider.default_model
 
     @property
+    def parallel(self) -> bool:
+        """Whether more than one call can be answered at a time. An API always can; a chat
+        site can when it has more than one tab to answer in."""
+        return self.config.provider != "web" or self._tabs > 1
+
+    @property
+    def tabs(self) -> int:
+        return self._tabs
+
+    @tabs.setter
+    def tabs(self, count: int) -> None:
+        """Conversations the chat site may hold at once. Takes effect from its next prompt."""
+        self._tabs = max(1, min(MAX_PARALLEL, count))
+        if isinstance(self._provider, WebProvider):
+            self._provider.tabs = self._tabs
+
+    @property
     def provider(self) -> ChatProvider | WebProvider:
-        """Built lazily and only ever used on the model thread."""
+        """Built lazily, on whichever thread asks first; none of it touches a browser yet."""
+        with self._building:
+            return self._build_provider()
+
+    def _build_provider(self) -> ChatProvider | WebProvider:
         if self._provider is None:
             if self.config.provider == "web":
                 self._provider = WebProvider(
                     browser=self.config.browser,
                     headless=self.config.headless,
                     login_timeout=600 if not self.config.headless else 90,
+                    tabs=self._tabs,
                     log=self.log,
                 )
             else:
@@ -62,8 +106,8 @@ class Llm:
         return self._provider
 
     def call[T](self, work: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-        """Runs ``work`` on the model thread and waits for it."""
-        return self._thread.submit(work, *args, **kwargs).result()
+        """Runs ``work`` on the pool and waits for it."""
+        return self._pool.submit(work, *args, **kwargs).result()
 
     def submit(self, work: Callable[..., Any], *args: Any) -> None:
         """Queues ``work`` on the model thread without waiting for it.
@@ -75,7 +119,7 @@ class Llm:
         self._thread.submit(work, *args)
 
     def release(self) -> None:
-        """Closes the chat site's browser, keeping the thread. Call on the model thread.
+        """Closes the chat site's browser. Safe from any thread.
 
         A profile can only be open once, so anything that needs to drive that browser itself
         — a sign-in, in a window where somebody can type — has to be given it first. The
@@ -147,3 +191,4 @@ class Llm:
 
         self._thread.submit(shut).result()
         self._thread.shutdown(wait=True)
+        self._pool.shutdown(wait=False, cancel_futures=True)
