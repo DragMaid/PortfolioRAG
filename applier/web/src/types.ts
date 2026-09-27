@@ -157,6 +157,8 @@ export interface Settings {
   applyMode: ApplyMode;
   boardModes: Record<string, ApplyMode>;
   answers: Intervention;
+  /** Browsers per board, at least two: one always assessing, the rest applying. */
+  workers: number;
   searches: number[];
   maxApplications: number;
   maxAssessments: number;
@@ -175,7 +177,12 @@ export interface Status {
   stoppedBecause: string | null;
   /** How the last run ended on its own: a summary, or null while running or when stopped. */
   finished: string | null;
-  boards: Record<string, { ready: boolean; pending: number; signingIn: boolean }>;
+  /** Workers per board the config asks for. */
+  workers?: number;
+  boards: Record<
+    string,
+    { ready: boolean; pending: number; signingIn: boolean; /** Workers whose browser is up. */ lanes?: number }
+  >;
 }
 
 export interface SearchConfig {
