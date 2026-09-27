@@ -9,7 +9,7 @@
  */
 
 import { readPage, type Handle } from "./fields";
-import { attachFile, fillField, wantsResume } from "./fill";
+import { attachFile, fillAnswer, wantsResume } from "./fill";
 import {
   ask,
   type Answer,
@@ -119,7 +119,7 @@ async function fill(options: { onItsOwn: boolean }): Promise<void> {
     for (const [id, value] of Object.entries(reply.answers)) {
       const handle = handles.get(id);
       if (!handle) continue;
-      record(handle, value, reply.sources[id] ?? "llm", fillField(handle, value));
+      record(handle, value, reply.sources[id] ?? "llm", await fillAnswer(handle, value));
     }
 
     const unknown = new Set(reply.unknown.map((one) => one.id));
@@ -179,7 +179,7 @@ function record(handle: Handle, value: Answer, source: Source, ok: boolean) {
   });
 }
 
-function insertLetter(text: string): boolean {
+async function insertLetter(text: string): Promise<boolean> {
   const boxes = [...document.querySelectorAll<HTMLTextAreaElement>("textarea")];
   const labelled = [...handles.values()].find(
     (handle) => handle.field.kind === "textarea" && /cover|letter|motivation/i.test(handle.field.label),
@@ -201,7 +201,7 @@ function insertLetter(text: string): boolean {
     },
     elements: [target],
   };
-  const ok = fillField(handle, text);
+  const ok = await fillAnswer(handle, text);
   record(handle, text, "you", ok);
   report();
   return ok;
@@ -235,18 +235,19 @@ chrome.runtime.onMessage.addListener((command: Command, _sender, reply) => {
     case "set": {
       const handle = handles.get(command.id);
       if (!handle) return false;
-      const ok = fillField(handle, command.value);
-      record(handle, command.value, "you", ok);
-      frame.status = frame.unknown.length ? "asking" : "done";
-      report();
-      reply({ ok });
-      return false;
+      void fillAnswer(handle, command.value).then((ok) => {
+        record(handle, command.value, "you", ok);
+        frame.status = frame.unknown.length ? "asking" : "done";
+        report();
+        reply({ ok });
+      });
+      return true;
     }
 
     case "letter":
       if (window !== window.top && !document.querySelector("textarea")) return false;
-      reply({ ok: insertLetter(command.text) });
-      return false;
+      void insertLetter(command.text).then((ok) => reply({ ok }));
+      return true;
   }
 });
 

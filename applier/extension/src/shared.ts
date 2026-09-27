@@ -32,6 +32,8 @@ export interface RawField {
   max_length: number | null;
   members: string[];
   single_checkbox?: boolean;
+  /** A search box whose value has to be picked from the list typing brings up. */
+  combobox?: boolean;
 }
 
 /** Where an answer came from, as the controller reports it. */

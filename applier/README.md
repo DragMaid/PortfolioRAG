@@ -27,7 +27,7 @@ command line, deciding everything itself, out of the same file.
   │  rag JobFitPipeline / CoverLetterPipeline ────────┼────▶│  retrieval   │
   │        │                                          │     └──────────────┘
   │        ▼                                          │
-  │  model thread ── chat site (or an API provider) ──┼──▶ gemini / claude / chatgpt
+  │  model ── chat site, a tab per worker (or an API) ┼──▶ gemini / claude / chatgpt
   └───────────────────────────────────────────────────┘
 ```
 
@@ -46,6 +46,22 @@ answer    (LLM)    employer questions: your details and remembered answers first
                    candidate.facts; checked in code
 submit    (board)  documents → questions → profile → review → submit
 ```
+
+**Several at once.** Each board runs `run.workers` browsers (two at least): one only ever
+searches and assesses, the others apply — so a form being filled, or a question waiting on
+you, never holds up the next posting's assessment. The applying ones help assess when there
+is nothing to apply to. The model keeps pace either way: an API takes several calls at once,
+and a chat site opens one tab per worker in its one signed-in browser, each tab its own
+conversation. `policy.delay_seconds` still spaces applications at the board, across all of
+them.
+
+**Why a run ended.** The page and the log say it in one line: how many were applied to and
+assessed, and then whatever is left — to send by hand, waiting to be picked, **not assessed**
+because `policy.max_assessments` was reached, or failed. A stop says what stopped it and how
+many found postings it left unassessed; *Start* picks those up again, and *Apply* on one of
+them assesses it first. A search that fails part-way no longer stops the run — what it found
+is still assessed — unless the failure is one nothing else would get past either (signed
+out, a bot check).
 
 A posting that links out to the employer's own site is **assessed like any other** —
 whether it is worth applying to does not depend on whose form it is. Only who fills the form

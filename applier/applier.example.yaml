@@ -43,6 +43,14 @@ run:
   #   missing — the run stops and asks, there and then, and remembers what you answer
   #   always  — every question and its answer, with the fact behind it, before the form
   answers: missing
+  # Browsers per board working at once — never fewer than two, at most eight. One always
+  # searches and assesses, so new postings never wait behind a form being filled; the rest
+  # apply, and help assess when there is nothing to apply to. The model keeps up: an API
+  # takes several calls at once, and a chat site gets one tab per worker in its one browser,
+  # each its own conversation. The pause in policy.delay_seconds is kept
+  # between applications across all of them, so more workers do not mean a faster pace at
+  # the board. Each extra one keeps its own profile, signed in from the first one's cookies.
+  workers: 2
 
 # What counts as a fit. Verdict and score are computed in code by the rag pipeline:
 # weak < partial < promising < strong.
