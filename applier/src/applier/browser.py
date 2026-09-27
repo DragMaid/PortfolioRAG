@@ -204,6 +204,16 @@ class BrowserSession:
             raise BrowserClosedError("The job board's tab was closed.")
         return self._page
 
+    def cookies(self) -> list[dict]:
+        """The profile's cookies, for signing another lane's browser in with them."""
+        if self._context is None:
+            return []
+        return list(self._context.cookies())
+
+    def add_cookies(self, cookies: list[dict]) -> None:
+        if self._context is not None and cookies:
+            self._context.add_cookies(cookies)  # type: ignore[arg-type]
+
     def front(self) -> None:
         """Brings the window forward, for a sign-in or a bot check a person has to see."""
         with contextlib.suppress(PlaywrightError, BrowserClosedError):
