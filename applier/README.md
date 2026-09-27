@@ -15,9 +15,10 @@ command line, deciding everything itself, out of the same file.
   │                                                   │
   │  page (React) ── controller ──────────────────────┼─▶ you: pick · check · send
   │        │           one thread per board           │
-  │        ▼                                          │
+  │        ├──── /api/ext ◀───────────────────────────┼─── extension, in your Chrome:
+  │        ▼                                          │    fills the manual queue's forms
   │  board adapter ── camoufox, board profile ────────┼──▶ sg.jobstreet.com
-  │   search · fetch · apply    a tab per hand-off    │
+  │   search · fetch · auto-apply   one tab, healed   │
   │        │                                          │
   │        ▼                                          │
   │  pipeline ── ledger.sqlite                        │     ┌──────────────┐
@@ -35,13 +36,20 @@ command line, deciding everything itself, out of the same file.
 ```
 search    (board)  listings for each configured search, page by page
 triage    (code)   skip what the ledger has settled, titles/companies the policy excludes,
-                   link-outs, expired postings
+                   expired postings
 assess    (rag)    the six-stage job-fit pipeline; verdict and score are computed in code
 decide    (code)   the policy's thresholds: min verdict, min score, missing essentials
 write     (rag)    the cover-letter pipeline, citing the same portfolio
-answer    (LLM)    employer questions, from candidate.facts only; checked in code
+route     (code)   quick apply + apply_mode auto  -> the board submits it
+                   link-out, or apply_mode manual  -> the manual queue, for the extension
+answer    (LLM)    employer questions: your details and remembered answers first, then
+                   candidate.facts; checked in code
 submit    (board)  documents → questions → profile → review → submit
 ```
+
+A posting that links out to the employer's own site is **assessed like any other** —
+whether it is worth applying to does not depend on whose form it is. Only who fills the form
+does: the board adapter never follows a link-out, so a fit goes to the manual queue.
 
 Everything that decides is code. The model reads postings, judges evidence and writes, the
 same way it does for the portfolio's own job-fit page. What it produces is then checked
@@ -78,8 +86,7 @@ ask them to.
 1. **Sign in to the board.** A window opens; you sign in once and the profile is kept.
 2. **One mock application.** Paste a posting you are happy to have opened. Its form is walked
    as far as its questions and abandoned there — nothing answered, nothing continued, nothing
-   sent — and the tab closes. The posting is not recorded, so it is still yours to apply to
-   properly later.
+   sent. The posting is not recorded, so it is still yours to apply to properly later.
 3. **Answer what it found.** That employer's own questions, word for word, plus the handful
    nearly every board asks. Each answer becomes a fact, named after what it states rather
    than how it was asked: *"Do you have a valid driving licence?"* is kept as
@@ -93,7 +100,34 @@ getting four things running would come before finding out whether any of this su
 
 **It does not finish the job, and says so.** One form asks three or four things; employers
 keep asking new ones. That is what `run.answers: missing` is for — the run stops, asks, and
-keeps what you type. Setup gets you to a working profile; the runs themselves keep it working.
+remembers what you answer. Setup gets you to a working profile; the runs themselves, and the
+extension, keep it working.
+
+### The browser extension
+
+For everything you apply to by hand — the manual queue, and any other application form you
+point it at — there is a Chrome extension (`extension/`). It reads a page's questions with
+the same reader the board adapters use (`src/applier/js/fields.js`, shared, not copied), asks
+`applier serve` for the answers, fills them in the way typing would (framework-controlled
+inputs included), and attaches your resume. Whatever nothing answers is listed in its side
+panel; answer it there, tick *Remember*, and the next form anywhere that asks the same
+question — in the extension or during a run — is answered with it.
+
+```sh
+cd extension
+npm ci && npm run build        # then chrome://extensions → Developer mode → Load unpacked → dist/
+```
+
+Paste the controller's address and the pairing key from the page's *Browser extension* card
+into the extension's side panel. Then, in the table, *Open* on a row that is **yours to send**:
+the page fills itself. A link-out opens on the board's posting page; press its apply button
+and the employer's form, in the new tab, is filled for the same posting. *I sent it* in the
+side panel records it.
+
+Answers come from three places, cheapest first: your details (name, email, phone) for the
+questions every form asks; answers you gave before, matched by question and only reused where
+they still fit the form's options and limits; and then the model, which is shown your
+remembered answers as facts it may cite — the same rule as on a board's form.
 
 ### Credentials
 
@@ -130,13 +164,12 @@ Start with dry runs. A dry run captures the review page (screenshot and HTML und
 uv run applier serve            # then open http://127.0.0.1:8765
 ```
 
-The same run, with the two decisions that matter handed back to you. Boards open in a
-window you can see, and the table's *Show tab* brings the page a row was filled in on to the
-front — so a row you are reading and its form stay connected.
-
-A form only gets a tab of its own when it is going to be **left** for you: one tab per
-hand-off, not one per posting. Everything a run does for itself happens in the window's one
-working tab, and anything the board opens behind its own back is closed between commands.
+The same run, with the two decisions that matter handed back to you. The board's browser only
+ever does unattended work — searching, reading postings, submitting quick-apply forms — in
+**one tab**. Close that tab, or the whole window, and the next command reopens it (on the
+same profile, so the sign-in survives); the posting that was cut off is tried once more and
+the run carries on. Anything the board opens behind its own back is closed between commands.
+Anything you apply to by hand, you open in your own browser, with the extension.
 
 Three settings decide how much happens without you, and all three live in `applier.yaml`
 under `run:` — so what the page's toggles say and what `applier run` would do tomorrow are
@@ -144,22 +177,18 @@ the same thing read twice.
 
 | Setting | What turning it down means |
 |---|---|
-| **Pick postings itself** | Off: everything that clears the policy waits in the table until you press *Apply* on its row. |
-| **Submit applications itself** | Off: each form is filled to its review page and left open in a tab. You read it and press submit yourself. |
-| **When to ask about an answer** | `never` — a required question no fact answers skips the posting. `missing` *(default)* — the run stops and asks, and keeps what you type. `always` — every question and its answer, with the fact behind it, before the form is filled. |
+| **Pick postings itself** (`auto_pick`) | Off: everything that clears the policy waits in the table until you press *Apply* on its row. |
+| **Who sends an application** (`apply_mode`) | `auto`: JobStreet quick-apply forms are filled and submitted by the board. `manual`: every fit goes to the manual queue, its letter written, for you to open and send with the extension. `board_modes` sets it per board. Link-outs are always manual. |
+| **When to ask about an answer** (`answers`) | `never` — a required question nothing answers skips the posting. `missing` *(default)* — the run stops and asks, and remembers what you answer. `always` — every question and its answer, with the fact behind it, before the form is filled. |
 
-The first two are independent: pick by hand and let it submit, or let it pick and send
-nothing without you. With sending turned off the run keeps going while you work through the
-tabs, pausing at five open hand-offs (configurable) rather than burying you in them.
+The first two are independent: pick by hand and let the board submit, or let it pick and send
+nothing without you. The manual queue does not count against `max_applications` — nothing in
+it has been sent.
 
-`missing` is the one that makes a thin profile workable. A fact you type into that pause is
-written into the config immediately, so the next posting that asks the same thing — and the
-next run, and the command line tomorrow — is answered without stopping.
-
-**A hand-off settles itself.** The tab you were given is watched: submit it there and the
-row becomes `applied` without you pressing anything. The row's buttons are for when that
-misses — *I sent it*, or discard. A tab you close without the board confirming anything is
-recorded `unconfirmed` and never retried, because nobody can say whether it went.
+`missing` is the one that makes a thin profile workable. An answer you type into that pause
+is remembered, and a fact you add there is written into the config, so the next posting that
+asks the same thing — and the next run, and the command line tomorrow — is answered without
+stopping. Stopping the run while a pause is open discards it; nothing has been sent.
 
 The page also carries the rest of what you need while deciding: the full job-fit report and
 the cover letter behind every row, the whole ledger with the unanswered-question digest, and
@@ -167,6 +196,11 @@ a box to paste a posting into and get a report or a letter for it — `rag-local
 pipelines, mounted under `/api/rag` and run through the same signed-in chat session.
 
 ### Settings
+
+The resume is picked, not typed: *Choose a file* uploads it to the controller, which keeps
+a copy under `.applier/resumes/` and sends that with every application (and with the
+extension). Or name one already on your board profile. *Include a cover letter* off sends
+applications with JobStreet's "Don't include a cover letter", and writes none.
 
 Everything the config holds is editable on the page: your details and the two notes boxes,
 the facts, the searches, which model answers, where the portfolio API is, and the file itself
@@ -195,21 +229,25 @@ npm run build        # rebuild web/dist — commit it with your change
 ## Safety
 
 - **The ledger** (`.applier/ledger.sqlite`) is written after every posting. A posting with
-  a settled status (`applied`, `unfit`, `excluded`, `external`, `unavailable`,
-  `unconfirmed`, `submitting`, `awaiting_human`, `skipped`) is never opened again, so runs
+  a settled status (`applied`, `unfit`, `excluded`, `unavailable`, `unconfirmed`,
+  `submitting`, `manual`, `skipped`) is never opened again, so runs
   are safe to repeat and a run that dies halfway resumes where it stopped. `pending` — a
   shortlist the controller built and you never picked from — is not settled, so it comes
   back the next time you open the page.
 - **Never twice.** A real submission is recorded as `submitting` *before* the click. If the
   process dies between the click and the next write, the posting stays `submitting` and is
   never retried. The same goes for a submit the board never confirms (`unconfirmed`), and
-  for an application handed to you: it is written `awaiting_human` before the tab is yours,
-  so whatever you do with it — send it, close it, walk away — nothing reopens it. Check
-  those by hand in JobStreet's *My activity*.
+  for a posting in the manual queue: it is written `manual`, and nothing automatic ever
+  submits it or reopens it — only *I sent it* or *Skip* settles it. Check `unconfirmed`
+  ones by hand in JobStreet's *My activity*.
+- **The extension's routes want a key.** The server listens on loopback only, but any page
+  open in the same browser can reach 127.0.0.1, so `/api/ext/*` — which hands out your
+  answers and your resume — wants the pairing key, and sends no CORS headers.
 - **Limits per run:** `max_applications` submitted and `max_assessments` assessed, with a
   random `delay_seconds` pause between applications.
 - **Fatal errors stop the run:** signed out, a bot check that does not clear, or the
-  portfolio API unreachable. Every posting after one of those would fail the same way.
+  portfolio API unreachable. Every posting after one of those would fail the same way. A
+  closed browser is not one of them in the controller: it is reopened.
 
 ## Adding a board
 
@@ -227,31 +265,26 @@ What a new board gets for free:
 - **Answering.** `context.answerer.answer(handles, role=...)` returns checked answers, or
   raises `UnanswerableError`, which the pipeline records as `needs_input`.
 - **Failure capture.** `browser.fail(error)` saves the page onto the error before raising.
-- **The controller, whole.** Picking, the table, hand-offs, tabs, the answer review and the
+- **The controller, whole.** Picking, the table, the manual queue, the answer review and the
   setup run are all in terms of `JobBoard`, so a new adapter gets every one of them without
-  knowing they exist. Three things make it work, all on `ApplyContext`:
-  `hand_off` stops at the review page and leaves it exactly as it is
-  (`Submission(handed_off=True)`); `probe` stops one step earlier and reports the questions
-  and the profile's resumes instead of answering anything (`Submission(probe=Probe(...))`),
-  which is the whole of the setup run; and `submitted()` reads whether the page in front of
-  it shows a sent application, which is what lets a tab you submitted yourself settle its
-  own row.
-- **Tabs.** An adapter never opens one. The controller runs `apply` inside
-  `browser.on(<the posting>)` when the form is to be handed over and `browser.on(None)` when
-  it is not, and `browser.page` — which is all an adapter reaches for — points at the right
-  one for the whole flow either way.
+  knowing they exist. `ApplyContext.probe` stops at the first question step and reports the
+  questions and the profile's resumes instead of answering anything
+  (`Submission(probe=Probe(...))`), which is the whole of the setup run.
+- **The manual queue.** `fetch` sets `Posting.apply_url` — the board's own apply flow, or the
+  posting page whose button links out — and that is what *Open* opens in your browser.
+- **One tab.** An adapter never opens one; `browser.page` is all it reaches for, and the
+  controller reopens it if it was closed before the next command.
 
 For LinkedIn Easy Apply, the adapter's `apply` walks the modal's steps and calls
-`read_fields` on the modal for each one; `hand_off` means stopping on the modal's review
-step instead of clicking through it, `probe` means stopping on its first question step and
-returning what `read_fields` found, and `submitted` looks for its "Application sent" panel.
-Search and posting pages are the only LinkedIn-specific code.
+`read_fields` on the modal for each one; `probe` means stopping on its first question step
+and returning what `read_fields` found, and `submitted` looks for its "Application sent"
+panel. Search and posting pages are the only LinkedIn-specific code.
 
 ## JobStreet notes
 
 - Search and posting pages are matched on SEEK's `data-automation` hooks, checked against
-  sg.jobstreet.com. Link-out postings are read from the page's embedded server state and
-  skipped.
+  sg.jobstreet.com. Link-out postings are read from the page's embedded server state,
+  assessed, and — if they fit — queued for applying by hand.
 - The apply flow sits behind a sign-in and is matched by accessible names and visible
   text ("Write a cover letter", "Continue", "Submit application"). If a step stops being
   recognised, the error says which one and where its page was captured. Selectors live in
@@ -262,18 +295,26 @@ Search and posting pages are the only LinkedIn-specific code.
 ## Tests
 
 ```sh
-uv run pytest                 # unit: config, answer checking, ledger, pipeline, controller,
-                              # setup, server — all with fakes: no browser, no model, no board
-uv run pytest -m browser      # the form reader and filler, in camoufox, on a local page
+uv run pytest                 # unit: config, answer checking, memory, ledger, pipeline,
+                              # controller, setup, server, extension API — all with fakes
+uv run pytest -m browser      # the form reader and filler in camoufox, and the extension
+                              # end to end in Chromium (build it first; see below)
 uv run ruff check .
 cd web && npm run lint        # the page's types
+cd extension && npm test      # the extension's reader and filler, under jsdom
 ```
 
 `tests/test_controller.py` drives the whole state machine against a fake board and a fake
-browser. What it pins down is the bookkeeping either side of a hand-off, because that is
-where a double application would come from: handed over is on record *before* you can touch
-it, a tab you closed without a confirmation is `unconfirmed` rather than applied, and the
-hand-off cap really does hold the queue back.
+browser. What it pins down is the bookkeeping that a double application would come from: a
+posting bound for the manual queue is on record as `manual` before anything else happens and
+is never submitted by the board, a link-out is assessed and only a fit reaches the queue, and
+a closed browser costs one retry of one posting rather than the run.
+
+`tests/test_extension_e2e.py` loads the built extension into a real Chromium (`/usr/bin/
+chromium`, or `$APPLIER_CHROMIUM`) against a live controller and local pages on another
+origin: filling, the side panel's unknowns and *Remember*, the resume upload, a
+framework-controlled form that grows a second step, a manual-queue page filling itself and
+*I sent it*, and a link-out's employer form inheriting its posting.
 
 `tests/test_setup.py` covers the other half — arriving at a working profile without writing
 a config, and the config surviving being written. One of those tests exists because of a
