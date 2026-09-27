@@ -669,3 +669,118 @@ def test_a_signed_out_board_brings_up_a_window_and_the_run_goes_on(make_session)
     assert browser.shown == ("sign in to fake",)
     assert board.login_url in browser.visited
     assert browser.settled_after, "and the window goes away again"
+
+
+# --- lanes ------------------------------------------------------------------
+
+
+def test_workers_are_never_fewer_than_two(make_session):
+    session, _, _ = make_session(0, workers=1)
+    assert session.config.run.workers == 2
+    assert "workers: 2" in session.config.source_path.read_text()
+
+
+def test_assessing_goes_on_while_an_application_is_under_way(make_session):
+    """Lane 0 only assesses, so a form being filled holds up nothing but itself."""
+    import threading
+
+    session, board, _ = make_session(3, autoPick=True, applyMode="auto")
+    release = threading.Event()
+    real_apply = board.apply
+
+    def slow_apply(posting, context):
+        release.wait(WAIT)
+        return real_apply(posting, context)
+
+    board.apply = slow_apply  # type: ignore[method-assign]
+    session.start()
+
+    def all_assessed() -> bool:
+        seen = states(session)
+        return len(seen) == 3 and "found" not in seen.values() and "fetching" not in seen.values()
+
+    wait_for(all_assessed, "every posting is assessed while the first form waits")
+    assert board.applied == [], "and the first form is still in hand"
+    release.set()
+    wait_for(lambda: len(board.applied) == 3, "then all three go")
+
+
+def test_parallel_lanes_never_apply_past_the_limit(make_session):
+    session, board, _ = make_session(4, autoPick=True, applyMode="auto", workers=4)
+    session.update_settings({"maxApplications": 1})
+    session.start()
+
+    wait_for(lambda: session.status()["running"] is False, "the run should end")
+    assert len(board.applied) == 1
+    assert sorted(states(session).values()) == ["applied", "pending", "pending", "pending"]
+
+
+def test_postings_over_the_assessment_limit_say_so_and_are_assessed_when_picked(make_session):
+    session, board, _ = make_session(3, autoPick=True, applyMode="auto", maxAssessments=1)
+    session.start()
+
+    wait_for(lambda: session.status()["running"] is False, "the run should end")
+    finished = session.status()["finished"]
+    assert "2 not assessed (the limit of 1 assessments per run was reached)" in finished
+    held = [job for job in session.jobs() if job["state"] == "pending"]
+    assert len(held) == 2 and all("not assessed" in job["reason"] for job in held)
+
+    session.approve(held[0]["key"])
+    wait_for(lambda: state_at(session, held[0]["key"]) == "applied", "assessed, then sent")
+    assert held[0]["key"] in board.applied
+
+
+def test_a_search_that_fails_does_not_stop_the_run(make_session):
+    session, board, _ = make_session(2, autoPick=True, applyMode="auto")
+    found = board.listings
+
+    def search(_search):
+        yield found[0]
+        raise TimeoutError()
+
+    board.search = search  # type: ignore[method-assign]
+    session.start()
+
+    wait_for(lambda: session.status()["running"] is False, "the run ends on its own")
+    assert session.status()["stoppedBecause"] is None
+    assert state_at(session, "fake:0") == "applied"
+    assert any("gave up part-way" in line["line"] for line in session.scrollback())
+
+
+def test_stopping_says_what_was_left_and_start_picks_it_up(make_session):
+    import threading
+
+    session, board, _ = make_session(3, autoPick=True, applyMode="manual")
+    gate = threading.Event()
+    real_fetch = board.fetch
+
+    def fetch(listing):
+        gate.wait(WAIT)
+        return real_fetch(listing)
+
+    board.fetch = fetch  # type: ignore[method-assign]
+    session.start()
+    wait_for(lambda: len(states(session)) == 3, "all three found")
+    session.stop("you pressed stop")
+    gate.set()
+
+    def nothing_moving() -> bool:
+        seen = states(session).values()
+        return "found" not in seen and "fetching" not in seen
+
+    wait_for(nothing_moving, "nothing is left looking as if it were moving")
+    assert "not assessed" in session.status()["stoppedBecause"]
+
+    session.start()
+    wait_for(lambda: set(states(session).values()) == {"manual"}, "a second start assesses them")
+
+
+def test_the_chat_site_gets_a_tab_per_worker(make_session):
+    session, _, _ = make_session(0, workers=3)
+    assert session.config.llm.provider == "web"
+    assert session.llm.tabs == 3 and session.llm.parallel
+
+    session.update_settings({"workers": 5})
+    assert session.llm.tabs == 5
+    provider = session.llm.provider
+    assert provider.tabs == 5  # type: ignore[union-attr]
