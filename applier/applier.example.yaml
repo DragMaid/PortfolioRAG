@@ -31,14 +31,18 @@ boards:
 # How much of a run happens without you. The page's toggles are these.
 run:
   auto_pick: true        # false: every posting that fits waits for you to pick it
-  auto_submit: true      # false: each form is filled to its review page and left open in a
-                         #        tab, for you to read and submit yourself
+  # Who sends a posting that fits:
+  #   auto   — the board's adapter fills and submits JobStreet quick-apply forms itself
+  #   manual — it goes to the manual queue, to open in your own browser, where the
+  #            extension fills the form and you press send
+  # A link-out to an employer's own site is always manual.
+  apply_mode: auto
+  board_modes: {}        # per board, e.g. {jobstreet: manual}
   # When a run stops to ask you about an employer's question:
   #   never   — a required question no fact answers skips the posting and is recorded
-  #   missing — the run stops and asks, there and then, and keeps what you type
+  #   missing — the run stops and asks, there and then, and remembers what you answer
   #   always  — every question and its answer, with the fact behind it, before the form
   answers: missing
-  max_open_handoffs: 5   # with auto_submit off, how many may be waiting on you at once
 
 # What counts as a fit. Verdict and score are computed in code by the rag pipeline:
 # weak < partial < promising < strong.
@@ -77,7 +81,7 @@ portfolio:
 # because `applier serve` hands applications over in its tabs — there is nothing to hand over
 # in a window you cannot see.
 browser:
-  headless: false
+  headless: true               # hidden; a window comes up only for a sign-in or a bot check
   capture_steps: false         # save every apply step's page, not only failures
 
 candidate:
@@ -86,7 +90,8 @@ candidate:
   phone: "+65 8000 0000"
   resume:
     select: My_Resume          # part of the name of a resume already on your JobStreet profile
-    # upload: ./resume.pdf     # or a file to upload with each application
+    # upload: ./resume.pdf     # or a file to upload (the page's Settings can pick one for you)
+  cover_letter: true           # false: send applications without a cover letter
   # Steers the letter's wording. Not a fact, and grants nothing.
   cover_letter_notes: >
     Mention I can start within a month.

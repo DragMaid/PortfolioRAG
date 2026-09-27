@@ -155,7 +155,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: applier/web/package-lock.json
+          cache-dependency-path: |
+            applier/web/package-lock.json
+            applier/extension/package-lock.json
 
       - name: Install the page
         working-directory: applier/web
@@ -173,6 +175,20 @@ jobs:
           npm run build
           git diff --exit-code -- dist \
             || { echo "::error::web/dist is stale. Run 'cd applier/web && npm run build' and commit it."; exit 1; }
+
+      # The browser extension: its unit tests run under jsdom here. The end-to-end tests
+      # (tests/test_extension_e2e.py, -m browser) drive a real Chromium and run locally.
+      - name: Install the extension
+        working-directory: applier/extension
+        run: npm ci
+
+      - name: Test the extension
+        working-directory: applier/extension
+        run: npm test
+
+      - name: Build the extension
+        working-directory: applier/extension
+        run: npm run build
 
   frontend:
     name: Frontend build
