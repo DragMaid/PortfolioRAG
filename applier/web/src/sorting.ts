@@ -3,8 +3,8 @@
 import type { DataTableSortStatus } from "mantine-datatable";
 import { useEffect, useState } from "react";
 
-import type { JobState, Verdict } from "./types";
-import { DONE, WAITING } from "./types";
+import type { Job, Verdict } from "./types";
+import { DONE, waitsOnYou } from "./types";
 
 const VERDICT_RANK: Record<Verdict, number> = { weak: 0, partial: 1, promising: 2, strong: 3 };
 
@@ -13,7 +13,8 @@ export const fitRank = (verdict: Verdict | null, score: number | null) =>
   verdict == null && score == null ? -1 : (score ?? 0) * 10 + (verdict ? VERDICT_RANK[verdict] : 0);
 
 /** Waiting on you first, then still moving, then done — the order the server sends. */
-export const stateRank = (state: JobState) => (WAITING.has(state) ? 0 : DONE.has(state) ? 2 : 1);
+export const stateRank = (job: Pick<Job, "state" | "hasReport">) =>
+  waitsOnYou(job) ? 0 : DONE.has(job.state) ? 2 : 1;
 
 /** Sorts a copy by what `key` reads off each row. */
 export function sortBy<T, K extends string>(

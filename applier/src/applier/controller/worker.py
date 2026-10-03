@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 # Lower goes first.
 IMMEDIATE = 0  # a button the person just pressed
 APPLY = 10  # an application that has been picked
+PICKED = 15  # assess a posting a person pressed Apply on, ahead of the searches' backlog
 PROCESS = 20  # fetch and assess one posting
 DISCOVER = 30  # turn up more postings
 

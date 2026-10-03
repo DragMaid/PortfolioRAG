@@ -67,7 +67,7 @@ export function JobDrawer({ job, onClose }: Props) {
         job && (
           <Group gap="xs">
             <Text fw={600}>{job.title || job.key}</Text>
-            <StateBadge state={job.state} reason={job.reason} />
+            <StateBadge state={job.state} reason={job.reason} assessed={job.hasReport} />
           </Group>
         )
       }

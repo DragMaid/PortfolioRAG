@@ -730,6 +730,36 @@ def test_postings_over_the_assessment_limit_say_so_and_are_assessed_when_picked(
     assert held[0]["key"] in board.applied
 
 
+def test_picking_every_posting_over_the_application_limit_applies_to_all_of_them(make_session):
+    """The limit holds the run back, never a person: each one pressed is sent."""
+    session, board, _ = make_session(6, autoPick=True, applyMode="auto", maxApplications=2)
+    session.start()
+    wait_for(lambda: session.status()["running"] is False, "the run should end")
+    held = [job["key"] for job in session.jobs() if job["state"] == "pending"]
+    assert len(held) == 4
+
+    for key in held:
+        session.approve(key)
+    wait_for(lambda: len(board.applied) == 6, "every picked posting is applied to")
+    assert set(states(session).values()) == {"applied"}
+
+
+def test_picking_past_both_limits_applies_to_every_one(make_session):
+    """Assessed past one limit because a person asked, and sent past the other likewise."""
+    session, board, _ = make_session(
+        8, autoPick=True, applyMode="auto", workers=3, maxAssessments=2, maxApplications=3
+    )
+    session.start()
+    wait_for(lambda: session.status()["running"] is False, "the run should end")
+    held = [job["key"] for job in session.jobs() if job["state"] == "pending"]
+    assert len(held) == 6
+
+    for key in held:
+        session.approve(key)
+    wait_for(lambda: len(board.applied) == 8, "every picked posting is assessed and sent")
+    assert set(states(session).values()) == {"applied"}
+
+
 def test_a_search_that_fails_does_not_stop_the_run(make_session):
     session, board, _ = make_session(2, autoPick=True, applyMode="auto")
     found = board.listings
@@ -784,3 +814,13 @@ def test_the_chat_site_gets_a_tab_per_worker(make_session):
     assert session.llm.tabs == 5
     provider = session.llm.provider
     assert provider.tabs == 5  # type: ignore[union-attr]
+
+
+def test_postings_the_assessment_limit_held_back_are_not_waiting_on_you(make_session):
+    """Nobody has assessed them, so there is nothing yet for a person to decide."""
+    session, _, _ = make_session(5, autoPick=True, applyMode="auto", maxAssessments=2)
+    session.start()
+    wait_for(lambda: session.status()["running"] is False, "the run should end")
+    held = [job for job in session.jobs() if job["state"] == "pending" and not job["hasReport"]]
+    assert len(held) == 3
+    assert session.status()["waiting"] == 0
