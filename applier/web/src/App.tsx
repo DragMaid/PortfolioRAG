@@ -253,6 +253,9 @@ export function App() {
                 busy={busy}
                 onOpen={setDrawer}
                 onApprove={(job) => void act(job, "apply to it", () => api.approve(job.key))}
+                onApproveAll={(jobs) => {
+                  for (const job of jobs) void act(job, "apply to it", () => api.approve(job.key));
+                }}
                 onSkip={(job) => void act(job, "skip it", () => api.skip(job.key))}
                 onSubmitted={(job) => void act(job, "record it as sent", () => api.submitted(job.key))}
                 onRetry={(job) => void act(job, "retry it", () => api.retry(job.key))}
