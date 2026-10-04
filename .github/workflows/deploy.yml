@@ -15,6 +15,11 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "applier/**"
+      - "deploy/ansible/**"
+      - "backend.Tests/**"
+      - "**/*.md"
   workflow_dispatch:
     inputs:
       image_tag:

@@ -170,7 +170,7 @@ jobs:
     name: Applier
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.applier == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.applier == 'true'
 
     steps:
       - uses: actions/checkout@v4
