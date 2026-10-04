@@ -74,7 +74,6 @@ export function StateBadge({
 }: {
   state: JobState;
   reason?: string | null;
-  /** False for a posting nobody has assessed yet. */
   assessed?: boolean;
 }) {
   const look = state === "pending" && !assessed ? UNASSESSED : (LOOKS[state] ?? LOOKS.error);

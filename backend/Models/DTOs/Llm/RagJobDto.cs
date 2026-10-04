@@ -56,12 +56,11 @@ public class RetrievalRequestDto
 {
     /// <summary>
     /// What to search for, written as the evidence would read rather than as the posting
-    /// phrased it. At most <see cref="MaximumQueries"/>, which is comfortably more than a
-    /// long posting produces.
+    /// phrased it. Only the first <see cref="MaximumQueries"/> are run: a long posting can
+    /// list more requirements than that, and is trimmed rather than refused.
     /// </summary>
     [Required]
     [MinLength(1, ErrorMessage = "Give at least one search to run.")]
-    [MaxLength(MaximumQueries, ErrorMessage = "That is more searches than one posting needs.")]
     public IReadOnlyList<string> Queries { get; init; } = Array.Empty<string>();
 
     public const int MaximumQueries = 24;
