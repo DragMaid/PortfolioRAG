@@ -135,7 +135,7 @@ class JobFitPipeline:
                 "and responsibilities rather than the company description."
             )
 
-        queries = [requirement.search_query for requirement in analysis.requirements]
+        queries = requirement_queries(analysis.requirements)
 
         stage("retrieve")
         passages = retriever.search(queries)
@@ -344,6 +344,14 @@ def retrieved(retriever: Retriever, queries: list[str], passages: list[Passage])
     )
 
 
+# The portfolio API's own limit (RetrievalRequestDto.MaximumQueries). A long posting can
+# list more requirements than this; the essential ones are searched first.
+MAX_QUERIES = 24
+
+
 def requirement_queries(requirements: list[ExtractedRequirement]) -> list[str]:
-    """The searches a set of requirements implies. Used by the eval harness."""
-    return [requirement.search_query for requirement in requirements]
+    """The searches a set of requirements implies: essentials first, no repeats, at most
+    :data:`MAX_QUERIES`."""
+    ordered = sorted(requirements, key=lambda requirement: not requirement.is_essential)
+    queries = dict.fromkeys(r.search_query.strip() for r in ordered if r.search_query.strip())
+    return list(queries)[:MAX_QUERIES]

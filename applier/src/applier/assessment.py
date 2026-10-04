@@ -112,6 +112,9 @@ class Assessor:
         try:
             return self.llm.call(run)
         except ApiError as error:
+            # 400/422: this posting's request was refused. Other postings can still go.
+            if error.status in (400, 422):
+                raise AssessmentError(str(error)) from error
             raise PortfolioUnavailableError(str(error)) from error
         except PipelineError as error:
             raise AssessmentError(str(error)) from error

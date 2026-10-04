@@ -24,6 +24,7 @@ from .pipeline import (
     OutputCallback,
     PipelineError,
     StageCallback,
+    requirement_queries,
     retrieved,
 )
 from .retrieval import Retriever
@@ -64,7 +65,7 @@ class CoverLetterPipeline(JobFitPipeline):
                 "and responsibilities rather than the company description."
             )
 
-        queries = [requirement.search_query for requirement in analysis.requirements]
+        queries = requirement_queries(analysis.requirements)
 
         stage("retrieve")
         passages = retriever.search(queries)

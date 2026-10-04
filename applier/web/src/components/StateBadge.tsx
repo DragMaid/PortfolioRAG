@@ -61,8 +61,22 @@ const LOOKS: Record<JobState, Look> = {
   error: { label: "error", color: "red", hint: "Something went wrong. It will be tried again." },
 };
 
-export function StateBadge({ state, reason }: { state: JobState; reason?: string | null }) {
-  const look = LOOKS[state] ?? LOOKS.error;
+const UNASSESSED: Look = {
+  label: "not assessed",
+  color: "gray",
+  hint: "Held back by the assessment limit. Press Apply to assess it, and apply if it fits.",
+};
+
+export function StateBadge({
+  state,
+  reason,
+  assessed = true,
+}: {
+  state: JobState;
+  reason?: string | null;
+  assessed?: boolean;
+}) {
+  const look = state === "pending" && !assessed ? UNASSESSED : (LOOKS[state] ?? LOOKS.error);
 
   return (
     <Tooltip label={reason || look.hint} multiline w={280} withArrow openDelay={300}>

@@ -20,7 +20,14 @@ _TIMEOUT = 30.0
 
 
 class ApiError(RuntimeError):
-    """The API refused, or could not be reached. The message reaches the reader."""
+    """The API refused, or could not be reached. The message reaches the reader.
+
+    ``status`` is the HTTP status of a refusal, or None when the API was never reached.
+    """
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
 
 
 class PortfolioApi:
@@ -75,7 +82,7 @@ class PortfolioApi:
             with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:
                 payload = response.read().decode()
         except urllib.error.HTTPError as error:
-            raise ApiError(_problem(error)) from error
+            raise ApiError(_problem(error), status=error.code) from error
         except urllib.error.URLError as error:
             raise ApiError(
                 f"Could not reach {self.base_url}: {error.reason}. Is the API running?"

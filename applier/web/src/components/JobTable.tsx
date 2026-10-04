@@ -1,8 +1,9 @@
 /**
  * Every posting this run has touched, and what you can do about it.
  *
- * The actions are deliberately per-row rather than a batch: each one of these is an
- * application to a real employer, and there is no undo on the far side of a submit.
+ * The actions are per-row, and *Apply to all* presses Apply on every pending row the filters
+ * show — narrow them first. Each one is an application to a real employer, and there is no
+ * undo on the far side of a submit, so it asks once before it goes.
  *
  * *Open* is the manual queue's. It opens the posting's apply page in your own browser, where
  * the extension recognises it, fills the form from your facts and remembered answers, and
@@ -12,7 +13,7 @@
  * and every column but the actions sorts. Both are remembered in this browser.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActionIcon,
   Anchor,
@@ -21,6 +22,7 @@ import {
   Group,
   MultiSelect,
   NumberInput,
+  Popover,
   SegmentedControl,
   Select,
   Stack,
@@ -43,7 +45,7 @@ import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 
 import { fitRank, sortBy, stateRank, useRemembered } from "../sorting";
 import type { Job, JobState, Verdict } from "../types";
-import { DONE, WAITING } from "../types";
+import { DONE, WAITING, waitsOnYou } from "../types";
 import { FitBadge } from "./FitBadge";
 import { StateBadge } from "./StateBadge";
 
@@ -52,6 +54,7 @@ interface Props {
   busy: Set<string>;
   onOpen: (job: Job) => void;
   onApprove: (job: Job) => void;
+  onApproveAll: (jobs: Job[]) => void;
   onSkip: (job: Job) => void;
   onSubmitted: (job: Job) => void;
   onRetry: (job: Job) => void;
@@ -83,7 +86,7 @@ const inStage = (job: Job, stage: Stage) => {
     case "all":
       return true;
     case "you":
-      return WAITING.has(job.state) || job.state === "needs_input";
+      return waitsOnYou(job) || job.state === "needs_input";
     case "moving":
       return !WAITING.has(job.state) && !DONE.has(job.state);
     case "fits":
@@ -119,7 +122,7 @@ const SORT_KEYS = {
   title: (job: Job) => (job.title || job.key).toLowerCase(),
   verdict: (job: Job) => fitRank(job.verdict, job.score),
   // Waiting on you, then moving, then done; newest first within each, as the server orders it.
-  state: (job: Job) => stateRank(job.state) * 1e12 - job.updatedAt,
+  state: (job: Job) => stateRank(job) * 1e12 - job.updatedAt,
   updatedAt: (job: Job) => job.updatedAt,
 };
 
@@ -135,10 +138,12 @@ export function JobTable({
   busy,
   onOpen,
   onApprove,
+  onApproveAll,
   onSkip,
   onSubmitted,
   onRetry,
 }: Props) {
+  const [confirming, setConfirming] = useState(false);
   const [filters, setFilters] = useRemembered<Filters>("run.filters", NO_FILTERS);
   const [sort, setSort] = useRemembered<DataTableSortStatus<Job>>("run.sort", DEFAULT_SORT);
   const set = (patch: Partial<Filters>) => setFilters({ ...filters, ...patch });
@@ -167,6 +172,8 @@ export function JobTable({
     });
     return sortBy(kept, sort, SORT_KEYS);
   }, [jobs, filters, sort]);
+
+  const pickable = shown.filter((job) => job.state === "pending" && !busy.has(job.key));
 
   const filtered =
     filters.stage !== NO_FILTERS.stage ||
@@ -249,6 +256,42 @@ export function JobTable({
             Clear
           </Button>
         )}
+        <Popover opened={confirming} onChange={setConfirming} position="bottom-end" withArrow>
+          <Popover.Target>
+            <Button
+              size="compact-sm"
+              variant="filled"
+              ml="auto"
+              mb={4}
+              disabled={pickable.length === 0}
+              onClick={() => setConfirming((open) => !open)}
+            >
+              Apply to all{pickable.length > 0 && ` ${pickable.length}`}
+            </Button>
+          </Popover.Target>
+          <Popover.Dropdown>
+            <Stack gap="xs" maw={260}>
+              <Text size="sm">
+                Apply to the {pickable.length} pending posting{pickable.length === 1 ? "" : "s"}{" "}
+                shown? Any not yet assessed are assessed first and sent only if they fit.
+              </Text>
+              <Group gap="xs" justify="flex-end">
+                <Button size="compact-sm" variant="subtle" onClick={() => setConfirming(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="compact-sm"
+                  onClick={() => {
+                    setConfirming(false);
+                    onApproveAll(pickable);
+                  }}
+                >
+                  Apply to {pickable.length}
+                </Button>
+              </Group>
+            </Stack>
+          </Popover.Dropdown>
+        </Popover>
       </Group>
       {filtered && (
         <Text size="xs" c="dimmed">
@@ -316,7 +359,7 @@ export function JobTable({
             title: "State",
             width: 150,
             sortable: true,
-            render: (job) => <StateBadge state={job.state} reason={job.reason} />,
+            render: (job) => <StateBadge state={job.state} reason={job.reason} assessed={job.hasReport} />,
           },
           {
             accessor: "updatedAt",

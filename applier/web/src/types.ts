@@ -42,6 +42,14 @@ export const WAITING: ReadonlySet<JobState> = new Set<JobState>([
   "manual",
 ]);
 
+/** A pending posting the assessment limit held back was never looked at: nothing to decide yet. */
+export const unassessed = (job: Pick<Job, "state" | "hasReport">) =>
+  job.state === "pending" && !job.hasReport;
+
+/** Waiting on you, as the server counts it. */
+export const waitsOnYou = (job: Pick<Job, "state" | "hasReport">) =>
+  WAITING.has(job.state) && !unassessed(job);
+
 export interface Stage {
   name: string;
   at: number;

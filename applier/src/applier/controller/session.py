@@ -68,7 +68,16 @@ from .events import Bus
 from .reviewing import Declined, ReviewingAnswerer
 from .setup import BASELINE, SetupQuestion, from_probe, merge, to_profile
 from .state import DONE, WAITING, Job, JobState, listing_of, settings_of, settled_as, state_of
-from .worker import APPLY, DISCOVER, IMMEDIATE, PROCESS, BoardLanes, BoardWorker, current_worker
+from .worker import (
+    APPLY,
+    DISCOVER,
+    IMMEDIATE,
+    PICKED,
+    PROCESS,
+    BoardLanes,
+    BoardWorker,
+    current_worker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +158,10 @@ class Session:
         self._claims: dict[str, int] = {}
         # Postings with an application command already queued, so it is queued once.
         self._dispatched: set[str] = set()
+        # Postings a person pressed Apply (or Retry) on. The per-run limits are there to stop
+        # the run getting ahead of them on its own; they never hold back what a person asked
+        # for — including after a closed window retries the command.
+        self._picked: set[str] = set()
         # Applications between the limit check and APPLIED: counted against the limit, or
         # two lanes could each take the last slot.
         self._submitting = 0
@@ -201,7 +214,7 @@ class Session:
 
     def status(self) -> dict[str, Any]:
         with self._lock:
-            waiting = sum(1 for job in self._jobs.values() if job.state in WAITING)
+            waiting = sum(1 for job in self._jobs.values() if _waits_on_person(job))
             manual = sum(1 for job in self._jobs.values() if job.state == JobState.MANUAL)
             queued = sum(worker.pending for worker in self._workers.values())
             return {
@@ -973,6 +986,7 @@ class Session:
             self._running = False
             self._stops += 1
             unassessed = 0
+            self._picked.clear()
             for job in self._jobs.values():
                 if job.state == JobState.QUEUED:
                     self._enter(job, JobState.PENDING, "the run was stopped")
@@ -1020,17 +1034,15 @@ class Session:
             )
         if job.report is None:
             with self._lock:
+                self._picked.add(key)
                 self._enter(job, JobState.FOUND, "picked — assessing it first")
             self._publish(job)
-            self._dispatch(
-                job.board,
-                PROCESS,
-                f"process {key}",
-                lambda: self._process(key, picked=True),
-            )
+            # Ahead of the searches still being worked through: a person is waiting on it.
+            self._dispatch(job.board, PICKED, f"process {key}", lambda: self._process(key))
             return job.as_dict()
 
         with self._lock:
+            self._picked.add(key)
             self._enter(job, JobState.QUEUED, "picked")
         self._drain_queued()
         return job.as_dict()
@@ -1211,6 +1223,7 @@ class Session:
 
         with self._lock:
             job.historic = False
+            self._picked.add(key)
             self._enter(job, JobState.QUEUED, "retrying")
         self._drain_queued()
         return job.as_dict()
@@ -1387,13 +1400,15 @@ class Session:
             self._publish(job)
             return job
 
-    def _process(self, key: str, *, picked: bool = False) -> None:
+    def _process(self, key: str) -> None:
         """Fetch, assess and decide one posting. Everything is caught and recorded.
 
-        ``picked``: a person pressed Apply on a posting nobody had assessed. It runs whether
-        or not a run is going, past the assessment limit, and a fit goes straight to the queue.
+        A posting a person picked before anybody assessed it runs whether or not a run is
+        going, past the assessment limit, and a fit goes straight to the queue.
         """
         job = self._job(key)
+        with self._lock:
+            picked = key in self._picked
         worker = self._here(job.board)
         board = worker.board
         if board is None or not (self._running or picked):
@@ -1537,7 +1552,10 @@ class Session:
 
             # Limit reached. Applications other lanes are part-way through count too.
             with self._lock:
-                if self._applied + self._submitting >= self.config.policy.max_applications:
+                if (
+                    key not in self._picked
+                    and self._applied + self._submitting >= self.config.policy.max_applications
+                ):
                     self._enter(job, JobState.PENDING, "the per-run application limit was reached")
                     self._publish(job)
                     return
@@ -1898,6 +1916,9 @@ class Session:
             def by_hand(job: Job) -> bool:
                 return job.external or config.run.mode_for(job.board) == "manual"
 
+            def unlimited(job: Job) -> bool:
+                return by_hand(job) or job.key in self._picked
+
             queued = [
                 job
                 for job in sorted(self._jobs.values(), key=_ordering)
@@ -1906,17 +1927,17 @@ class Session:
                 and job.key not in self._claims
             ]
             # The application limit counts submissions. The manual queue is not one, so a
-            # posting bound for it is never held back by it. Applications already queued or
-            # part-way through take their slot with them.
+            # posting bound for it is never held back by it, and neither is one a person
+            # picked. Applications already queued or part-way through take their slot with them.
             ahead = sum(
                 1
                 for key in self._dispatched
-                if (other := self._jobs.get(key)) is not None and not by_hand(other)
+                if (other := self._jobs.get(key)) is not None and not unlimited(other)
             )
             room = max(0, config.policy.max_applications - self._applied - self._submitting - ahead)
             ready = []
             for job in queued:
-                if by_hand(job):
+                if unlimited(job):
                     ready.append(job)
                 elif room > 0:
                     ready.append(job)
@@ -2117,9 +2138,18 @@ def _state_for(error: ApplierError) -> JobState:
     return JobState.ERROR
 
 
+def _waits_on_person(job: Job) -> bool:
+    """Waiting on a person, and on nothing else.
+
+    A pending posting the assessment limit held back is not: nobody has looked at it, so
+    there is nothing yet for a person to decide.
+    """
+    return job.state in WAITING and not (job.state == JobState.PENDING and job.report is None)
+
+
 def _ordering(job: Job) -> tuple[int, float]:
     """Waiting on a person first, then still moving, then done — newest first within each."""
-    if job.state in WAITING:
+    if _waits_on_person(job):
         rank = 0
     elif job.state in DONE:
         rank = 2
