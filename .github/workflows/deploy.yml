@@ -15,6 +15,11 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "applier/**"
+      - "deploy/ansible/**"
+      - "backend.Tests/**"
+      - "**/*.md"
   workflow_dispatch:
     inputs:
       image_tag:
@@ -35,6 +40,9 @@ jobs:
   test:
     if: inputs.image_tag == ''
     uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      pull-requests: read
 
   build:
     name: Build ${{ matrix.image }}
