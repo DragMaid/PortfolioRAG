@@ -77,6 +77,7 @@ class Resume:
 
     select: str | None = None
     upload: Path | None = None
+    record: Path | None = None
 
 
 @dataclass(slots=True)

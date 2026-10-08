@@ -29,11 +29,11 @@ PAGE = """<!doctype html><title>Choose documents | Jobstreet</title>
   </ol>
   <h3>Resumé</h3>
   <fieldset id="resumes">
-    <div><input type="radio" id="r1" name="document-select" value="a1" checked>
+    <div><input type="radio" id="r1" name="document-select-_r_8_" value="a1" checked>
       <label for="r1"><span>swe-cs.pdf</span></label></div>
-    <div><input type="radio" id="r2" name="document-select" value="a2">
+    <div><input type="radio" id="r2" name="document-select-_r_8_" value="a2">
       <label for="r2"><span>old-resume.pdf</span></label></div>
-    <div><input type="radio" id="r0" name="document-select" value="dont-include">
+    <div><input type="radio" id="r0" name="document-select-_r_8_" value="dont-include">
       <label for="r0"><span>Don't include a resumé</span></label></div>
   </fieldset>
   <div data-testid="resumeFileInput">
@@ -50,15 +50,19 @@ PAGE = """<!doctype html><title>Choose documents | Jobstreet</title>
   <button type="button">Continue</button>
 </main>
 <script>
-  // Uploading adds the file to the list, chosen — as JobStreet does once it has it.
+  // Uploading adds the file to the list, chosen — as JobStreet does once it has it — under
+  // an id of its own, even when another document has the same name.
   document.getElementById("resume-fileFile").addEventListener("change", (event) => {
     const name = event.target.files[0].name;
     setTimeout(() => {
+      const list = document.getElementById("resumes");
+      list.dataset.uploads = Number(list.dataset.uploads || 0) + 1;
       const row = document.createElement("div");
-      row.innerHTML = `<input type="radio" id="r9" name="document-select" value="new">` +
-        `<label for="r9"><span>${name}</span></label>`;
-      document.getElementById("resumes").prepend(row);
-      document.getElementById("r9").checked = true;
+      const id = `up${list.dataset.uploads}`;
+      row.innerHTML = `<input type="radio" id="${id}" name="document-select-_r_8_" value="${id}">` +
+        `<label for="${id}"><span>${name}</span></label>`;
+      list.prepend(row);
+      document.getElementById(id).checked = true;
     }, 300);
   });
   document.getElementById("c2").addEventListener("change", () => {
@@ -84,7 +88,11 @@ def page(board):
 
 
 def checked(page, name: str) -> str:
-    return page.eval_on_selector(f"input[name='{name}']:checked", "(el) => el.value")
+    return page.eval_on_selector(f"input[name^='{name}']:checked", "(el) => el.value")
+
+
+def uploads(page) -> int:
+    return page.eval_on_selector("#resume-fileFile", "(el) => el.files.length")
 
 
 def test_the_step_is_recognised_by_its_title_and_stepper(board, page):
@@ -114,7 +122,7 @@ def test_a_file_is_uploaded_and_then_chosen(board, page, tmp_path):
     board._documents(None, Resume(upload=resume))
 
     assert page.eval_on_selector("#resume-fileFile", "(el) => el.files[0].name") == resume.name
-    assert checked(page, "document-select") == "new"
+    assert checked(page, "document-select") == "up1"
 
 
 def test_a_file_uploaded_before_is_chosen_not_uploaded_again(board, page, tmp_path):
@@ -125,7 +133,51 @@ def test_a_file_uploaded_before_is_chosen_not_uploaded_again(board, page, tmp_pa
     board._documents(None, Resume(upload=resume))
 
     assert checked(page, "document-select") == "a1"
-    assert page.eval_on_selector("#resume-fileFile", "(el) => el.files.length") == 0
+    assert uploads(page) == 0
+
+
+def test_the_upload_is_recorded_and_its_copy_chosen_next_time(board, page, tmp_path):
+    resume, record = tmp_path / "Tester_Resume.pdf", tmp_path / "uploaded.json"
+    resume.write_bytes(b"%PDF-1.4 a resume")
+
+    board._documents(None, Resume(upload=resume, record=record))
+    assert checked(page, "document-select") == "up1"
+
+    # The next application's documents step lists the copy it uploaded.
+    page.check("#r2")
+    page.eval_on_selector("#resume-fileFile", "(el) => { el.value = ''; }")
+    board._documents(None, Resume(upload=resume, record=record))
+    assert checked(page, "document-select") == "up1"
+    assert uploads(page) == 0
+
+
+def test_a_changed_file_is_uploaded_again_though_its_name_is_on_the_profile(
+    board, page, tmp_path
+):
+    resume, record = tmp_path / "swe-cs.pdf", tmp_path / "uploaded.json"
+    resume.write_bytes(b"%PDF-1.4 old")
+    board._documents(None, Resume(upload=resume, record=record))
+    assert checked(page, "document-select") == "a1"
+
+    resume.write_bytes(b"%PDF-1.4 new")
+    board._documents(None, Resume(upload=resume, record=record))
+    assert checked(page, "document-select") == "up1"
+
+
+def test_a_recorded_copy_deleted_from_the_profile_falls_back_to_its_name(board, page, tmp_path):
+    import json
+
+    resume, record = tmp_path / "swe-cs.pdf", tmp_path / "uploaded.json"
+    resume.write_bytes(b"%PDF-1.4")
+    board._documents(None, Resume(upload=resume, record=record))
+    notes = json.loads(record.read_text())
+    notes[board.host]["document"] = "deleted-by-hand"
+    record.write_text(json.dumps(notes))
+
+    page.check("#r2")
+    board._documents(None, Resume(upload=resume, record=record))
+    assert checked(page, "document-select") == "a1"
+    assert uploads(page) == 0
 
 
 def test_no_letter_means_dont_include_one(board, page):

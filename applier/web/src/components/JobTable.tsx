@@ -9,6 +9,10 @@
  * the extension recognises it, fills the form from your facts and remembered answers, and
  * asks you in its side panel about anything it cannot. Nothing is sent until you send it.
  *
+ * The tick in the first column is what you applied to, on any row: one the run left unfit,
+ * skipped or never assessed is yours to apply to all the same. A posting opened from here is
+ * shown in the visited colour, so the ones you have already looked at stand out.
+ *
  * Above it, filters — by where a posting has got to, its fit, its board, and words in it —
  * and every column but the actions sorts. Both are remembered in this browser.
  */
@@ -32,13 +36,11 @@ import {
   Tooltip,
 } from "@mantine/core";
 import {
-  IconCheck,
   IconExternalLink,
   IconFilterOff,
   IconForms,
   IconRefresh,
   IconSearch,
-  IconSend,
   IconX,
 } from "@tabler/icons-react";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
@@ -46,6 +48,8 @@ import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { fitRank, sortBy, stateRank, useRemembered } from "../sorting";
 import type { Job, JobState, Verdict } from "../types";
 import { DONE, WAITING, waitsOnYou } from "../types";
+import { markVisited, useVisited } from "../visited";
+import { AppliedBox } from "./AppliedBox";
 import { FitBadge } from "./FitBadge";
 import { StateBadge } from "./StateBadge";
 
@@ -56,7 +60,7 @@ interface Props {
   onApprove: (job: Job) => void;
   onApproveAll: (jobs: Job[]) => void;
   onSkip: (job: Job) => void;
-  onSubmitted: (job: Job) => void;
+  onApplied: (job: Job, applied: boolean) => void;
   onRetry: (job: Job) => void;
 }
 
@@ -140,9 +144,10 @@ export function JobTable({
   onApprove,
   onApproveAll,
   onSkip,
-  onSubmitted,
+  onApplied,
   onRetry,
 }: Props) {
+  const visited = useVisited();
   const [confirming, setConfirming] = useState(false);
   const [filters, setFilters] = useRemembered<Filters>("run.filters", NO_FILTERS);
   const [sort, setSort] = useRemembered<DataTableSortStatus<Job>>("run.sort", DEFAULT_SORT);
@@ -316,20 +321,42 @@ export function JobTable({
         onRowClick={({ record }) => onOpen(record)}
         columns={[
           {
+            accessor: "applied",
+            title: "",
+            width: 36,
+            render: (job) => (
+              <AppliedBox
+                state={job.state}
+                byHand={job.byHand}
+                busy={busy.has(job.key)}
+                onChange={(applied) => onApplied(job, applied)}
+              />
+            ),
+          },
+          {
             accessor: "title",
             title: "Posting",
             sortable: true,
             render: (job) => (
               <div>
                 <Group gap={6} wrap="nowrap">
-                  <Text size="sm" fw={500} lineClamp={1}>
+                  <Text
+                    size="sm"
+                    fw={500}
+                    lineClamp={1}
+                    c={visited.has(job.key) ? "grape.7" : undefined}
+                    title={visited.has(job.key) ? "Opened from here before" : undefined}
+                  >
                     {job.title || job.key}
                   </Text>
                   <Anchor
                     href={job.url}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      markVisited(job.key);
+                    }}
                     title="Open the posting in your own browser"
                   >
                     <IconExternalLink size={13} />
@@ -392,6 +419,7 @@ export function JobTable({
                       href={job.applyUrl || job.url}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => markVisited(job.key)}
                       size="compact-sm"
                       variant="filled"
                       leftSection={<IconForms size={14} />}
@@ -410,21 +438,6 @@ export function JobTable({
                   >
                     Apply
                   </Button>
-                )}
-
-                {job.state === "manual" && (
-                  <Tooltip label="Record it as sent">
-                    <Button
-                      size="compact-sm"
-                      color="green"
-                      variant="filled"
-                      leftSection={<IconSend size={14} />}
-                      loading={busy.has(job.key)}
-                      onClick={() => onSubmitted(job)}
-                    >
-                      I sent it
-                    </Button>
-                  </Tooltip>
                 )}
 
                 {(job.state === "needs_input" || job.state === "error") && (
@@ -449,7 +462,6 @@ export function JobTable({
                   </Tooltip>
                 )}
 
-                {job.state === "applied" && <IconCheck size={16} color="var(--mantine-color-green-6)" />}
               </Group>
             ),
           },

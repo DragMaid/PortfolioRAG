@@ -25,6 +25,7 @@ import {
 
 import { api } from "../api";
 import type { Job, JobDetail } from "../types";
+import { markVisited } from "../visited";
 import { ReportView } from "./ReportView";
 import { StageTrail } from "./StageTrail";
 import { StateBadge } from "./StateBadge";
@@ -87,6 +88,7 @@ export function JobDrawer({ job, onClose }: Props) {
               href={job.url}
               target="_blank"
               rel="noreferrer"
+              onClick={() => markVisited(job.key)}
             >
               Open the posting
             </Button>

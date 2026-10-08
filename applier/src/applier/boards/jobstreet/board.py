@@ -12,8 +12,12 @@ to the manual queue, to be applied to in the person's own browser with the exten
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import threading
 from collections.abc import Iterator
+from pathlib import Path
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from playwright.sync_api import Error as PlaywrightError
@@ -32,6 +36,7 @@ from ..base import ApplyContext
 from . import selectors as sel
 
 _MAX_STEPS = 10
+_UPLOADING = threading.Lock()
 _CHALLENGE_TITLES = ("just a moment", "attention required", "verify you are human")
 
 
@@ -161,6 +166,11 @@ class JobStreet:
         try:
             browser.poll(lambda: browser.page.locator(sel.DETAIL_BODY).count(), timeout=20)
         except Timeout:
+            # A posting taken down since it was listed is a 404 page, not a broken one.
+            if sel.NOT_FOUND_TITLE.search(browser.page.title()):
+                raise NotApplicableError(
+                    f"Posting {listing.job_id} was taken down (JobStreet shows a 404)."
+                ) from None
             raise browser.fail(
                 FlowError(f"Posting {listing.job_id} never showed its text.")
             ) from None
@@ -336,26 +346,20 @@ class JobStreet:
         """The resume, then the cover letter — written, or left out when ``letter`` is None."""
         page = self.browser.page
 
-        if upload := resume.upload:
-            # Uploaded by an earlier application, can just pick now
-            if not self._choose_resume(upload.name, exact=True):
-                file_input = page.locator(sel.RESUME_FILE_INPUT).first
-                if not file_input.count():
-                    raise self.browser.fail(FlowError("JobStreet's resume upload was not found."))
-                file_input.set_input_files(str(upload))
+        if resume.upload:
+            # Workers share the profile's documents: two noticing the same edit to the file
+            # must not both upload it.
+            with _UPLOADING:
+                self._upload_once(resume.upload, resume.record)
 
-                # Waiting for the file upload to 
-                try:
-                    self.browser.poll(lambda: self._choose_resume(upload.name, exact=True), 60)
-                except Timeout:
-                    raise self.browser.fail(
-                        FlowError(f"JobStreet never showed {upload.name} as uploaded.")
-                    ) from None
-
-        elif resume.select and not self._choose_resume(resume.select):
-            raise self.browser.fail(
-                FlowError(f"No resume on the JobStreet profile is named like {resume.select!r}.")
-            )
+        elif resume.select:
+            self._wait_for_resumes()
+            if not self._choose_resume(resume.select):
+                raise self.browser.fail(
+                    FlowError(
+                        f"No resume on the JobStreet profile is named like {resume.select!r}."
+                    )
+                )
 
         # Allow not sending any cover letter
         if letter is None:
@@ -383,6 +387,76 @@ class JobStreet:
             )
         box.fill(letter)
 
+    def _upload_once(self, upload: Path, record: Path | None) -> None:
+        """Picks the profile's copy of ``upload``, uploading it only when the file changed.
+
+        Every upload adds another document to the profile, so the one picked is the one
+        recorded against the file's hash. Without a record — or once that copy was deleted
+        from the profile — an unchanged file is the newest document with its name.
+        """
+        page = self.browser.page
+        digest = hashlib.sha256(upload.read_bytes()).hexdigest()
+        notes = _read_record(record)
+        known = notes.get(self.host, {})
+
+        self._wait_for_resumes()
+        values = {value for value, _ in self._resume_values()}
+        if known.get("sha256") == digest and known.get("document") in values:
+            self._choose_value(known["document"])
+            return
+        # Nothing recorded, or the recorded copy is gone: trust the name, but only while the
+        # file is the one last uploaded. An edited file is uploaded whatever its name.
+        unchanged = known.get("sha256") in (None, digest)
+        if unchanged and (chosen := self._choose_resume(upload.name, exact=True)):
+            notes[self.host] = {"sha256": digest, "document": chosen}
+            _write_record(record, notes)
+            return
+
+        file_input = page.locator(sel.RESUME_FILE_INPUT).first
+        if not file_input.count():
+            raise self.browser.fail(FlowError("JobStreet's resume upload was not found."))
+        file_input.set_input_files(str(upload))
+
+        def uploaded() -> str:
+            fresh = [v for v, _ in self._resume_values() if v not in values]
+            return fresh[0] if fresh else ""
+
+        try:
+            document = self.browser.poll(uploaded, timeout=60)
+        except Timeout:
+            raise self.browser.fail(
+                FlowError(f"JobStreet never showed {upload.name} as uploaded.")
+            ) from None
+        self._choose_value(document)
+        notes[self.host] = {"sha256": digest, "document": document}
+        _write_record(record, notes)
+        self.browser.log(f"Uploaded {upload.name} to the JobStreet profile.")
+
+    def _wait_for_resumes(self) -> None:
+        """The list renders after the step does; "Don't include" is always in it."""
+        try:
+            self.browser.poll(
+                lambda: self.browser.page.locator(sel.RESUME_RADIOS).count(), timeout=15
+            )
+        except Timeout:
+            raise self.browser.fail(FlowError("JobStreet's resume list did not load.")) from None
+
+    def _resume_values(self) -> list[tuple[str, object]]:
+        """The profile's documents as (JobStreet's id for it, radio), newest first."""
+        found = []
+        for radio in self.browser.page.locator(sel.RESUME_RADIOS).all():
+            value = radio.get_attribute("value")
+            if value and value != sel.RESUME_NONE_VALUE:
+                found.append((value, radio))
+        return found
+
+    def _choose_value(self, document: str) -> None:
+        for value, radio in self._resume_values():
+            if value == document:
+                radio.check(force=True)  # type: ignore[attr-defined]
+                return
+        raise self.browser.fail(FlowError(f"Resume {document} left the profile mid-step."))
+
     def _resume_radios(self) -> list[tuple[str, object]]:
         """The resumes on the profile, as (file name, radio), leaving out "don't include"."""
         page = self.browser.page
@@ -397,14 +471,17 @@ class JobStreet:
                 found.append((name, radio))
         return found
 
-    def _choose_resume(self, wanted: str, *, exact: bool = False) -> bool:
-        """Checks the profile's resume named ``wanted`` (or containing it). False if none is."""
+    def _choose_resume(self, wanted: str, *, exact: bool = False) -> str | None:
+        """Checks the newest resume named ``wanted`` (or containing it) and returns its id.
+
+        None if the profile has none by that name.
+        """
         folded = wanted.casefold()
         for name, radio in self._resume_radios():
             if name.casefold() == folded or (not exact and folded in name.casefold()):
                 radio.check(force=True)  # type: ignore[attr-defined]
-                return True
-        return False
+                return radio.get_attribute("value") or name  # type: ignore[attr-defined]
+        return None
 
     def _read_questions(self) -> list[FieldHandle]:
         """Every question on the current step. Reads the page and changes nothing on it.
@@ -562,3 +639,20 @@ def _flag(source: str, job_id: str, flag: str) -> bool:
     """Returns whether a source url match filter parameters."""
     found = sel.posting_flag(job_id, flag).search(source)
     return bool(found and found.group(1) == "true")
+
+
+def _read_record(record: Path | None) -> dict[str, dict[str, str]]:
+    if record is None or not record.is_file():
+        return {}
+    try:
+        notes = json.loads(record.read_text())
+    except (OSError, ValueError):
+        return {}
+    return notes if isinstance(notes, dict) else {}
+
+
+def _write_record(record: Path | None, notes: dict[str, dict[str, str]]) -> None:
+    if record is None:
+        return
+    record.parent.mkdir(parents=True, exist_ok=True)
+    record.write_text(json.dumps(notes, indent=2) + "\n")

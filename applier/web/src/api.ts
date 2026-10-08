@@ -70,6 +70,7 @@ export const api = {
   approve: (key: string) => post<Job>(`${at(key)}/approve`),
   skip: (key: string) => post<Job>(`${at(key)}/skip`),
   submitted: (key: string) => post<Job>(`${at(key)}/submitted`),
+  takeBack: (key: string) => request<Job>(`${at(key)}/submitted`, { method: "DELETE" }),
   retry: (key: string) => post<Job>(`${at(key)}/retry`),
 
   review: (key: string, decision: ReviewDecision) => post<{ ok: boolean }>(`${at(key)}/review`, decision),

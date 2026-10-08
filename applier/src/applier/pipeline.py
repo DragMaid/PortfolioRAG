@@ -110,7 +110,7 @@ class ApplyPipeline:
         self.ledger = ledger
         self.log = log
         self.sleep = sleep
-        self.packet_resume = config.candidate.to_resume()
+        self.packet_resume = config.candidate.to_resume(config.resume_record)
 
         self._assessed = 0
         self._applied = 0
