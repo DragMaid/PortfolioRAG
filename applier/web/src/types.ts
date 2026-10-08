@@ -91,6 +91,8 @@ export interface Job {
   /** The board links out to the employer's own site. */
   external: boolean;
   historic: boolean;
+  /** Applied to by you, not by the applier — and so yours to take back. */
+  byHand: boolean;
   foundAt: number;
   updatedAt: number;
   stages: Stage[];
@@ -313,6 +315,7 @@ export interface HistoryEntry {
   hasLetter: boolean;
   updatedAt: string;
   appliedAt: string | null;
+  byHand: boolean;
 }
 
 export interface QuestionDigest {

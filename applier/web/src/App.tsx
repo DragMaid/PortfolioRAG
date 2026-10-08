@@ -257,7 +257,11 @@ export function App() {
                   for (const job of jobs) void act(job, "apply to it", () => api.approve(job.key));
                 }}
                 onSkip={(job) => void act(job, "skip it", () => api.skip(job.key))}
-                onSubmitted={(job) => void act(job, "record it as sent", () => api.submitted(job.key))}
+                onApplied={(job, applied) =>
+                  void act(job, applied ? "record it as applied" : "take it back", () =>
+                    applied ? api.submitted(job.key) : api.takeBack(job.key),
+                  )
+                }
                 onRetry={(job) => void act(job, "retry it", () => api.retry(job.key))}
               />
 

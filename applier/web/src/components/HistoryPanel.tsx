@@ -2,6 +2,9 @@
  * The ledger, which is the real record: every posting this machine has ever looked at, and
  * what became of it, across every run.
  *
+ * Each row's tick is whether you applied to it, the same as on the run's table: anything the
+ * ledger holds can be ticked once you have sent it yourself, and taken back if you had not.
+ *
  * Beside it, the question digest — the employer questions no fact of yours answered, most
  * asked first. It is the most useful list here: one fact added for the question at the top
  * unblocks every application that was skipped for it.
@@ -21,6 +24,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 
 import { api } from "../api";
@@ -29,6 +33,8 @@ import type { HistoryEntry, QuestionDigest } from "../types";
 import { FitBadge } from "./FitBadge";
 import { StateBadge } from "./StateBadge";
 import type { JobState } from "../types";
+import { markVisited, useVisited } from "../visited";
+import { AppliedBox } from "./AppliedBox";
 
 const SORT_KEYS = {
   title: (entry: HistoryEntry) => (entry.title || entry.key).toLowerCase(),
@@ -46,6 +52,8 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const visited = useVisited();
   const [sort, setSort] = useRemembered<DataTableSortStatus<HistoryEntry>>("history.sort", {
     columnAccessor: "updatedAt",
     direction: "desc",
@@ -69,6 +77,22 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const setApplied = async (entry: HistoryEntry, applied: boolean) => {
+    setBusy(entry.key);
+    try {
+      await (applied ? api.submitted(entry.key) : api.takeBack(entry.key));
+      await load();
+    } catch (cause) {
+      notifications.show({
+        color: "red",
+        title: applied ? "Could not record it as applied" : "Could not take it back",
+        message: String((cause as Error).message ?? cause),
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const wanted = search.trim().toLowerCase();
   const matching = wanted
@@ -169,12 +193,33 @@ export function HistoryPanel({ onAddFact }: { onAddFact: () => void }) {
           onSortStatusChange={setSort}
           columns={[
             {
+              accessor: "applied",
+              title: "",
+              width: 36,
+              render: (entry) => (
+                <AppliedBox
+                  state={entry.status}
+                  byHand={entry.byHand}
+                  busy={busy === entry.key}
+                  onChange={(applied) => void setApplied(entry, applied)}
+                />
+              ),
+            },
+            {
               accessor: "title",
               title: "Posting",
               sortable: true,
               render: (entry) => (
                 <div>
-                  <Anchor href={entry.url} target="_blank" rel="noreferrer" size="sm">
+                  <Anchor
+                    href={entry.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    size="sm"
+                    c={visited.has(entry.key) ? "grape.7" : undefined}
+                    title={visited.has(entry.key) ? "Opened from here before" : undefined}
+                    onClick={() => markVisited(entry.key)}
+                  >
                     {entry.title || entry.key}
                   </Anchor>
                   <Text size="xs" c="dimmed">
