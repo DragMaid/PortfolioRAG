@@ -177,6 +177,7 @@ export function App() {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} size="sm" aria-label="Toggle the controls" />
+            <img src="/logo.svg" alt="" width={24} height={24} style={{ display: "block" }} />
             <Title order={4}>applier</Title>
             <Text size="xs" c="dimmed">
               {describe.candidate.name} · {describe.model.provider === "web" ? describe.model.site : describe.model.provider}
