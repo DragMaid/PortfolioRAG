@@ -21,6 +21,7 @@ from .pipeline import (
     JobFitOutcome,
     JobFitPipeline,
     JobFitRequest,
+    NoRequirementsError,
     OutputCallback,
     PipelineError,
     StageCallback,
@@ -60,7 +61,7 @@ class CoverLetterPipeline(JobFitPipeline):
         output("extract", analysis.model_dump(mode="json"))
 
         if not analysis.requirements:
-            raise PipelineError(
+            raise NoRequirementsError(
                 "No requirements could be read out of that posting. Paste the requirements "
                 "and responsibilities rather than the company description."
             )

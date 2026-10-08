@@ -58,6 +58,10 @@ class PipelineError(RuntimeError):
     """The analysis could not be produced. The message reaches the reader."""
 
 
+class NoRequirementsError(PipelineError):
+    """The posting states nothing to measure against. Asking again would find nothing more."""
+
+
 @dataclass(slots=True)
 class JobFitRequest:
     # The posting alone. The role and company are read out of it at extraction, so a caller
@@ -130,7 +134,7 @@ class JobFitPipeline:
         output("extract", analysis.model_dump(mode="json"))
 
         if not analysis.requirements:
-            raise PipelineError(
+            raise NoRequirementsError(
                 "No requirements could be read out of that posting. Paste the requirements "
                 "and responsibilities rather than the company description."
             )
