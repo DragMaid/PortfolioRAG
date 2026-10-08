@@ -20,7 +20,8 @@ import pytest
 from applier.assessment import Fit
 from applier.config import load
 from applier.controller import JobState, Session
-from applier.controller.state import DONE
+from applier.controller.session import ControllerError
+from applier.controller.state import DONE, Job
 from applier.forms import FieldHandle
 from applier.ledger import TERMINAL, Ledger, Status
 from applier.models import ApplyMethod, FormField, Listing, Posting, Probe, Submission
@@ -404,6 +405,55 @@ def test_i_sent_it_settles_a_manual_posting(make_session):
 
     assert state_at(session, "fake:0") == "applied"
     assert session.ledger.get("fake:0").status is Status.APPLIED
+
+
+def test_any_posting_can_be_recorded_as_applied_by_hand_and_taken_back(make_session):
+    session, _, _ = make_session(1, autoPick=True, minScore=95)
+    session.start()
+    wait_for(lambda: state_at(session, "fake:0") == "unfit", "it should not fit")
+
+    job = session.mark_submitted("fake:0")
+    assert job["state"] == "applied" and job["byHand"] is True
+    assert session.ledger.get("fake:0").by_hand
+
+    job = session.take_back("fake:0")
+    assert job["state"] == "unfit" and job["byHand"] is False
+    assert session.ledger.get("fake:0").status is Status.UNFIT
+
+
+def test_one_never_assessed_goes_back_to_pending_when_taken_back(make_session):
+    session, _, _ = make_session(2, autoPick=True, maxAssessments=1)
+    session.start()
+    wait_for(lambda: session.status()["running"] is False, "the run should end")
+    held = next(job for job in session.jobs() if job["state"] == "pending")
+
+    session.mark_submitted(held["key"])
+    assert session.ledger.get(held["key"]).by_hand_from == ""
+
+    job = session.take_back(held["key"])
+    assert job["state"] == "pending" and job["byHand"] is False
+
+
+def test_a_posting_being_applied_to_cannot_be_recorded_by_hand(make_session):
+    session, _, _ = make_session(1)
+    with session._lock:
+        job = session._jobs.setdefault(
+            "fake:0", Job(key="fake:0", board="fake", url="u", title="t")
+        )
+        job.state = JobState.APPLYING
+    with pytest.raises(ControllerError, match="right now"):
+        session.mark_submitted("fake:0")
+
+
+def test_a_ledger_row_this_session_never_loaded_can_be_recorded_by_hand(make_session, tmp_path):
+    ledger = Ledger(tmp_path / "state" / "ledger.sqlite")
+    ledger.record(listings(1)[0], Status.ERROR, reason="the form broke")
+    ledger.close()
+
+    session, _, _ = make_session(0)
+    assert session.mark_submitted("fake:0")["byHand"] is True
+    assert session.ledger.get("fake:0").status is Status.APPLIED
+    assert session.take_back("fake:0")["state"] == "error"
 
 
 def test_the_manual_queue_comes_back_after_a_restart(make_session):

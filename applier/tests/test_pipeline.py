@@ -291,3 +291,27 @@ def test_ignore_fit_applies_regardless(tmp_path):
 
     outcome = pipeline.process(board, listing("1", "Engineer"), RunOptions(ignore_fit=True))
     assert outcome.status == Status.APPLIED
+
+
+def test_a_posting_with_no_requirements_is_unavailable_not_an_error():
+    """Nothing to measure is a property of the posting: retrying it would only fail again."""
+    from rag.pipeline import NoRequirementsError
+
+    from applier.assessment import Assessor, NothingToAssessError
+    from applier.controller.session import _state_for
+    from applier.controller.state import JobState
+    from applier.pipeline import _status_for
+
+    class Calls:
+        def call(self, run):
+            return run()
+
+    def refuse():
+        raise NoRequirementsError("No requirements could be read out of that posting.")
+
+    assessor = Assessor(Calls(), api="http://localhost:1")  # type: ignore[arg-type]
+    with pytest.raises(NothingToAssessError) as caught:
+        assessor._guarded(refuse)
+
+    assert _state_for(caught.value) is JobState.UNAVAILABLE
+    assert _status_for(caught.value) is Status.UNAVAILABLE
