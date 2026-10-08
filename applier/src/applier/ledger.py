@@ -92,7 +92,16 @@ CREATE INDEX IF NOT EXISTS postings_status ON postings (status);
 """
 
 # Columns added after the first release, for ledgers written before them.
-_ADDED = {"apply_url": "TEXT"}
+#
+# ``by_hand_from`` is set on an application you made yourself: the status the posting had
+# before you said so ("" when it was not on record), so that taking it back restores it.
+_ADDED = {"apply_url": "TEXT", "by_hand_from": "TEXT"}
+
+# What *I sent it* wrote before ``by_hand_from`` existed; those rows are filled in once.
+_BACKFILL = {
+    "by_hand_from": "UPDATE postings SET by_hand_from = 'manual' "
+    "WHERE status = 'applied' AND reason = 'you submitted it'",
+}
 
 
 @dataclass(slots=True)
@@ -114,6 +123,12 @@ class Entry:
     board: str
     updated_at: str
     applied_at: str | None
+    # See ``_ADDED``. None for everything the applier itself decided.
+    by_hand_from: str | None = None
+
+    @property
+    def by_hand(self) -> bool:
+        return self.status == Status.APPLIED and self.by_hand_from is not None
 
 
 class Ledger:
@@ -138,6 +153,8 @@ class Ledger:
             for column, kind in _ADDED.items():
                 if column not in have:
                     self._db.execute(f"ALTER TABLE postings ADD COLUMN {column} {kind}")
+                    if backfill := _BACKFILL.get(column):
+                        self._db.execute(backfill)
 
     def close(self) -> None:
         with self._lock:
@@ -254,6 +271,39 @@ class Ledger:
                 },
             )
 
+    def note_by_hand(self, key: str, before: Status | None) -> None:
+        """Marks an applied posting as applied by you, remembering what it was ``before``."""
+        with self._lock, self._db:
+            self._db.execute(
+                "UPDATE postings SET by_hand_from = ? WHERE key = ?",
+                (before.value if before else "", key),
+            )
+
+    def take_back(self, key: str) -> Status | None:
+        """Undoes an application you recorded yourself. Returns the status it went back to.
+
+        A posting that was not on record before is forgotten again, and None is returned.
+        """
+        entry = self.get(key)
+        if entry is None or not entry.by_hand:
+            raise ValueError(f"{key} was not recorded as applied by hand.")
+        before = Status(entry.by_hand_from) if entry.by_hand_from else None
+        now = datetime.now(UTC).isoformat(timespec="seconds")
+        with self._lock, self._db:
+            if before is None:
+                self._db.execute("DELETE FROM postings WHERE key = ?", (key,))
+            else:
+                self._db.execute(
+                    """
+                    UPDATE postings
+                       SET status = ?, reason = ?, by_hand_from = NULL, applied_at = NULL,
+                           updated_at = ?
+                     WHERE key = ?
+                    """,
+                    (before.value, "you took back that you applied", now, key),
+                )
+        return before
+
     def cached_report(self, key: str) -> dict[str, Any] | None:
         """An assessment already paid for. Reused when a posting comes back for a retry."""
         entry = self.get(key)
@@ -333,6 +383,7 @@ def _entry(row: sqlite3.Row) -> Entry:
         board=row["board"],
         updated_at=row["updated_at"],
         applied_at=row["applied_at"],
+        by_hand_from=row["by_hand_from"],
     )
 
 

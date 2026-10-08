@@ -138,7 +138,7 @@ class Session:
         )
         self.memory = AnswerMemory(config.state_dir / "ledger.sqlite")
         self.remembering = MemoryAnswerer(self.answerer, self.memory, log=self.log)
-        self.packet_resume = config.candidate.to_resume()
+        self.packet_resume = config.candidate.to_resume(config.resume_record)
 
         self._lock = threading.RLock()
         self._jobs: dict[str, Job] = {}
@@ -395,7 +395,7 @@ class Session:
                     setattr(self.config, name, getattr(reloaded, name))
             self.answerer.facts = self.config.candidate.all_facts()
             self.answerer.notes = self.config.candidate.answer_notes
-            self.packet_resume = self.config.candidate.to_resume()
+            self.packet_resume = self.config.candidate.to_resume(self.config.resume_record)
 
         self.log("The config was replaced from the editor.")
         self._announce_settings()
@@ -544,7 +544,7 @@ class Session:
         self.config.candidate.resume.select = select
         self.config.candidate.resume.upload = Path(upload).expanduser() if upload else None
         self.config.written_paths.pop("resume", None)
-        self.packet_resume = self.config.candidate.to_resume()
+        self.packet_resume = self.config.candidate.to_resume(self.config.resume_record)
 
     # --- setting up ----------------------------------------------------------
 
@@ -1061,30 +1061,70 @@ class Session:
         return job.as_dict()
 
     def mark_submitted(self, key: str) -> dict[str, Any]:
-        """*I sent it.* Records an application made by hand, from the page or the extension.
+        """*I applied.* Records an application made by hand, from the page or the extension.
 
-        A posting in the manual queue from an earlier session that this one never loaded is
-        settled in the ledger directly: the extension can be pointed at any of them.
+        Any posting can be, whatever the run made of it — unfit, skipped, failed, never
+        assessed — since where you apply is yours to decide. Only one a lane is filling in
+        right now cannot: that application is already being made. A posting this session
+        never loaded is settled in the ledger directly; the history lists all of them.
         """
         with self._lock:
             job = self._jobs.get(key)
 
         if job is None:
             entry = self.ledger.get(key)
-            if entry is None or entry.status not in (Status.MANUAL, Status.AWAITING_HUMAN):
-                raise ControllerError(f"{key} is not waiting on you.")
-            self.ledger.settle(key, Status.APPLIED, reason="you submitted it")
-            self.log(f"APPLIED (by hand): {entry.title or key}")
-            return {"key": key, "state": JobState.APPLIED.value}
 
-        if job.state != JobState.MANUAL:
-            raise ControllerError(f"{job.title or key} is not waiting on you.")
+            if entry is None:
+                raise ControllerError(f"Nothing on record for {key}.")
+
+            if entry.status == Status.APPLIED:
+                raise ControllerError(f"{entry.title or key} is already recorded as applied.")
+
+            self.ledger.settle(key, Status.APPLIED, reason=_BY_HAND)
+            self.ledger.note_by_hand(key, entry.status)
+            self.log(f"APPLIED (by hand): {entry.title or key}")
+            return {"key": key, "state": JobState.APPLIED.value, "byHand": True}
+
+        if job.state in _BEING_SENT:
+            raise ControllerError(f"{job.title or key} is being applied to right now.")
+
+        if job.state == JobState.APPLIED:
+            raise ControllerError(f"{job.title or key} is already recorded as applied.")
 
         with self._lock:
-            self._enter(job, JobState.APPLIED, "you submitted it")
+            before = settled_as(job.state)
+            if job.state == JobState.FOUND or (before == Status.PENDING and job.report is None):
+                before = None  # never assessed: nothing worth restoring but the listing
+            self._enter(job, JobState.APPLIED, _BY_HAND)
             self._settle(job)
+            self.ledger.note_by_hand(key, before)
+            job.by_hand = True
         self._publish(job)
+        self._drain_queued()
         self.log(f"APPLIED (by hand): {job.title or job.key}")
+        return job.as_dict()
+
+    def take_back(self, key: str) -> dict[str, Any]:
+        """Undoes *I applied*, putting the posting back where it was. Only for those you
+        recorded yourself: one the applier sent has been sent, whatever is ticked here."""
+        try:
+            before = self.ledger.take_back(key)
+        except ValueError:
+            raise ControllerError(
+                "Only an application you recorded yourself can be taken back."
+            ) from None
+
+        with self._lock:
+            job = self._jobs.get(key)
+            if job is None:
+                return {"key": key, "state": before.value if before else None, "byHand": False}
+            job.by_hand = False
+            self._enter(job, state_of(before) if before else JobState.PENDING, _TAKEN_BACK)
+            if before is None:
+                # Back to a row nobody has assessed, as a stopped run leaves one.
+                self._settle(job)
+        self._publish(job)
+        self.log(f"Taken back (not applied): {job.title or job.key}")
         return job.as_dict()
 
     def decide_review(self, key: str, decision: dict[str, Any]) -> dict[str, Any]:
@@ -1392,6 +1432,7 @@ class Session:
                 entry = self.ledger.get(listing.key)
                 if entry is not None:
                     job.verdict, job.score = entry.verdict, entry.score  # type: ignore[assignment]
+                    job.by_hand = entry.by_hand
                 self._jobs[listing.key] = job
                 self._publish(job)
                 return None
@@ -2077,6 +2118,7 @@ class Session:
                     answers=entry.answers,
                     questions=entry.questions,
                     apply_url=entry.apply_url or entry.url,
+                    by_hand=entry.by_hand,
                 )
                 self._jobs[entry.key] = job
 
@@ -2104,6 +2146,10 @@ class Session:
         self.ledger.close()
         self.bus.close()
 
+
+_BY_HAND = "you applied to it yourself"
+_TAKEN_BACK = "you took back that you applied"
+_BEING_SENT = {JobState.WRITING, JobState.APPLYING, JobState.REVIEWING, JobState.UNCONFIRMED}
 
 # Moving on its own: while any posting is in one of these, the run is not over.
 _IN_FLIGHT = {

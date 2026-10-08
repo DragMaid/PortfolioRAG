@@ -148,6 +148,10 @@ def _controller_routes(app: FastAPI, session: Session) -> None:
     def submitted(key: str) -> dict[str, Any]:
         return guarded(lambda: session.mark_submitted(key))
 
+    @app.delete("/api/jobs/{key:path}/submitted")
+    def take_back(key: str) -> dict[str, Any]:
+        return guarded(lambda: session.take_back(key))
+
     @app.post("/api/jobs/{key:path}/retry", status_code=202)
     def retry(key: str) -> dict[str, Any]:
         return guarded(lambda: session.retry(key))
@@ -316,6 +320,7 @@ def _ledger_routes(app: FastAPI, session: Session) -> None:
                     "hasLetter": bool(entry.letter),
                     "updatedAt": entry.updated_at,
                     "appliedAt": entry.applied_at,
+                    "byHand": entry.by_hand,
                 }
                 for entry in entries
             ],

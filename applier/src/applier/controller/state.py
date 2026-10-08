@@ -140,6 +140,8 @@ class Job:
     external: bool = False
     # From the ledger rather than this run: shown greyed, never acted on.
     historic: bool = False
+    # Applied to by you rather than by the applier: yours to take back.
+    by_hand: bool = False
 
     found_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -174,6 +176,7 @@ class Job:
             "applyUrl": self.apply_url,
             "external": self.external,
             "historic": self.historic,
+            "byHand": self.by_hand,
             "foundAt": self.found_at,
             "updatedAt": self.updated_at,
             "stages": [
