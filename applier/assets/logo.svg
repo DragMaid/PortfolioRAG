@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="applier">
+  <title>applier</title>
+  <!-- A form, its last line a box the run ticks. Square and flat, like the portfolio's tiles. -->
+  <rect width="128" height="128" fill="#0f1726"/>
+  <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M36 22H80L94 36V106H36Z" stroke="#c7d2e3" stroke-width="6"/>
+    <path d="M80 22V36H94" stroke="#c7d2e3" stroke-width="6"/>
+    <path d="M48 50H80M48 64H70" stroke="#7d8ba3" stroke-width="6"/>
+    <rect x="48" y="78" width="16" height="16" stroke="#7d8ba3" stroke-width="5"/>
+    <path d="M51 85L57 91L76 70" stroke="#748ffc" stroke-width="7"/>
+  </g>
+</svg>
