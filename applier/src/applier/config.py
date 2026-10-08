@@ -255,9 +255,9 @@ class CandidateConfig(BaseModel):
         ),
     )
 
-    def to_resume(self) -> Resume:
+    def to_resume(self, record: Path | None = None) -> Resume:
         upload = self.resume.upload.expanduser().resolve() if self.resume.upload else None
-        return Resume(select=self.resume.select, upload=upload)
+        return Resume(select=self.resume.select, upload=upload, record=record)
 
     def all_facts(self) -> dict[str, str]:
         facts = {"Full name": self.name} if self.name else {}
@@ -298,6 +298,11 @@ class Config(BaseModel):
     # the way in. These remember what the file actually said, so that saving writes back the
     # `.applier` you wrote and not this machine's copy of where that landed.
     written_paths: dict[str, str] = Field(default_factory=dict, exclude=True)
+
+    @property
+    def resume_record(self) -> Path:
+        """Which document on each board is the uploaded resume. See ``Resume.record``."""
+        return self.state_dir / "resumes" / "uploaded.json"
 
     def enabled_searches(self) -> list[tuple[int, SearchConfig]]:
         return [(index, s) for index, s in enumerate(self.searches) if s.enabled]

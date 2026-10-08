@@ -21,6 +21,7 @@ CARD_LOCATION = "[data-automation='jobLocation']"
 DETAIL_TITLE = "[data-automation='job-detail-title']"
 DETAIL_COMPANY = "[data-automation='advertiser-name']"
 DETAIL_BODY = "[data-automation='jobAdDetails']"
+NOT_FOUND_TITLE = re.compile(r"\b404\b|page not found", re.I)
 DETAIL_APPLY = "[data-automation='job-detail-apply']"
 SIGN_IN_LINK = "[data-automation='sign in']"
 
@@ -61,7 +62,7 @@ LOGIN_URL = re.compile(r"/oauth/|/login|login\.seek|/sign-?in", re.I)
 # profile are a radio list labelled by file name, beside "Don't include a resumé", and
 # *Upload* opens a hidden file input.
 STEPPER_CURRENT = "[aria-current='step']"
-RESUME_RADIOS = "input[type=radio][name='document-select']"
+RESUME_RADIOS = "input[type=radio][name^='document-select']"
 RESUME_NONE_VALUE = "dont-include"
 RESUME_FILE_INPUT = "[data-testid='resumeFileInput'] input[type=file], input#resume-fileFile"
 COVER_WRITE = re.compile(r"write a cover letter", re.I)

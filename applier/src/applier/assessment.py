@@ -13,14 +13,18 @@ from typing import Any
 
 from rag.cover_letter import CoverLetterRequest
 from rag.local.api import ApiError, ApiRetriever, PortfolioApi
-from rag.pipeline import JobFitRequest, PipelineError
+from rag.pipeline import JobFitRequest, NoRequirementsError, PipelineError
 
-from .errors import ApplierError
+from .errors import ApplierError, NotApplicableError
 from .llm import Llm
 
 
 class AssessmentError(ApplierError):
     """The analysis or the letter could not be produced. Retried next run."""
+
+
+class NothingToAssessError(NotApplicableError, AssessmentError):
+    """The posting lists no requirements: there is nothing to measure, now or on a retry."""
 
 
 class PortfolioUnavailableError(AssessmentError):
@@ -116,6 +120,8 @@ class Assessor:
             if error.status in (400, 422):
                 raise AssessmentError(str(error)) from error
             raise PortfolioUnavailableError(str(error)) from error
+        except NoRequirementsError as error:
+            raise NothingToAssessError(str(error)) from error
         except PipelineError as error:
             raise AssessmentError(str(error)) from error
 
